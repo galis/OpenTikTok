@@ -1,6 +1,5 @@
 package com.galix.opentiktok.util;
 
-import android.app.usage.UsageStats;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Handler;
@@ -22,10 +21,11 @@ import java.util.concurrent.TimeUnit;
 public class VideoUtil {
     private static ThreadPoolExecutor mThreadPool;
     private static int GOP = 10;//关键帧序列，用于快速seek
+    public static String mTargetPath;
 
     static {
         mThreadPool = new ThreadPoolExecutor(2, 2,
-                -1, TimeUnit.MILLISECONDS,
+                10, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<Runnable>(10));
     }
 

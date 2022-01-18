@@ -16,12 +16,18 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.galix.opentiktok.util.VideoUtil;
+
 import java.io.File;
 import java.util.ArrayList;
 
 
 /**
  * 资源筛选Activity
+ * 固定从/sdcard开始搜索
+ *
+ * @Author:Galis
+ * @Date:2022.01.16
  */
 public class ResourceChooseActivity extends AppCompatActivity {
 
@@ -31,7 +37,7 @@ public class ResourceChooseActivity extends AppCompatActivity {
     private ArrayList<FileEntry> mFileCache;
     private RecyclerView mRecyclerView;
 
-    private class ImageViewHolder extends RecyclerView.ViewHolder {
+    private static class ImageViewHolder extends RecyclerView.ViewHolder {
 
         public ImageView imageView;
         public TextView textView;
@@ -41,7 +47,7 @@ public class ResourceChooseActivity extends AppCompatActivity {
         }
     }
 
-    private class FileEntry {
+    private static class FileEntry {
         public String path;
         public long duration;
         public int width;
@@ -74,11 +80,13 @@ public class ResourceChooseActivity extends AppCompatActivity {
                 imageViewHolder.imageView.setImageBitmap(mFileCache.get(position).thumb);
                 FileEntry fileEntry = mFileCache.get(position);
                 imageViewHolder.textView.setText(
-                        "width:" + fileEntry.width + "\n" +
-                                "height:" + fileEntry.height + "\n" +
-                                "duration:" + fileEntry.duration + "s");
+                        String.format("width:%d\nheight:%d\nduration:%ds",
+                                fileEntry.width, fileEntry.height, fileEntry.duration));
                 imageViewHolder.itemView.setOnClickListener(v -> {
-
+                    //跳转前先处理资源
+                    VideoUtil.mTargetPath = fileEntry.path;
+                    VideoEditActivity.start(ResourceChooseActivity.this);
+                    finish();
                 });
             }
 
@@ -88,6 +96,8 @@ public class ResourceChooseActivity extends AppCompatActivity {
             }
 
         });
+
+        //创建线程开始加载
         mLoadThread = new HandlerThread("LoadResource");
         mLoadThread.start();
         mLoadHandler = new Handler(mLoadThread.getLooper());
@@ -111,18 +121,20 @@ public class ResourceChooseActivity extends AppCompatActivity {
                     fileEntry.thumb = mediaMetadataRetriever.getFrameAtIndex(0);
                     fileEntry.width = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
                     fileEntry.height = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+                    fileEntry.path = mp4.getAbsolutePath();
                     mFileCache.add(fileEntry);
+                    getWindow().getDecorView().post(new Runnable() {
+                        @Override
+                        public void run() {
+                            mRecyclerView.getAdapter().notifyDataSetChanged();
+                        }
+                    });
                 }
                 mediaMetadataRetriever.release();
             }
             long now2 = System.currentTimeMillis();
             Log.d(TAG, "Filter mp4 on /sdcard : Use#" + (now2 - now1));
-            getWindow().getDecorView().post(new Runnable() {
-                @Override
-                public void run() {
-                    mRecyclerView.getAdapter().notifyDataSetChanged();
-                }
-            });
+
         });
     }
 

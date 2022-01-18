@@ -1,6 +1,8 @@
 package com.galix.opentiktok;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
@@ -14,13 +16,18 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
+import com.galix.opentiktok.util.VideoUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,7 +46,6 @@ import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
 public class VideoEditActivity extends AppCompatActivity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
-    private static final String PATH = "/sdcard/demo2.mp4";
     private static final int REQUEST_CODE = 1;
 
     private GLSurfaceView mSurfaceView;
@@ -48,8 +54,21 @@ public class VideoEditActivity extends AppCompatActivity {
     private HandlerThread mHandlerThread;
     private Handler mHandler;
     private ARContext mARContext;
+    private TextView mTimeInfo;
+    private ImageView mPlayBtn;
+    private ImageView mFullScreenBtn;
 
-    class VideoState {
+    public static void start(Context ctx) {
+        Intent intent = new Intent(ctx, VideoEditActivity.class);
+        ctx.startActivity(intent);
+    }
+
+    private class VideoState {
+        public static final int INIT = -1;
+        public static final int PLAY = 0;
+        public static final int PAUSE = 1;
+        public static final int DESTROY = 2;
+
         public boolean isSeek = false;
         public boolean isSeekDone = true;
         public boolean isInputEOF = false;
@@ -57,6 +76,7 @@ public class VideoEditActivity extends AppCompatActivity {
         public boolean isExit = false;
         public long position = -1;
         public long duration = -1;
+        public int status = INIT;
 
         //纹理
         public int surfaceTextureId;
@@ -95,6 +115,20 @@ public class VideoEditActivity extends AppCompatActivity {
             }
         });
         mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        mTimeInfo = findViewById(R.id.text_duration);
+        mPlayBtn = findViewById(R.id.image_play);
+        mPlayBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mVideoState.status == VideoState.PLAY) {
+                    mVideoState.status = VideoState.PAUSE;
+                } else {
+                    mVideoState.status = VideoState.PLAY;
+                }
+                freshUI();
+            }
+        });
+        mFullScreenBtn = findViewById(R.id.image_fullscreen);
         checkPermission();
     }
 
@@ -121,9 +155,8 @@ public class VideoEditActivity extends AppCompatActivity {
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (mVideoState != null) {
-                    mVideoState.position = (int) (progress / 100.f * mVideoState.duration);
-                }
+                mVideoState.position = (long) (progress / 100.f * mVideoState.duration);
+                freshUI();
             }
 
             @Override
@@ -154,6 +187,20 @@ public class VideoEditActivity extends AppCompatActivity {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    //不同线程都可以刷新UI
+    private void freshUI() {
+        getWindow().getDecorView().post(() -> {
+            if (mVideoState != null) {
+                long durationInS = mVideoState.duration / 1000000;
+                long positionInS = mVideoState.position / 1000000;
+                mTimeInfo.setText(String.format("%02d:%02d / %02d:%02d",
+                        (int) (positionInS / 60 % 60), (int) (positionInS % 60),
+                        (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
+                mPlayBtn.setImageResource(mVideoState.status == VideoState.PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
+            }
+        });
     }
 
     private void checkPermission() {
@@ -189,7 +236,7 @@ public class VideoEditActivity extends AppCompatActivity {
             MediaExtractor mediaExtractor = new MediaExtractor();
             int videoTrackIndex = -1;
             try {
-                mediaExtractor.setDataSource(PATH);
+                mediaExtractor.setDataSource(VideoUtil.mTargetPath);
                 for (int i = 0; i < mediaExtractor.getTrackCount(); i++) {
                     if (mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME).contains("video")) {
                         videoTrackIndex = i;
@@ -209,7 +256,6 @@ public class VideoEditActivity extends AppCompatActivity {
                     mediaCodec.configure(videoFormat, mVideoState.surface, null, 0);
                     mediaCodec.start();
                     ByteBuffer sampleBuffer = ByteBuffer.allocate(videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
-                    int frameCount = 0;
                     mVideoState.duration = mediaExtractor.getTrackFormat(videoTrackIndex).getLong(MediaFormat.KEY_DURATION);
                     while (!mVideoState.isExit) {
                         if (!(mVideoState.isSeek || !mVideoState.isOutputEOF || !mVideoState.isInputEOF)) {
@@ -256,6 +302,9 @@ public class VideoEditActivity extends AppCompatActivity {
                                 }
                             }
                         } else {
+                            if (mVideoState.status != VideoState.PLAY) {
+                                continue;
+                            }
                             if (!mVideoState.isInputEOF) {
                                 int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
                                 if (inputBufIdx >= 0) {
@@ -281,9 +330,9 @@ public class VideoEditActivity extends AppCompatActivity {
                                         continue;
                                     }
                                     mediaCodec.releaseOutputBuffer(outputBufIdx, true);
+                                    mVideoState.position = bufferInfo.presentationTimeUs;
                                     mSurfaceView.requestRender();
-                                    Log.d(TAG, "frameIndex:" + frameCount);
-                                    frameCount++;
+                                    freshUI();
                                 } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
                                     Log.d(TAG, "INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
                                 } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
@@ -293,15 +342,14 @@ public class VideoEditActivity extends AppCompatActivity {
                                 }
                             }
                         }
-
                     }
                     mediaExtractor.release();
                     mediaCodec.release();
                     Log.d(TAG, "DONE!");
+                    freshUI();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                mediaExtractor = null;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

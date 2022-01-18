@@ -9,14 +9,66 @@
     <android.opengl.GLSurfaceView
         android:id="@+id/glsurface_preview"
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_marginTop="10dp" />
+        android:layout_height="300dp" />
+
+    <RelativeLayout
+        android:id="@+id/rl_video_info"
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:layout_below="@id/glsurface_preview"
+        android:background="@color/theme_orangeC9">
+
+        <TextView
+            android:id="@+id/text_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="10dp"
+            android:text="00:00"
+            android:textColor="@color/white" />
+
+        <ImageView
+            android:id="@+id/image_play"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:src="@drawable/icon_video_play" />
+
+        <ImageView
+            android:id="@+id/image_fullscreen"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:src="@drawable/icon_video_play" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/rl_video_drag"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_below="@id/rl_video_info"
+        android:background="@color/theme_orangeA9">
+
+        <ImageView
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true"
+            android:scaleType="fitXY"
+            android:src="@drawable/drawable_video_split" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </RelativeLayout>
 
     <SeekBar
         android:id="@+id/seekbar_drag"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_below="@id/glsurface_preview"
+        android:layout_below="@id/rl_video_drag"
         android:layout_marginTop="10dp"
         android:max="100"
         android:min="0" />
