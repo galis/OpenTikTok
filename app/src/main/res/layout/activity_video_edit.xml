@@ -6,10 +6,52 @@
     android:layout_height="match_parent"
     tools:context=".VideoEditActivity">
 
+    <!--顶部操作栏-->
+    <RelativeLayout
+        android:id="@+id/rl_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@color/theme_orangeC9">
+
+        <ImageView
+            android:id="@+id/image_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:src="@drawable/icon_video_play" />
+
+
+        <TextView
+            android:id="@+id/tv_video_export"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="20dp"
+            android:background="@color/theme_orangeA9"
+            android:padding="10dp"
+            android:text="@string/video_export"
+            android:textColor="@color/white" />
+
+        <TextView
+            android:id="@+id/tv_video_config"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="20dp"
+            android:layout_toStartOf="@id/tv_video_export"
+            android:background="@color/theme_orangeA9"
+            android:padding="10dp"
+            android:text="@string/video_1080p"
+            android:textColor="@color/white" />
+    </RelativeLayout>
+
+    <!--预览GlSurface-->
     <android.opengl.GLSurfaceView
         android:id="@+id/glsurface_preview"
         android:layout_width="match_parent"
-        android:layout_height="300dp" />
+        android:layout_height="300dp"
+        android:layout_below="@id/rl_navigation" />
 
     <RelativeLayout
         android:id="@+id/rl_video_info"
@@ -37,10 +79,13 @@
 
         <ImageView
             android:id="@+id/image_fullscreen"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
             android:layout_alignParentEnd="true"
-            android:src="@drawable/icon_video_play" />
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="10dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/icon_fullscreen" />
 
     </RelativeLayout>
 
@@ -72,5 +117,13 @@
         android:layout_marginTop="10dp"
         android:max="100"
         android:min="0" />
+
+    <!--底部操作栏-->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerview_tab_mode"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_alignParentBottom="true" />
+
 
 </RelativeLayout>

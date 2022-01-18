@@ -5,6 +5,7 @@ import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -85,8 +86,20 @@ public class ResourceChooseActivity extends AppCompatActivity {
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     //跳转前先处理资源
                     VideoUtil.mTargetPath = fileEntry.path;
-                    VideoEditActivity.start(ResourceChooseActivity.this);
-                    finish();
+                    ArrayList<File> files = new ArrayList<>();
+                    files.add(new File(mFileCache.get(position).path));
+                    VideoUtil.processVideo(ResourceChooseActivity.this, files, new Handler.Callback() {
+                        @Override
+                        public boolean handleMessage(@NonNull Message msg) {
+                            if (msg != null) {
+                                VideoEditActivity.start(ResourceChooseActivity.this);
+                                finish();
+                            } else {
+
+                            }
+                            return true;
+                        }
+                    });
                 });
             }
 

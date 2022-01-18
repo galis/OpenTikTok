@@ -1,6 +1,7 @@
 package com.galix.opentiktok;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -17,15 +18,17 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.galix.opentiktok.util.VideoUtil;
 
@@ -36,6 +39,7 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
+import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
 
 /**
  * 视频编辑界面
@@ -43,12 +47,13 @@ import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
  * @Author Galis
  * @Date 2022.01.15
  */
-public class VideoEditActivity extends AppCompatActivity {
+public class VideoEditActivity extends Activity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
     private static final int REQUEST_CODE = 1;
 
     private GLSurfaceView mSurfaceView;
+    private RecyclerView mRecyclerView;
     private SeekBar mSeekBar;
     private VideoState mVideoState;
     private HandlerThread mHandlerThread;
@@ -58,12 +63,27 @@ public class VideoEditActivity extends AppCompatActivity {
     private ImageView mPlayBtn;
     private ImageView mFullScreenBtn;
 
+    //底部ICON info
+    private static final int[] TAB_INFO_LIST = {
+            R.drawable.icon_video_cut, R.string.tab_cut,
+            R.drawable.icon_adjust, R.string.tab_audio,
+            R.drawable.icon_adjust, R.string.tab_text,
+            R.drawable.icon_adjust, R.string.tab_sticker,
+            R.drawable.icon_adjust, R.string.tab_inner_picture,
+            R.drawable.icon_adjust, R.string.tab_magic,
+            R.drawable.icon_filter, R.string.tab_filter,
+            R.drawable.icon_adjust, R.string.tab_ratio,
+            R.drawable.icon_background, R.string.tab_background,
+            R.drawable.icon_adjust, R.string.tab_adjust
+    };
+
     public static void start(Context ctx) {
         Intent intent = new Intent(ctx, VideoEditActivity.class);
         ctx.startActivity(intent);
     }
 
-    private class VideoState {
+    //视频核心信息类
+    private static class VideoState {
         public static final int INIT = -1;
         public static final int PLAY = 0;
         public static final int PAUSE = 1;
@@ -82,6 +102,21 @@ public class VideoEditActivity extends AppCompatActivity {
         public int surfaceTextureId;
         public Surface surface;
         public SurfaceTexture surfaceTexture;
+    }
+
+    private class ImageViewHolder extends RecyclerView.ViewHolder {
+        public ImageView imageView;
+        public TextView textView;
+
+        public ImageViewHolder(@NonNull View itemView) {
+            super(itemView);
+        }
+
+    }
+
+    private class TabInfo {
+        public int thumb;
+        public String text;
     }
 
     // Used to load the 'native-lib' library on application startup.
@@ -129,6 +164,37 @@ public class VideoEditActivity extends AppCompatActivity {
             }
         });
         mFullScreenBtn = findViewById(R.id.image_fullscreen);
+        mRecyclerView = findViewById(R.id.recyclerview_tab_mode);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
+        mRecyclerView.setAdapter(new RecyclerView.Adapter() {
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                View layout = getLayoutInflater().inflate(R.layout.layout_tab_item, parent, false);
+                ImageViewHolder imageViewHolder = new ImageViewHolder(layout);
+                imageViewHolder.itemView.getLayoutParams().width = (int) (60 * getResources().getDisplayMetrics().density);
+                imageViewHolder.itemView.getLayoutParams().height = (int) (60 * getResources().getDisplayMetrics().density);
+                imageViewHolder.imageView = layout.findViewById(R.id.image_video_thumb);
+                imageViewHolder.textView = layout.findViewById(R.id.text_video_info);
+                return imageViewHolder;
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                ImageViewHolder imageViewHolder = (ImageViewHolder) holder;
+                imageViewHolder.imageView.setImageResource(TAB_INFO_LIST[2 * position]);
+                imageViewHolder.textView.setText(TAB_INFO_LIST[2 * position + 1]);
+                imageViewHolder.itemView.setOnClickListener(v -> {
+                    Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public int getItemCount() {
+                return TAB_INFO_LIST.length / 2;
+            }
+        });
+        mRecyclerView.getAdapter().notifyDataSetChanged();
         checkPermission();
     }
 
