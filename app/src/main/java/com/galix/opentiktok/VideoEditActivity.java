@@ -172,8 +172,8 @@ public class VideoEditActivity extends Activity {
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 View layout = getLayoutInflater().inflate(R.layout.layout_tab_item, parent, false);
                 ImageViewHolder imageViewHolder = new ImageViewHolder(layout);
-                imageViewHolder.itemView.getLayoutParams().width = (int) (60 * getResources().getDisplayMetrics().density);
-                imageViewHolder.itemView.getLayoutParams().height = (int) (60 * getResources().getDisplayMetrics().density);
+                imageViewHolder.itemView.getLayoutParams().width = (int) (80 * getResources().getDisplayMetrics().density);
+                imageViewHolder.itemView.getLayoutParams().height = (int) (80 * getResources().getDisplayMetrics().density);
                 imageViewHolder.imageView = layout.findViewById(R.id.image_video_thumb);
                 imageViewHolder.textView = layout.findViewById(R.id.text_video_info);
                 return imageViewHolder;
@@ -222,6 +222,7 @@ public class VideoEditActivity extends Activity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 mVideoState.position = (long) (progress / 100.f * mVideoState.duration);
+                Log.d(TAG, "mVideoState.position#" + mVideoState.position);
                 freshUI();
             }
 
@@ -329,7 +330,7 @@ public class VideoEditActivity extends Activity {
                             continue;
                         }
                         if (mVideoState.isSeek) {
-                            mediaExtractor.seekTo(mVideoState.position, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+                            mediaExtractor.seekTo(mVideoState.position, MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
                             mediaCodec.flush();
                             if (!mVideoState.isInputEOF) {
                                 int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
@@ -358,6 +359,7 @@ public class VideoEditActivity extends Activity {
                                     }
                                     mediaCodec.releaseOutputBuffer(outputBufIdx, true);
                                     mSurfaceView.requestRender();
+                                    Log.d(TAG, "isSeekDone");
                                     mVideoState.isSeekDone = true;
                                 } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
                                     Log.d(TAG, "INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);

@@ -35,4 +35,5 @@ target_link_libraries(
         opencv_java3
         GLESv3
         EGL
+        yuv
 )

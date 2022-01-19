@@ -19,9 +19,9 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/adm"
+        android:icon="@drawable/icon_app"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/adm"
+        android:roundIcon="@drawable/icon_app"
         android:supportsRtl="true"
         android:theme="@style/Theme.OpenTikTok">
         <activity android:name=".ResourceChooseActivity"></activity>

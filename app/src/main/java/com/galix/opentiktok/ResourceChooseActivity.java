@@ -51,6 +51,7 @@ public class ResourceChooseActivity extends AppCompatActivity {
     private static class FileEntry {
         public String path;
         public long duration;
+        public long frameRate;
         public int width;
         public int height;
         public Bitmap thumb;
@@ -81,22 +82,23 @@ public class ResourceChooseActivity extends AppCompatActivity {
                 imageViewHolder.imageView.setImageBitmap(mFileCache.get(position).thumb);
                 FileEntry fileEntry = mFileCache.get(position);
                 imageViewHolder.textView.setText(
-                        String.format("width:%d\nheight:%d\nduration:%ds",
-                                fileEntry.width, fileEntry.height, fileEntry.duration));
+                        String.format("width:%d\nheight:%d\nduration:%ds\npath:%s",
+                                fileEntry.width, fileEntry.height, fileEntry.duration, fileEntry.path));
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     //跳转前先处理资源
-                    VideoUtil.mTargetPath = fileEntry.path;
+                    VideoUtil.mTargetPath = "/data/data/com.galix.opentiktok/cache/output.mp4";
                     ArrayList<File> files = new ArrayList<>();
                     files.add(new File(mFileCache.get(position).path));
                     VideoUtil.processVideo(ResourceChooseActivity.this, files, new Handler.Callback() {
                         @Override
                         public boolean handleMessage(@NonNull Message msg) {
-                            if (msg != null) {
-                                VideoEditActivity.start(ResourceChooseActivity.this);
-                                finish();
-                            } else {
-
-                            }
+//                            if (msg != null) {
+//                                finish();
+//                            } else {
+//
+//                            }
+                            VideoEditActivity.start(ResourceChooseActivity.this);
+                            finish();
                             return true;
                         }
                     });
