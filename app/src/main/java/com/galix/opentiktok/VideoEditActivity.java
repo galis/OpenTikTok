@@ -9,6 +9,7 @@ import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.media.MediaSync;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -33,6 +34,7 @@ import com.galix.opentiktok.util.VideoUtil;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -102,7 +104,7 @@ public class VideoEditActivity extends Activity {
         public boolean isExit = false;
         public long position = -1;//当前视频位置 ms
         public long duration = -1;//视频总时长 ms
-        public long videoTime = -1;//视频播放时间戳
+        public long videoTime = Long.MIN_VALUE;//视频播放时间戳
         public long audioTime = -1;//音频播放时间戳
         public int status = INIT;//播放状态
 
@@ -206,7 +208,7 @@ public class VideoEditActivity extends Activity {
             public void onSurfaceCreated(GL10 gl, EGLConfig config) {
                 mARContext = new ARContext();
                 mARContext.create();
-                dumpMp4Thumb();
+                startVideoService();
             }
 
             @Override
@@ -371,8 +373,8 @@ public class VideoEditActivity extends Activity {
     }
 
     //视频处理部分
-    private void dumpMp4Thumb() {
-        mHandlerThread = new HandlerThread("dumpMp4");
+    private void startVideoService() {
+        mHandlerThread = new HandlerThread("VideoDaemon");
         mHandlerThread.start();
         int[] surface = new int[1];
         GLES30.glGenTextures(1, surface, 0);
@@ -483,7 +485,15 @@ public class VideoEditActivity extends Activity {
                                         mVideoState.isOutputEOF = true;
                                         continue;
                                     }
-                                    mediaCodec.releaseOutputBuffer(outputBufIdx, true);
+                                    //音视频同步逻辑
+                                    long now = System.nanoTime() / 1000;
+                                    long delta = bufferInfo.presentationTimeUs - (mVideoState.videoTime + now);
+                                    boolean needShown = mVideoState.videoTime == Long.MIN_VALUE || (delta > 0 && delta < 100000);
+                                    if (needShown && mVideoState.videoTime != Long.MIN_VALUE) {
+                                        Thread.sleep(delta / 1000, (int) (delta % 1000));
+                                    }
+                                    mediaCodec.releaseOutputBuffer(outputBufIdx, needShown);
+                                    mVideoState.videoTime = bufferInfo.presentationTimeUs - System.nanoTime() / 1000;
                                     mVideoState.position = bufferInfo.presentationTimeUs;
                                     mSurfaceView.requestRender();
                                     freshUI();
