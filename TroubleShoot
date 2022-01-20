@@ -6,3 +6,4 @@
 5.如何音视频同步?
 6.MediaCodec时间单位us Surface时间单位ns MediaMetadataRetriever ms
 7.pts为负数，最后一帧填入不正常的值
+8.currentMillis时间和日历可以相互转换，可以被修改，nanoTime就不可以，更精确

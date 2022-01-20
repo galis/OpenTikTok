@@ -56,6 +56,7 @@ public class VideoEditActivity extends Activity {
     private static final int DRAG_FOOT = 1;
     private static final int DRAG_IMG = 2;
     private static final int DRAG_SPLIT = 3;
+    private static final int THUMB_SLOT_WIDTH = 80;
 
     private LinkedList<ThumbInfo> mThumbsList;
     private GLSurfaceView mSurfaceView;
@@ -105,7 +106,7 @@ public class VideoEditActivity extends Activity {
         public long position = -1;//当前视频位置 ms
         public long duration = -1;//视频总时长 ms
         public long videoTime = Long.MIN_VALUE;//视频播放时间戳
-        public long audioTime = -1;//音频播放时间戳
+        public long audioTime = Long.MIN_VALUE;//音频播放时间戳
         public int status = INIT;//播放状态
 
         //纹理
@@ -277,11 +278,11 @@ public class VideoEditActivity extends Activity {
                 ImageView view = new ImageView(parent.getContext());
                 if (viewType == DRAG_HEAD || viewType == DRAG_FOOT) {
                     view.setLayoutParams(new ViewGroup.LayoutParams(
-                            parent.getMeasuredWidth() / 2, (int) (80 * getResources().getDisplayMetrics().density)));
+                            parent.getMeasuredWidth() / 2, (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density)));
                 } else {
                     view.setLayoutParams(new ViewGroup.LayoutParams(
-                            (int) (80 * getResources().getDisplayMetrics().density),
-                            (int) (80 * getResources().getDisplayMetrics().density)));
+                            (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density),
+                            (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density)));
                 }
                 return new ThumbViewHolder(view);
             }
@@ -326,12 +327,12 @@ public class VideoEditActivity extends Activity {
                 super.onScrolled(recyclerView, dx, dy);
                 mScrollX += dx;
                 if (mVideoState != null) {
-                    int slotWidth = (int) (80 * getResources().getDisplayMetrics().density);
+                    int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
                     if (mVideoState.isSeek) {
-                        videoSeek(true, (long) (mScrollX / slotWidth * 1000000 + mScrollX % slotWidth * 1.0f / slotWidth * 1000000.f));
+                        videoSeek(true, (long) (1000000.f / slotWidth * mScrollX));
                     }
-                    Log.d(TAG, "mScrollX@" + mScrollX + "@slotWidth@" + slotWidth);
                 }
+                Log.d(TAG, "mScrollX@" + mScrollX);
             }
         });
         checkPermission();
@@ -364,9 +365,10 @@ public class VideoEditActivity extends Activity {
                         (int) (positionInS / 60 % 60), (int) (positionInS % 60),
                         (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
                 mPlayBtn.setImageResource(mVideoState.status == VideoState.PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
-//                int correctScrollX = (int) (mVideoState.position / 1000000.f * (80 * getResources().getDisplayMetrics().density));
-//                mThumbDragRecyclerView.scrollBy(correctScrollX - mThumbDragRecyclerView.getScrollX(), 0);
-//                mThumbDragRecyclerView.getAdapter().notifyDataSetChanged();
+                if (!mVideoState.isSeek && mVideoState.status == VideoState.PLAY) {
+                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.position);
+                    mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
+                }
                 dumpVideoState();
             }
         });
@@ -483,18 +485,19 @@ public class VideoEditActivity extends Activity {
                                 if (outputBufIdx >= 0) {
                                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                                         mVideoState.isOutputEOF = true;
-                                        continue;
                                     }
-                                    //音视频同步逻辑
-                                    long now = System.nanoTime() / 1000;
-                                    long delta = bufferInfo.presentationTimeUs - (mVideoState.videoTime + now);
-                                    boolean needShown = mVideoState.videoTime == Long.MIN_VALUE || (delta > 0 && delta < 100000);
-                                    if (needShown && mVideoState.videoTime != Long.MIN_VALUE) {
-                                        Thread.sleep(delta / 1000, (int) (delta % 1000));
+                                    if (bufferInfo.presentationTimeUs > 0) {
+                                        //音视频同步逻辑
+                                        long now = System.nanoTime() / 1000;
+                                        long delta = bufferInfo.presentationTimeUs - (mVideoState.videoTime + now);
+                                        boolean needShown = mVideoState.videoTime == Long.MIN_VALUE || (delta > 0 && delta < 100000);
+                                        if (needShown && mVideoState.videoTime != Long.MIN_VALUE) {
+                                            Thread.sleep(delta / 1000, (int) (delta % 1000));
+                                        }
+                                        mediaCodec.releaseOutputBuffer(outputBufIdx, needShown);
+                                        mVideoState.videoTime = bufferInfo.presentationTimeUs - System.nanoTime() / 1000;
+                                        mVideoState.position = bufferInfo.presentationTimeUs;
                                     }
-                                    mediaCodec.releaseOutputBuffer(outputBufIdx, needShown);
-                                    mVideoState.videoTime = bufferInfo.presentationTimeUs - System.nanoTime() / 1000;
-                                    mVideoState.position = bufferInfo.presentationTimeUs;
                                     mSurfaceView.requestRender();
                                     freshUI();
                                 } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -528,6 +531,9 @@ public class VideoEditActivity extends Activity {
         Log.d(TAG, "videoSeek#" + isSeek + "#position#" + position);
         mVideoState.isSeek = isSeek;
         if (isSeek) {
+            if (mVideoState.status == VideoState.PLAY) {
+                mVideoState.status = VideoState.PAUSE;
+            }
             if (position != -1) {
                 mVideoState.position = position;
             }
