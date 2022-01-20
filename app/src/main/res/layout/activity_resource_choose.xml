@@ -10,6 +10,18 @@
         android:id="@+id/recyclerview_preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:layout_editor_absoluteX="74dp"
-        tools:layout_editor_absoluteY="138dp" />
+        tools:layout_editor_absoluteX="-16dp"
+        tools:layout_editor_absoluteY="-83dp" />
+
+    <androidx.core.widget.ContentLoadingProgressBar
+        android:id="@+id/pb_loading"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:min="0"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

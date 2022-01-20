@@ -64,6 +64,10 @@ public class FileUtils {
         builder.create().show();
     }
 
+    public static String getCacheDir(Context context) {
+        return context.getCacheDir().getAbsolutePath();
+    }
+
     private static File addParentFile(File folder, List<File> fileList) {
         File parentFile = null;
         if (folder != null) {

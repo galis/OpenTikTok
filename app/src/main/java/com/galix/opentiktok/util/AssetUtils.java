@@ -32,10 +32,10 @@ public class AssetUtils {
             final String[] fileList = listFiles(context, folder, fileRegex);
             builder.setItems(fileList, (DialogInterface dialog, int which) -> {
                 String selectedFile = fileList[which];
-                callback.onClick(folder+"/"+selectedFile);
+                callback.onClick(folder + "/" + selectedFile);
             });
         } catch (IOException ex) {
-            Toast.makeText(context,"Error listing assets from "+folder, Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "Error listing assets from " + folder, Toast.LENGTH_LONG).show();
         }
         builder.create().show();
     }
@@ -43,7 +43,7 @@ public class AssetUtils {
     private static String[] listFiles(Context context, String folder, String fileRegex) throws IOException {
         List<String> ret = new ArrayList<>();
         String[] list = context.getAssets().list(folder);
-        for (String asset : list){
+        for (String asset : list) {
             if (asset.matches(fileRegex)) {
                 ret.add(asset);
             }

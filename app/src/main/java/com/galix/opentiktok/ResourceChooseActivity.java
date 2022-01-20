@@ -10,10 +10,12 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.ContentLoadingProgressBar;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -37,6 +39,7 @@ public class ResourceChooseActivity extends AppCompatActivity {
     private Handler mLoadHandler;
     private ArrayList<FileEntry> mFileCache;
     private RecyclerView mRecyclerView;
+    private ContentLoadingProgressBar mProgressBar;
 
     private static class ImageViewHolder extends RecyclerView.ViewHolder {
 
@@ -61,6 +64,8 @@ public class ResourceChooseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_resource_choose);
+        mProgressBar = findViewById(R.id.pb_loading);
+        mProgressBar.hide();
         mRecyclerView = findViewById(R.id.recyclerview_preview);
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
         mRecyclerView.setAdapter(new RecyclerView.Adapter() {
@@ -83,25 +88,21 @@ public class ResourceChooseActivity extends AppCompatActivity {
                 FileEntry fileEntry = mFileCache.get(position);
                 imageViewHolder.textView.setText(
                         String.format("width:%d\nheight:%d\nduration:%ds\npath:%s",
-                                fileEntry.width, fileEntry.height, fileEntry.duration, fileEntry.path));
+                                fileEntry.width, fileEntry.height, fileEntry.duration / 1000000, fileEntry.path));
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     //跳转前先处理资源
-                    VideoUtil.mTargetPath = "/data/data/com.galix.opentiktok/cache/output.mp4";
-                    ArrayList<File> files = new ArrayList<>();
-                    files.add(new File(mFileCache.get(position).path));
-                    VideoUtil.processVideo(ResourceChooseActivity.this, files, new Handler.Callback() {
-                        @Override
-                        public boolean handleMessage(@NonNull Message msg) {
-//                            if (msg != null) {
-//                                finish();
-//                            } else {
-//
-//                            }
+                    if (!mProgressBar.isShown()) {
+                        mProgressBar.show();
+                        VideoUtil.mTargetPath = VideoUtil.getAdjustGopVideoPath(ResourceChooseActivity.this, fileEntry.path);
+                        VideoUtil.mDuration = fileEntry.duration;
+                        ArrayList<File> files = new ArrayList<>();
+                        files.add(new File(mFileCache.get(position).path));
+                        VideoUtil.processVideo(ResourceChooseActivity.this, files, 3, 10000000, msg -> {
                             VideoEditActivity.start(ResourceChooseActivity.this);
                             finish();
                             return true;
-                        }
-                    });
+                        });
+                    }
                 });
             }
 
@@ -132,7 +133,7 @@ public class ResourceChooseActivity extends AppCompatActivity {
                     Log.d(TAG, mp4.getAbsolutePath());
                     FileEntry fileEntry = new FileEntry();
                     fileEntry.duration = Integer.parseInt(mediaMetadataRetriever.extractMetadata
-                            (MediaMetadataRetriever.METADATA_KEY_DURATION)) / 1000;
+                            (MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
                     fileEntry.thumb = mediaMetadataRetriever.getFrameAtIndex(0);
                     fileEntry.width = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
                     fileEntry.height = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
@@ -149,7 +150,6 @@ public class ResourceChooseActivity extends AppCompatActivity {
             }
             long now2 = System.currentTimeMillis();
             Log.d(TAG, "Filter mp4 on /sdcard : Use#" + (now2 - now1));
-
         });
     }
 

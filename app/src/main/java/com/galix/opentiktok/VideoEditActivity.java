@@ -16,11 +16,9 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
-import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,10 +28,11 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.galix.opentiktok.util.VideoUtil;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -51,10 +50,15 @@ public class VideoEditActivity extends Activity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
     private static final int REQUEST_CODE = 1;
+    private static final int DRAG_HEAD = 0;
+    private static final int DRAG_FOOT = 1;
+    private static final int DRAG_IMG = 2;
+    private static final int DRAG_SPLIT = 3;
 
+    private LinkedList<ThumbInfo> mThumbsList;
     private GLSurfaceView mSurfaceView;
-    private RecyclerView mRecyclerView;
-    private SeekBar mSeekBar;
+    private RecyclerView mTabRecyclerView;
+    private RecyclerView mThumbDragRecyclerView;
     private VideoState mVideoState;
     private HandlerThread mHandlerThread;
     private Handler mHandler;
@@ -62,6 +66,7 @@ public class VideoEditActivity extends Activity {
     private TextView mTimeInfo;
     private ImageView mPlayBtn;
     private ImageView mFullScreenBtn;
+    private int mScrollX = 0;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
@@ -89,19 +94,27 @@ public class VideoEditActivity extends Activity {
         public static final int PAUSE = 1;
         public static final int DESTROY = 2;
 
+        public boolean isFirstOpen = true;
         public boolean isSeek = false;
         public boolean isSeekDone = true;
         public boolean isInputEOF = false;
         public boolean isOutputEOF = false;
         public boolean isExit = false;
-        public long position = -1;
-        public long duration = -1;
-        public int status = INIT;
+        public long position = -1;//当前视频位置 ms
+        public long duration = -1;//视频总时长 ms
+        public long videoTime = -1;//视频播放时间戳
+        public long audioTime = -1;//音频播放时间戳
+        public int status = INIT;//播放状态
 
         //纹理
         public int surfaceTextureId;
         public Surface surface;
         public SurfaceTexture surfaceTexture;
+    }
+
+    private class ThumbInfo {
+        public int type;
+        public String imgPath;
     }
 
     private class ImageViewHolder extends RecyclerView.ViewHolder {
@@ -114,9 +127,13 @@ public class VideoEditActivity extends Activity {
 
     }
 
-    private class TabInfo {
-        public int thumb;
-        public String text;
+    private class ThumbViewHolder extends RecyclerView.ViewHolder {
+        public View view1;
+        public View view2;
+
+        public ThumbViewHolder(@NonNull View itemView) {
+            super(itemView);
+        }
     }
 
     // Used to load the 'native-lib' library on application startup.
@@ -124,10 +141,64 @@ public class VideoEditActivity extends Activity {
         System.loadLibrary("arcore");
     }
 
+    //权限部分
+    private void checkPermission() {
+        if (ContextCompat.checkSelfPermission(VideoEditActivity.this,
+                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(VideoEditActivity.this,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(VideoEditActivity.this,
+                        Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(VideoEditActivity.this,
+                    new String[]{Manifest.permission.CAMERA,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.INTERNET,
+                            Manifest.permission.ACCESS_NETWORK_STATE
+                    }, REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CODE) {
+            for (int i = 0; i < grantResults.length; i++) {
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, permissions[i] + "IS NOT ALLOW!!", Toast.LENGTH_LONG).show();
+                    finish();
+                    return;
+                }
+            }
+        }
+    }
+
+    //UI回调
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_edit);
+        //初始化VideoState
+        mVideoState = new VideoState();
+
+        //初始化Thumb信息
+        mThumbsList = new LinkedList<>();
+        ThumbInfo head = new ThumbInfo();
+        head.type = DRAG_HEAD;
+        ThumbInfo foot = new ThumbInfo();
+        foot.type = DRAG_FOOT;
+        mThumbsList.add(head);
+        int pts = 0;
+        while (pts < VideoUtil.mDuration) {
+            ThumbInfo img = new ThumbInfo();
+            img.type = DRAG_IMG;
+            img.imgPath = VideoUtil.getThumbJpg(this, VideoUtil.mTargetPath, pts);
+            pts += 1000000;
+            mThumbsList.add(img);
+        }
+        mThumbsList.add(foot);
+
         mSurfaceView = findViewById(R.id.glsurface_preview);
         mSurfaceView.setEGLContextClientVersion(3);
         mSurfaceView.setRenderer(new GLSurfaceView.Renderer() {
@@ -164,16 +235,16 @@ public class VideoEditActivity extends Activity {
             }
         });
         mFullScreenBtn = findViewById(R.id.image_fullscreen);
-        mRecyclerView = findViewById(R.id.recyclerview_tab_mode);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
-        mRecyclerView.setAdapter(new RecyclerView.Adapter() {
+        mTabRecyclerView = findViewById(R.id.recyclerview_tab_mode);
+        mTabRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
+        mTabRecyclerView.setAdapter(new RecyclerView.Adapter() {
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 View layout = getLayoutInflater().inflate(R.layout.layout_tab_item, parent, false);
                 ImageViewHolder imageViewHolder = new ImageViewHolder(layout);
-                imageViewHolder.itemView.getLayoutParams().width = (int) (80 * getResources().getDisplayMetrics().density);
-                imageViewHolder.itemView.getLayoutParams().height = (int) (80 * getResources().getDisplayMetrics().density);
+                imageViewHolder.itemView.getLayoutParams().width = (int) (60 * getResources().getDisplayMetrics().density);
+                imageViewHolder.itemView.getLayoutParams().height = (int) (60 * getResources().getDisplayMetrics().density);
                 imageViewHolder.imageView = layout.findViewById(R.id.image_video_thumb);
                 imageViewHolder.textView = layout.findViewById(R.id.text_video_info);
                 return imageViewHolder;
@@ -194,54 +265,79 @@ public class VideoEditActivity extends Activity {
                 return TAB_INFO_LIST.length / 2;
             }
         });
-        mRecyclerView.getAdapter().notifyDataSetChanged();
+        mTabRecyclerView.getAdapter().notifyDataSetChanged();
+        mThumbDragRecyclerView = findViewById(R.id.recyclerview_drag_thumb);
+        mThumbDragRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
+        mThumbDragRecyclerView.setAdapter(new RecyclerView.Adapter() {
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                ImageView view = new ImageView(parent.getContext());
+                if (viewType == DRAG_HEAD || viewType == DRAG_FOOT) {
+                    view.setLayoutParams(new ViewGroup.LayoutParams(
+                            parent.getMeasuredWidth() / 2, (int) (80 * getResources().getDisplayMetrics().density)));
+                } else {
+                    view.setLayoutParams(new ViewGroup.LayoutParams(
+                            (int) (80 * getResources().getDisplayMetrics().density),
+                            (int) (80 * getResources().getDisplayMetrics().density)));
+                }
+                return new ThumbViewHolder(view);
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                if (getItemViewType(position) == DRAG_HEAD || getItemViewType(position) == DRAG_FOOT) {
+                    holder.itemView.setBackgroundColor(0xFF000000);
+                } else {
+                    ImageView imageView = (ImageView) holder.itemView;
+                    imageView.setScaleType(ImageView.ScaleType.FIT_XY);
+                    Glide.with(VideoEditActivity.this)
+                            .load(mThumbsList.get(position).imgPath)
+                            .into(imageView);
+                }
+            }
+
+            @Override
+            public int getItemCount() {
+                return mThumbsList.size();
+            }
+
+            @Override
+            public int getItemViewType(int position) {
+                return mThumbsList.get(position).type;
+            }
+        });
+        mThumbDragRecyclerView.setOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                Log.d(TAG, "onScrollStateChanged#" + newState);
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    videoSeek(true, -1);
+                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    videoSeek(false, -1);
+                }
+            }
+
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                mScrollX += dx;
+                if (mVideoState != null) {
+                    int slotWidth = (int) (80 * getResources().getDisplayMetrics().density);
+                    if (mVideoState.isSeek) {
+                        videoSeek(true, (long) (mScrollX / slotWidth * 1000000 + mScrollX % slotWidth * 1.0f / slotWidth * 1000000.f));
+                    }
+                    Log.d(TAG, "mScrollX@" + mScrollX + "@slotWidth@" + slotWidth);
+                }
+            }
+        });
         checkPermission();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(@NonNull SurfaceHolder holder) {
-            }
-
-            @Override
-            public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
-
-            }
-
-            @Override
-            public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
-
-            }
-        });
-
-        mSeekBar = findViewById(R.id.seekbar_drag);
-        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                mVideoState.position = (long) (progress / 100.f * mVideoState.duration);
-                Log.d(TAG, "mVideoState.position#" + mVideoState.position);
-                freshUI();
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                if (mVideoState != null) {
-                    mVideoState.isSeek = true;
-                    mVideoState.isInputEOF = false;
-                    mVideoState.isOutputEOF = false;
-                }
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                if (mVideoState != null) {
-                    mVideoState.isSeek = false;
-                }
-            }
-        });
     }
 
     @Override
@@ -266,35 +362,21 @@ public class VideoEditActivity extends Activity {
                         (int) (positionInS / 60 % 60), (int) (positionInS % 60),
                         (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
                 mPlayBtn.setImageResource(mVideoState.status == VideoState.PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
+//                int correctScrollX = (int) (mVideoState.position / 1000000.f * (80 * getResources().getDisplayMetrics().density));
+//                mThumbDragRecyclerView.scrollBy(correctScrollX - mThumbDragRecyclerView.getScrollX(), 0);
+//                mThumbDragRecyclerView.getAdapter().notifyDataSetChanged();
+                dumpVideoState();
             }
         });
     }
 
-    private void checkPermission() {
-        if (ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                        Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(VideoEditActivity.this,
-                    new String[]{Manifest.permission.CAMERA,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                            Manifest.permission.READ_EXTERNAL_STORAGE,
-                            Manifest.permission.INTERNET,
-                            Manifest.permission.ACCESS_NETWORK_STATE
-                    }, REQUEST_CODE);
-        }
-    }
-
+    //视频处理部分
     private void dumpMp4Thumb() {
         mHandlerThread = new HandlerThread("dumpMp4");
         mHandlerThread.start();
         int[] surface = new int[1];
         GLES30.glGenTextures(1, surface, 0);
         if (surface[0] == -1) return;//申请不到texture,出错
-        mVideoState = new VideoState();
         mVideoState.surfaceTexture = new SurfaceTexture(surface[0]);
         mVideoState.surfaceTextureId = surface[0];
         mVideoState.surface = new Surface(mVideoState.surfaceTexture);
@@ -315,34 +397,31 @@ public class VideoEditActivity extends Activity {
                     mediaExtractor.selectTrack(videoTrackIndex);
                     MediaFormat videoFormat = mediaExtractor.getTrackFormat(videoTrackIndex);
                     MediaCodec mediaCodec = MediaCodec.createDecoderByType(videoFormat.getString(MediaFormat.KEY_MIME));
-                    int width = videoFormat.getInteger(MediaFormat.KEY_WIDTH) / 2;
-                    int height = videoFormat.getInteger(MediaFormat.KEY_HEIGHT) / 2;
-                    videoFormat.setInteger(MediaFormat.KEY_WIDTH, width);
-                    videoFormat.setInteger(MediaFormat.KEY_HEIGHT, height);
                     if (mediaCodec == null) return;
                     mediaCodec.configure(videoFormat, mVideoState.surface, null, 0);
                     mediaCodec.start();
                     ByteBuffer sampleBuffer = ByteBuffer.allocate(videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
                     mVideoState.duration = mediaExtractor.getTrackFormat(videoTrackIndex).getLong(MediaFormat.KEY_DURATION);
                     while (!mVideoState.isExit) {
-                        if (!(mVideoState.isSeek || !mVideoState.isOutputEOF || !mVideoState.isInputEOF)) {
+                        if (!(mVideoState.isFirstOpen || mVideoState.isSeek || !mVideoState.isOutputEOF || !mVideoState.isInputEOF)) {
                             Thread.sleep(20);
                             continue;
                         }
-                        if (mVideoState.isSeek) {
+                        if (mVideoState.isFirstOpen || mVideoState.isSeek) {
                             mediaExtractor.seekTo(mVideoState.position, MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
                             mediaCodec.flush();
                             if (!mVideoState.isInputEOF) {
                                 int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
                                 if (inputBufIdx >= 0) {
-                                    mediaExtractor.readSampleData(sampleBuffer, 0);
-                                    mVideoState.isInputEOF = mediaExtractor.readSampleData(sampleBuffer, 0) < 0;
-                                    if (mVideoState.isInputEOF) {
+                                    int sampleSize = mediaExtractor.readSampleData(sampleBuffer, 0);
+                                    if (sampleSize < 0) {
+                                        sampleSize = 0;
+                                        mVideoState.isInputEOF = true;
                                         Log.d(TAG, "mVideoState.isInputEOF");
                                     }
                                     mediaCodec.getInputBuffer(inputBufIdx).put(sampleBuffer);
                                     mediaCodec.queueInputBuffer(inputBufIdx, 0,
-                                            sampleBuffer.position(),
+                                            sampleSize,
                                             mediaExtractor.getSampleTime(),
                                             mVideoState.isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
                                 }
@@ -369,6 +448,12 @@ public class VideoEditActivity extends Activity {
                                     Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
                                 }
                             }
+
+                            if (mVideoState.isFirstOpen) {
+                                mVideoState.isFirstOpen = false;
+                            }
+
+                            freshUI();
                         } else {
                             if (mVideoState.status != VideoState.PLAY) {
                                 continue;
@@ -376,14 +461,15 @@ public class VideoEditActivity extends Activity {
                             if (!mVideoState.isInputEOF) {
                                 int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
                                 if (inputBufIdx >= 0) {
-                                    mediaExtractor.readSampleData(sampleBuffer, 0);
-                                    mVideoState.isInputEOF = mediaExtractor.readSampleData(sampleBuffer, 0) < 0;
-                                    if (mVideoState.isInputEOF) {
+                                    int sampleSize = mediaExtractor.readSampleData(sampleBuffer, 0);
+                                    if (sampleSize < 0) {
+                                        sampleSize = 0;
+                                        mVideoState.isInputEOF = true;
                                         Log.d(TAG, "mVideoState.isInputEOF");
                                     }
                                     mediaCodec.getInputBuffer(inputBufIdx).put(sampleBuffer);
                                     mediaCodec.queueInputBuffer(inputBufIdx, 0,
-                                            sampleBuffer.position(),
+                                            sampleSize,
                                             mediaExtractor.getSampleTime(),
                                             mVideoState.isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
                                     mediaExtractor.advance();
@@ -413,29 +499,36 @@ public class VideoEditActivity extends Activity {
                     }
                     mediaExtractor.release();
                     mediaCodec.release();
-                    Log.d(TAG, "DONE!");
-                    freshUI();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         });
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CODE) {
-            for (int i = 0; i < grantResults.length; i++) {
-                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, permissions[i] + "IS NOT ALLOW!!", Toast.LENGTH_LONG).show();
-                    finish();
-                    return;
-                }
+    private void videoPlay() {
+
+    }
+
+    private void videoPause() {
+
+    }
+
+    private void videoSeek(boolean isSeek, long position) {
+        Log.d(TAG, "videoSeek#" + isSeek + "#position#" + position);
+        mVideoState.isSeek = isSeek;
+        if (isSeek) {
+            if (position != -1) {
+                mVideoState.position = position;
             }
+            mVideoState.isInputEOF = false;
+            mVideoState.isOutputEOF = false;
         }
+    }
+
+    private void dumpVideoState() {
+        Log.d(TAG, "VideoState#Duration#" + mVideoState.duration + "\n" +
+                "Position#" + mVideoState.position);
     }
 
 }

@@ -1,0 +1,8 @@
+坑点记录:
+1.如何快速抽帧？
+2.如果设置GOP？
+3.如何设置帧率？
+4.如何标记解码器终结？
+5.如何音视频同步?
+6.MediaCodec时间单位us Surface时间单位ns MediaMetadataRetriever ms
+7.pts为负数，最后一帧填入不正常的值
