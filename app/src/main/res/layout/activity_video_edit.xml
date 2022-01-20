@@ -46,18 +46,37 @@
             android:textColor="@color/white" />
     </RelativeLayout>
 
-    <!--预览GlSurface-->
-    <android.opengl.GLSurfaceView
-        android:id="@+id/glsurface_preview"
+    <RelativeLayout
+        android:id="@+id/rl_preview"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:layout_below="@id/rl_navigation" />
+        android:layout_height="wrap_content"
+        android:layout_below="@id/rl_navigation">
+
+        <!--预览GlSurface-->
+        <android.opengl.GLSurfaceView
+            android:id="@+id/glsurface_preview"
+            android:layout_width="match_parent"
+            android:layout_height="300dp" />
+
+        <ImageView
+            android:id="@+id/image_sticker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:visibility="gone" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/tv_word"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
 
     <RelativeLayout
         android:id="@+id/rl_video_info"
         android:layout_width="match_parent"
         android:layout_height="30dp"
-        android:layout_below="@id/glsurface_preview"
+        android:layout_below="@id/rl_preview"
         android:background="@color/theme_orangeC9">
 
         <TextView
@@ -118,6 +137,14 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_alignParentBottom="true" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerview_sticker"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:layout_above="@id/recyclerview_tab_mode"
+        android:background="@color/theme_orangeA9"
+        android:visibility="gone" />
 
 
 </RelativeLayout>

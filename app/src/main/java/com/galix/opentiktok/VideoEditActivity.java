@@ -5,11 +5,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
-import android.media.MediaSync;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -26,15 +26,16 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.galix.opentiktok.util.GifDecoder;
 import com.galix.opentiktok.util.VideoUtil;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -59,9 +60,15 @@ public class VideoEditActivity extends Activity {
     private static final int THUMB_SLOT_WIDTH = 80;
 
     private LinkedList<ThumbInfo> mThumbsList;
+    private LinkedList<Integer> mStickerList;//贴纸
     private GLSurfaceView mSurfaceView;
     private RecyclerView mTabRecyclerView;
     private RecyclerView mThumbDragRecyclerView;
+    private RecyclerView mStickerRecyclerView;
+
+    private ImageView mStickerView;
+    private GifDecoder mGifDecoder;
+    private TextView mWordView;
     private VideoState mVideoState;
     private HandlerThread mHandlerThread;
     private Handler mHandler;
@@ -103,8 +110,22 @@ public class VideoEditActivity extends Activity {
         public boolean isInputEOF = false;
         public boolean isOutputEOF = false;
         public boolean isExit = false;
-        public long position = -1;//当前视频位置 ms
-        public long duration = -1;//视频总时长 ms
+
+        //贴纸状态
+        public long stickerStartTime = -1;
+        public long stickerEndTime = -1;
+        public long stickerCount;
+        public int stickerRes = -1;
+        public Rect stickerRoi;
+
+        //文字状态
+        public int wordStartTime = -1;
+        public int wordEndTime = -1;
+        public String word = null;
+        public Rect wordRoi;
+
+        public long position = 0;//当前视频位置 ms
+        public long duration = 0;//视频总时长 ms
         public long videoTime = Long.MIN_VALUE;//视频播放时间戳
         public long audioTime = Long.MIN_VALUE;//音频播放时间戳
         public int status = INIT;//播放状态
@@ -202,6 +223,8 @@ public class VideoEditActivity extends Activity {
         }
         mThumbsList.add(foot);
 
+        mStickerView = findViewById(R.id.image_sticker);
+        mWordView = findViewById(R.id.tv_word);
         mSurfaceView = findViewById(R.id.glsurface_preview);
         mSurfaceView.setEGLContextClientVersion(3);
         mSurfaceView.setRenderer(new GLSurfaceView.Renderer() {
@@ -259,7 +282,12 @@ public class VideoEditActivity extends Activity {
                 imageViewHolder.imageView.setImageResource(TAB_INFO_LIST[2 * position]);
                 imageViewHolder.textView.setText(TAB_INFO_LIST[2 * position + 1]);
                 imageViewHolder.itemView.setOnClickListener(v -> {
-                    Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
+                    if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_sticker) {
+                        mStickerRecyclerView.setVisibility(View.VISIBLE);
+                    } else {
+                        mStickerRecyclerView.setVisibility(View.GONE);
+                        Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
+                    }
                 });
             }
 
@@ -335,6 +363,53 @@ public class VideoEditActivity extends Activity {
                 Log.d(TAG, "mScrollX@" + mScrollX);
             }
         });
+
+        mStickerList = new LinkedList<>();
+        mStickerList.add(R.raw.aini);
+        mStickerList.add(R.raw.buyuebuyue);
+        mStickerList.add(R.raw.burangwo);
+        mStickerList.add(R.raw.dengliao);
+        mStickerList.add(R.raw.gandepiaoliang);
+        mStickerList.add(R.raw.nizabushagntian);
+        mStickerRecyclerView = findViewById(R.id.recyclerview_sticker);
+        mStickerRecyclerView.setLayoutManager(new GridLayoutManager(this, 4));
+        mStickerRecyclerView.setAdapter(new RecyclerView.Adapter() {
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                ImageView view = new ImageView(parent.getContext());
+                view.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                view.setLayoutParams(new RecyclerView.LayoutParams(parent.getMeasuredWidth() / 4,
+                        parent.getMeasuredWidth() / 4));
+                return new ThumbViewHolder(view);
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                Glide.with(VideoEditActivity.this)
+                        .load(mStickerList.get(position))
+                        .asGif()
+                        .into((ImageView) holder.itemView);
+                holder.itemView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        mStickerView.setVisibility(View.VISIBLE);
+                        if (mGifDecoder == null) {
+                            mGifDecoder = new GifDecoder();
+                            mGifDecoder.read(getResources().openRawResource(mStickerList.get(position)));
+                        }
+                        mVideoState.stickerStartTime = mVideoState.position;
+                        mVideoState.stickerEndTime = 10 * 1000000;
+                        mVideoState.stickerCount = mGifDecoder.getFrameCount();
+                    }
+                });
+            }
+
+            @Override
+            public int getItemCount() {
+                return mStickerList.size();
+            }
+        });
         checkPermission();
     }
 
@@ -368,6 +443,14 @@ public class VideoEditActivity extends Activity {
                 if (!mVideoState.isSeek && mVideoState.status == VideoState.PLAY) {
                     int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.position);
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
+                }
+                if (mVideoState.stickerStartTime != -1 && mVideoState.stickerStartTime <= mVideoState.position && mVideoState.stickerEndTime >= mVideoState.position) {
+                    mStickerView.setVisibility(View.VISIBLE);
+                    int frameIdx = (int) ((mVideoState.position - mVideoState.stickerStartTime) / 1000 / mGifDecoder.getDelay(0));
+                    frameIdx %= mVideoState.stickerCount;
+                    mStickerView.setImageBitmap(mGifDecoder.getFrame(frameIdx));
+                } else {
+                    mStickerView.setVisibility(View.GONE);
                 }
                 dumpVideoState();
             }
@@ -544,7 +627,10 @@ public class VideoEditActivity extends Activity {
 
     private void dumpVideoState() {
         Log.d(TAG, "VideoState#Duration#" + mVideoState.duration + "\n" +
-                "Position#" + mVideoState.position);
+                "Position#" + mVideoState.position + "\n" +
+                "Sticker#startTime" + mVideoState.stickerStartTime + "\n" +
+                "Sticker#endTime" + mVideoState.stickerEndTime + "\n"
+        );
     }
 
 }
