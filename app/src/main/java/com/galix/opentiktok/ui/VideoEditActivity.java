@@ -1,4 +1,4 @@
-package com.galix.opentiktok;
+package com.galix.opentiktok.ui;
 
 import android.Manifest;
 import android.app.Activity;
@@ -22,12 +22,18 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.galix.opentiktok.R;
+import com.galix.opentiktok.avcore.AVAudio;
+import com.galix.opentiktok.avcore.AVEngine;
+import com.galix.opentiktok.avcore.AVVideo;
 import com.galix.opentiktok.util.GifDecoder;
 import com.galix.opentiktok.util.VideoUtil;
 
 import java.util.LinkedList;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
+import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.PLAY;
+import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 
 /**
  * 视频编辑界面
@@ -64,7 +70,7 @@ public class VideoEditActivity extends Activity {
     private ImageView mPlayBtn;
     private ImageView mFullScreenBtn;
     private int mScrollX = 0;
-    private VideoEngine mVideoEngine;
+    private AVEngine mAVEngine;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
@@ -175,7 +181,7 @@ public class VideoEditActivity extends Activity {
         mPlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mVideoEngine.playPause();
+                mAVEngine.playPause();
                 freshUI();
             }
         });
@@ -263,9 +269,9 @@ public class VideoEditActivity extends Activity {
                 super.onScrollStateChanged(recyclerView, newState);
                 Log.d(TAG, "onScrollStateChanged#" + newState);
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    mVideoEngine.seek(-1);//进入seek模式
+                    mAVEngine.seek(-1);//进入seek模式
                 } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    mVideoEngine.pause();//退出seek模式，处于暂停状态
+                    mAVEngine.pause();//退出seek模式，处于暂停状态
                 }
             }
 
@@ -274,9 +280,9 @@ public class VideoEditActivity extends Activity {
                 super.onScrolled(recyclerView, dx, dy);
                 mScrollX += dx;
                 if (mThumbDragRecyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE &&
-                        mVideoEngine.getVideoState().status == VideoEngine.VideoState.SEEK) {
+                        mAVEngine.getVideoState().status == SEEK) {
                     int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
-                    mVideoEngine.seek((long) (1000000.f / slotWidth * mScrollX));
+                    mAVEngine.seek((long) (1000000.f / slotWidth * mScrollX));
                     Log.d(TAG, "mScrollX@" + mScrollX);
                 }
             }
@@ -329,10 +335,12 @@ public class VideoEditActivity extends Activity {
             }
         });
 
-        mVideoEngine = VideoEngine.getVideoEngine();
-        mVideoEngine.configure(mSurfaceView);
-        mVideoEngine.setOnFrameUpdateCallback(() -> freshUI());
-        mVideoEngine.start();
+        mAVEngine = AVEngine.getVideoEngine();
+        mAVEngine.configure(mSurfaceView);
+        mAVEngine.addComponent(new AVVideo(0, VideoUtil.mDuration, VideoUtil.mTargetPath, mAVEngine.nextValidTexture()));
+        mAVEngine.addComponent(new AVAudio(0, VideoUtil.mDuration, VideoUtil.mTargetPath));
+        mAVEngine.setOnFrameUpdateCallback(() -> freshUI());
+        mAVEngine.start();
         checkPermission();
     }
 
@@ -344,32 +352,32 @@ public class VideoEditActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mVideoEngine.release();
+        mAVEngine.release();
     }
 
     //不同线程都可以刷新UI
     private void freshUI() {
         getWindow().getDecorView().post(() -> {
-            VideoEngine.VideoState mVideoState = VideoEngine.getVideoEngine().getVideoState();
+            AVEngine.VideoState mVideoState = AVEngine.getVideoEngine().getVideoState();
             if (mVideoState != null) {
                 long durationInS = mVideoState.duration / 1000000;
                 long positionInS = mVideoState.position / 1000000;
                 mTimeInfo.setText(String.format("%02d:%02d / %02d:%02d",
                         (int) (positionInS / 60 % 60), (int) (positionInS % 60),
                         (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
-                mPlayBtn.setImageResource(mVideoState.status == VideoEngine.VideoState.PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
-                if (mVideoState.status == VideoEngine.VideoState.PLAY) {
+                mPlayBtn.setImageResource(mVideoState.status == PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
+                if (mVideoState.status == PLAY) {
                     int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.position);
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
-                if (mVideoState.stickerStartTime != -1 && mVideoState.stickerStartTime <= mVideoState.position && mVideoState.stickerEndTime >= mVideoState.position) {
-                    mStickerView.setVisibility(View.VISIBLE);
-                    int frameIdx = (int) ((mVideoState.position - mVideoState.stickerStartTime) / 1000 / mGifDecoder.getDelay(0));
-                    frameIdx %= mVideoState.stickerCount;
-                    mStickerView.setImageBitmap(mGifDecoder.getFrame(frameIdx));
-                } else {
-                    mStickerView.setVisibility(View.GONE);
-                }
+//                if (mVideoState.stickerStartTime != -1 && mVideoState.stickerStartTime <= mVideoState.position && mVideoState.stickerEndTime >= mVideoState.position) {
+//                    mStickerView.setVisibility(View.VISIBLE);
+//                    int frameIdx = (int) ((mVideoState.position - mVideoState.stickerStartTime) / 1000 / mGifDecoder.getDelay(0));
+//                    frameIdx %= mVideoState.stickerCount;
+//                    mStickerView.setImageBitmap(mGifDecoder.getFrame(frameIdx));
+//                } else {
+//                    mStickerView.setVisibility(View.GONE);
+//                }
             }
         });
     }

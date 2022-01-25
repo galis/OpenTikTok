@@ -7,3 +7,4 @@
 6.MediaCodec时间单位us Surface时间单位ns MediaMetadataRetriever ms
 7.pts为负数，最后一帧填入不正常的值
 8.currentMillis时间和日历可以相互转换，可以被修改，nanoTime就不可以，更精确
+9.丢帧，可以不经过解码，编码步骤，不过只能丢掉特定的帧。

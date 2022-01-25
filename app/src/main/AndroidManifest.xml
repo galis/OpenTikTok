@@ -24,8 +24,8 @@
         android:roundIcon="@drawable/icon_app"
         android:supportsRtl="true"
         android:theme="@style/Theme.OpenTikTok">
-        <activity android:name=".ResourceChooseActivity"></activity>
-        <activity android:name=".LogoActivity">
+        <activity android:name=".ui.ResourceChooseActivity"></activity>
+        <activity android:name=".ui.LogoActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -33,7 +33,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".VideoEditActivity"
+            android:name=".ui.VideoEditActivity"
             android:launchMode="singleTop" />
     </application>
 

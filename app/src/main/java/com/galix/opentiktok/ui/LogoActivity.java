@@ -1,10 +1,12 @@
-package com.galix.opentiktok;
+package com.galix.opentiktok.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.galix.opentiktok.R;
 
 public class LogoActivity extends AppCompatActivity {
 
