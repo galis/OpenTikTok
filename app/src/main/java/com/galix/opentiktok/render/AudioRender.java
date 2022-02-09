@@ -15,11 +15,11 @@ public class AudioRender implements IRender {
     @Override
     public void open() {
         if (mAudioTrack != null) return;
-        mMinBufferSize = AudioTrack.getMinBufferSize(44100, AudioFormat.CHANNEL_CONFIGURATION_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        mMinBufferSize = 4096;
         mAudioTrack = new AudioTrack(
                 AudioManager.STREAM_MUSIC,
                 44100,
-                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.CHANNEL_CONFIGURATION_STEREO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 mMinBufferSize,
                 AudioTrack.MODE_STREAM
@@ -43,7 +43,6 @@ public class AudioRender implements IRender {
 
     @Override
     public void render(AVFrame avFrame) {
-        if(avFrame==null) return;
         mAudioTrack.write(avFrame.getByteBuffer(), mMinBufferSize, WRITE_BLOCKING);
     }
 }

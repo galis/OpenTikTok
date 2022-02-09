@@ -12,12 +12,18 @@ import java.nio.ByteBuffer;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
 
+/**
+ * Mp4调整工具类
+ *
+ * @Author:Galis
+ * @Date:2022.02.09
+ */
 public class Mp4Adjust {
 
     private static final String TAG = Mp4Adjust.class.getSimpleName();
-    private int mGop;
-    private int mVb;
-    private int mAb;
+    private int mGop;//Gop
+    private int mVb;//video 比特率
+    private int mAb;//音频 比特率
     private String mSrcPath;
     private String mDstPath;
 
@@ -36,22 +42,23 @@ public class Mp4Adjust {
         mAudioEncodeStream = mVideoEncodeStream = null;
     }
 
-    private class Frame {
+    private static class Frame {
         ByteBuffer byteBuffer;
-        long pts;
+        long pts = -1;
+        boolean isEOF = false;
     }
 
-    private class Stream {
-        public int trackIdx;
-        public long nextPts;
-        public long duration;
+    private static class Stream {
+        public int trackIdx = -1;
+        public long nextPts = -1;
+        public long duration = -1;
+        public boolean isInputEOF = false;
+        public boolean isOutputEOF = false;
+        public ByteBuffer buffer;
+        public Frame avFrame;
         public MediaCodec mediaCodec;
         public MediaFormat format;
-        public boolean isInputEOF;
-        public boolean isOutputEOF;
-        public ByteBuffer buffer;
         public MediaExtractor mediaExtractor;
-        public Frame avFrame;
     }
 
     private void openDecodeStream(int trackIdx) {
@@ -61,6 +68,7 @@ public class Mp4Adjust {
         stream.duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
         stream.isInputEOF = stream.isOutputEOF = false;
         stream.buffer = ByteBuffer.allocateDirect(mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
+        stream.format = mediaFormat;
         stream.mediaExtractor = new MediaExtractor();
         try {
             stream.mediaExtractor.setDataSource(mSrcPath);
@@ -108,29 +116,38 @@ public class Mp4Adjust {
         }
     }
 
-
+    /**
+     * 读取一帧，返回Frame.最后一帧标志isEOF为true
+     *
+     * @param stream 读取流，不为空
+     * @return Frame
+     */
     private Frame readFrame(Stream stream) {
-        if (stream == null || stream.isOutputEOF) return null;
         if (stream.avFrame == null) {
             stream.avFrame = new Frame();
         }
         Frame avFrame = stream.avFrame;
         MediaExtractor mediaExtractor = stream.mediaExtractor;
+        MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
         while (!stream.isInputEOF || !stream.isOutputEOF) {
             if (!stream.isOutputEOF) {
-                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
                 int outputBufIdx = stream.mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
                 if (outputBufIdx >= 0) {
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         stream.isOutputEOF = true;
+                        if (stream.trackIdx == 0) Log.d(TAG, "readFrame#isOutputEOF");
                     }
                     ByteBuffer byteBuffer = stream.mediaCodec.getOutputBuffer(outputBufIdx);
                     if (avFrame.byteBuffer == null) {
                         avFrame.byteBuffer = ByteBuffer.allocateDirect(bufferInfo.size);
                     }
+                    if (stream.trackIdx == 0) Log.d(TAG, "readFrame#pts#" + bufferInfo.presentationTimeUs);
+                    avFrame.isEOF = stream.isOutputEOF;
                     avFrame.pts = bufferInfo.presentationTimeUs;
                     avFrame.byteBuffer.position(0);
                     avFrame.byteBuffer.put(byteBuffer);
+                    byteBuffer.position(0);
+                    avFrame.byteBuffer.position(0);
                     stream.mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                     return avFrame;
                 } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -148,30 +165,36 @@ public class Mp4Adjust {
                     if (sampleSize < 0) {
                         sampleSize = 0;
                         stream.isInputEOF = true;
-                        Log.d(TAG, "isInputEOF");
+                        if (stream.trackIdx == 0) Log.d(TAG, "readFrame#isInputEOF");
                     }
                     stream.mediaCodec.getInputBuffer(inputBufIdx).put(stream.buffer);
                     stream.mediaCodec.queueInputBuffer(inputBufIdx, 0,
                             sampleSize,
                             mediaExtractor.getSampleTime(),
                             stream.isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
-                    Log.d(TAG, "getSampleTime" + mediaExtractor.getSampleTime());
+                    if (stream.trackIdx == 0) Log.d(TAG, "readFrame#getSampleTime" + mediaExtractor.getSampleTime());
                     mediaExtractor.advance();
                 }
             }
         }
-        return null;
+        return stream.avFrame;
     }
 
+    /**
+     * 向MP4文件写入一帧音视频数据
+     *
+     * @param stream
+     * @param frame
+     */
     private void writeFrame(Stream stream, Frame frame) {
         MediaCodec mediaCodec = stream.mediaCodec;
         if (!stream.isInputEOF) {
             int status = mediaCodec.dequeueInputBuffer(-1);
             if (status >= 0) {
-                if (frame != null) {
-                    mediaCodec.getInputBuffer(status).put(frame.byteBuffer);
-                }
-                mediaCodec.queueInputBuffer(status, 0, frame == null ? 0 : frame.byteBuffer.limit(), frame == null ? -1 : frame.pts, frame == null ?
+                mediaCodec.getInputBuffer(status).put(frame.byteBuffer);
+                stream.isInputEOF = frame.isEOF;
+                if (stream.isInputEOF) Log.d(TAG, "writeFrame#isInputEOF");
+                mediaCodec.queueInputBuffer(status, 0, stream.isInputEOF ? 0 : frame.byteBuffer.limit(), stream.isInputEOF ? -1 : frame.pts, stream.isInputEOF ?
                         BUFFER_FLAG_END_OF_STREAM : 0);
             }
         }
@@ -184,8 +207,11 @@ public class Mp4Adjust {
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         stream.isOutputEOF = true;
                         stream.nextPts = stream.duration;
+                        Log.d(TAG, "writeFrame#isOutputEOF");
                     }
                     if (!stream.isOutputEOF) {
+                        ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(status);
+                        Log.d(TAG, "writeSampleData#bufferSize#" + byteBuffer.limit() + "stream#index#" + stream.trackIdx);
                         mMediaMuxer.writeSampleData(stream.trackIdx, mediaCodec.getOutputBuffer(status), bufferInfo);
                         stream.nextPts = bufferInfo.presentationTimeUs;
                     }
@@ -196,11 +222,14 @@ public class Mp4Adjust {
         }
     }
 
+    /**
+     * 合成MP4.
+     */
     private void muxer() {
         mMediaMuxer.start();
         boolean hasVideo = mVideoEncodeStream != null && !mVideoEncodeStream.isOutputEOF;
         boolean hasAudio = mAudioEncodeStream != null && !mAudioEncodeStream.isOutputEOF;
-        while ((hasVideo && !mVideoEncodeStream.isOutputEOF) || (hasAudio && !mAudioEncodeStream.isOutputEOF)) {
+        while (hasVideo || hasAudio) {
             boolean writeVideo = hasVideo && !hasAudio || hasVideo && mVideoEncodeStream.nextPts <= mAudioEncodeStream.nextPts;
             if (writeVideo) {
                 Log.d(TAG, "writeVideo#pts" + mVideoEncodeStream.nextPts);
@@ -211,11 +240,13 @@ public class Mp4Adjust {
                 Log.d(TAG, "writeAudio#pts" + mAudioEncodeStream.nextPts);
                 writeFrame(mAudioEncodeStream, readFrame(mAudioDecodeStream));
             }
+            hasAudio = mAudioEncodeStream != null && !mAudioEncodeStream.isOutputEOF;
+            hasVideo = mVideoEncodeStream != null && !mVideoEncodeStream.isOutputEOF;
         }
 
     }
 
-    public int start() {
+    public int process() {
         try {
             mMediaExtractor = new MediaExtractor();
             mMediaExtractor.setDataSource(mSrcPath);
@@ -225,8 +256,10 @@ public class Mp4Adjust {
                 openEncodeStream(i);
             }
             muxer();
-            mMediaMuxer.stop();
-            mMediaMuxer.release();
+            mMediaMuxer.stop();//flush文件
+            mMediaMuxer.release();//释放资源
+            mMediaExtractor.release();
+            Log.d(TAG, "muxer#finish");
         } catch (IOException e) {
             e.printStackTrace();
         }

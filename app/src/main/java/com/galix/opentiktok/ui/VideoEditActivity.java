@@ -350,9 +350,16 @@ public class VideoEditActivity extends Activity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        Log.d(TAG,"onStop");
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         mAVEngine.release();
+        Log.d(TAG,"onDestroy");
     }
 
     //不同线程都可以刷新UI
@@ -360,14 +367,14 @@ public class VideoEditActivity extends Activity {
         getWindow().getDecorView().post(() -> {
             AVEngine.VideoState mVideoState = AVEngine.getVideoEngine().getVideoState();
             if (mVideoState != null) {
-                long durationInS = mVideoState.duration / 1000000;
-                long positionInS = mVideoState.position / 1000000;
+                long positionInS = mVideoState.positionUS / 1000000;
+                long durationInS = mVideoState.durationUS / 1000000;
                 mTimeInfo.setText(String.format("%02d:%02d / %02d:%02d",
                         (int) (positionInS / 60 % 60), (int) (positionInS % 60),
                         (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
                 mPlayBtn.setImageResource(mVideoState.status == PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
                 if (mVideoState.status == PLAY) {
-                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.position);
+                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.positionUS);
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
 //                if (mVideoState.stickerStartTime != -1 && mVideoState.stickerStartTime <= mVideoState.position && mVideoState.stickerEndTime >= mVideoState.position) {

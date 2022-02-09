@@ -6,13 +6,14 @@ import android.graphics.SurfaceTexture;
 import java.nio.ByteBuffer;
 
 public class AVFrame {
-    private long pts;
-    private int texture;
-    private boolean eof;
+    private long pts = -1;
+    private int texture = -1;
+    private boolean eof = false;
+    private boolean isValid = false;
+    private long duration = 0;
     private Bitmap bitmap;
     private ByteBuffer byteBuffer;
     private SurfaceTexture surfaceTexture;
-    private boolean isValid;
 
     public long getPts() {
         return pts;
@@ -68,5 +69,17 @@ public class AVFrame {
 
     public void setValid(boolean valid) {
         isValid = valid;
+    }
+
+    public long getDuration() {
+        return duration;
+    }
+
+    public void setDuration(long duration) {
+        this.duration = duration;
+    }
+
+    public void markRead() {
+        isValid = false;
     }
 }

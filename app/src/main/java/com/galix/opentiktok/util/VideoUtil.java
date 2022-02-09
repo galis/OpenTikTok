@@ -2,25 +2,13 @@ package com.galix.opentiktok.util;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
-import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
-import android.media.MediaCodecList;
-import android.media.MediaExtractor;
-import android.media.MediaFormat;
-import android.media.MediaMuxer;
 import android.opengl.EGLExt;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.Surface;
 
-import com.galix.opentiktok.avcore.AVAudio;
-import com.galix.opentiktok.avcore.AVFrame;
-import com.galix.opentiktok.avcore.AVVideo;
-
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,10 +21,6 @@ import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
-
-import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
-import static android.media.MediaCodec.CONFIGURE_FLAG_ENCODE;
-import static android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED;
 
 
 /**
@@ -160,8 +144,8 @@ public class VideoUtil {
             try {
                 for (File video : videos) {
                     String gopMp4Path = getAdjustGopVideoPath(context, video.getPath());
-                    Mp4Adjust mp4Adjust = new Mp4Adjust(10, 44100, 128 * 1024, video.getAbsolutePath(), gopMp4Path);
-                    mp4Adjust.start();
+                    Mp4Adjust mp4Adjust = new Mp4Adjust(10, (int) (2.5 * 1024 * 1024), 44100, video.getAbsolutePath(), gopMp4Path);
+                    mp4Adjust.process();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
