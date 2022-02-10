@@ -9,32 +9,35 @@ import com.galix.opentiktok.render.IRender;
  */
 public class AVWord extends AVComponent {
 
-    private String text;
+    private String text = "HelloWorld!";
     private int textSize;
     private int textColor;
     private Rect roi;
 
-    public AVWord(long srcStartTime, long srcEndTime, AVComponentType type, IRender render) {
-        super(srcStartTime, srcEndTime, type, render);
+    public AVWord(long srcStartTime, long srcEndTime, IRender render) {
+        super(srcStartTime, srcEndTime, AVComponentType.WORD, render);
     }
 
     @Override
     public int open() {
-        return 0;
+        markOpen(true);
+        return RESULT_OK;
     }
 
     @Override
     public int close() {
-        return 0;
+        return RESULT_OK;
     }
 
     @Override
     public int readFrame() {
-        return 0;
+        peekFrame().setValid(true);
+        peekFrame().setText(text);
+        return RESULT_OK;
     }
 
     @Override
     public int seekFrame(long position) {
-        return 0;
+        return readFrame();
     }
 }

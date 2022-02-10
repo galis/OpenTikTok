@@ -27,7 +27,7 @@ public class AVAudio extends AVComponent {
     private ByteBuffer sampleBuffer;
 
     public AVAudio(long srcStartTime, long srcEndTime, String path, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.AUDIO,render);
+        super(srcStartTime, srcEndTime, AVComponentType.AUDIO, render);
         this.path = path;
     }
 

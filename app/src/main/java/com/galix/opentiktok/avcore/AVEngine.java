@@ -191,6 +191,24 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 }
             }
 
+            //处理文字特效
+            List<AVComponent> wordsComponents = findComponents(AVComponent.AVComponentType.WORD, -1);
+            for (AVComponent component : wordsComponents) {
+                if (component.getRender() != null) {
+                    AVFrame wordFrame = component.peekFrame();
+                    if (component.isValid(mVideoState.positionUS)) {
+                        if (wordFrame.isValid()) {
+                            component.getRender().render(wordFrame);
+                        } else {
+                            component.readFrame();
+                        }
+                    } else {
+                        wordFrame.setValid(false);
+                        component.getRender().render(wordFrame);
+                    }
+                }
+            }
+
             //更新UI
             onFrameUpdate();
 
@@ -269,16 +287,17 @@ public class AVEngine implements GLSurfaceView.Renderer {
     }
 
     /**
-     * 根据类型查找组件
+     * 根据类型，时间组合查找组件
      *
-     * @param type
-     * @param position
-     * @return
+     * @param type     ALL默认通过
+     * @param position -1默认通过
+     * @return 目标组件
      */
     public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
         List<AVComponent> components = new LinkedList<>();
         for (AVComponent component : mComponents) {
-            if (type == AVComponent.AVComponentType.ALL || (component.getType() == type && component.isValid(position))) {
+            if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
+                    (position == -1 || component.isValid(position)))) {
                 components.add(component);
             }
         }

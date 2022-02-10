@@ -1,6 +1,7 @@
 package com.galix.opentiktok.avcore;
 
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 
 import java.nio.ByteBuffer;
@@ -11,6 +12,10 @@ public class AVFrame {
     private boolean eof = false;
     private boolean isValid = false;
     private long duration = 0;
+    private String text;
+    private int textSize;
+    private int textColor;
+    private Rect roi;
     private Bitmap bitmap;
     private ByteBuffer byteBuffer;
     private SurfaceTexture surfaceTexture;
@@ -77,6 +82,38 @@ public class AVFrame {
 
     public void setDuration(long duration) {
         this.duration = duration;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
+
+    public int getTextSize() {
+        return textSize;
+    }
+
+    public void setTextSize(int textSize) {
+        this.textSize = textSize;
+    }
+
+    public int getTextColor() {
+        return textColor;
+    }
+
+    public void setTextColor(int textColor) {
+        this.textColor = textColor;
+    }
+
+    public Rect getRoi() {
+        return roi;
+    }
+
+    public void setRoi(Rect roi) {
+        this.roi = roi;
     }
 
     public void markRead() {

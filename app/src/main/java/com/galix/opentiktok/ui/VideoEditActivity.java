@@ -29,7 +29,9 @@ import com.galix.opentiktok.avcore.AVAudio;
 import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVEngine;
 import com.galix.opentiktok.avcore.AVVideo;
+import com.galix.opentiktok.avcore.AVWord;
 import com.galix.opentiktok.render.ImageViewRender;
+import com.galix.opentiktok.render.TextRender;
 import com.galix.opentiktok.util.GestureUtils;
 import com.galix.opentiktok.util.GifDecoder;
 import com.galix.opentiktok.util.VideoUtil;
@@ -219,7 +221,8 @@ public class VideoEditActivity extends Activity {
                     if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_text) {
-                        mEditTextView.setVisibility(View.VISIBLE);
+                        mAVEngine.addComponent(new AVWord(mAVEngine.getVideoState().positionUS, 5000000,
+                                new TextRender(mEditTextView)));
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
                         Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
