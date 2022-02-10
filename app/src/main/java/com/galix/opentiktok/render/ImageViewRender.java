@@ -32,7 +32,11 @@ public class ImageViewRender implements IRender {
         imageView.post(new Runnable() {
             @Override
             public void run() {
-                imageView.setImageBitmap(avFrame.getBitmap());
+                if (avFrame.isValid()) {
+                    imageView.setImageBitmap(avFrame.getBitmap());
+                } else {
+                    imageView.setImageBitmap(null);
+                }
             }
         });
     }

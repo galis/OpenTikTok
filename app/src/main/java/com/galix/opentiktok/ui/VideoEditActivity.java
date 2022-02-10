@@ -332,7 +332,7 @@ public class VideoEditActivity extends Activity {
                     @Override
                     public void onClick(View v) {
                         mStickerView.setVisibility(View.VISIBLE);
-                        mAVEngine.addComponent(new AVSticker(mAVEngine.getVideoState().positionUS, 18000000,//TODO
+                        mAVEngine.addComponent(new AVSticker(mAVEngine.getVideoState().positionUS, 7000000,//TODO
                                 getResources().openRawResource(mStickerList.get(position)),
                                 new ImageViewRender(mStickerView)));
                         mStickerRecyclerView.setVisibility(View.GONE);

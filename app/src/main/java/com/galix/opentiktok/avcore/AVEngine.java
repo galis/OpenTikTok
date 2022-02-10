@@ -130,26 +130,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 targetPosition = mVideoState.seekPositionUS;
             }
 
-            //处理贴纸片段
-            List<AVComponent> effectComponents = findComponents(AVComponent.AVComponentType.STICKER, targetPosition);
-            for (AVComponent component : effectComponents) {
-                if (component.getRender() != null) {
-                    if (mVideoState.status == PLAY) {
-                        component.readFrame();
-                    } else if (mVideoState.status == SEEK) {
-                        component.seekFrame(targetPosition);
-                    } else {
-                        while (!component.peekFrame().isValid()) {
-                            component.readFrame();
-                        }
-                    }
-                    AVFrame avFrame = component.peekFrame();
-                    if (avFrame.isValid()) {
-                        component.getRender().render(avFrame);
-                    }
-                }
-            }
-
             //处理视频片段
             long delay = 0;
             List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, targetPosition);
@@ -188,6 +168,30 @@ public class AVEngine implements GLSurfaceView.Renderer {
                         }
                     }
                     mVideoState.positionUS = avFrame.getPts();
+                }
+            }
+
+            //处理贴纸片段
+            List<AVComponent> stickComponents = findComponents(AVComponent.AVComponentType.STICKER, -1);
+            for (AVComponent component : stickComponents) {
+                if (component.getRender() != null) {
+                    if (component.isValid(mVideoState.positionUS)) {
+                        if (mVideoState.status == PLAY) {
+                            component.readFrame();
+                            component.getRender().render(component.peekFrame());
+                        } else if (mVideoState.status == SEEK) {
+                            component.seekFrame(targetPosition);
+                            component.getRender().render(component.peekFrame());
+                        } else {
+                            while (!component.peekFrame().isValid()) {
+                                component.readFrame();
+                            }
+                            component.getRender().render(component.peekFrame());
+                        }
+                    } else {
+                        component.peekFrame().setValid(false);
+                        component.getRender().render(component.peekFrame());
+                    }
                 }
             }
 

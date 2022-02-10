@@ -107,9 +107,9 @@ public abstract class AVComponent {
 
     public abstract int close();
 
-    public abstract int readFrame();//读取一帧数据，放到AVFrame
+    public abstract int readFrame();//block模式 读取一帧数据，放到AVFrame
 
-    public abstract int seekFrame(long position);//定位到特定位置，然后读一帧数据
+    public abstract int seekFrame(long position);////block模式 定位到特定位置，然后读一帧数据
 
     public AVFrame peekFrame() {//获取AVFrame
         return cache;
