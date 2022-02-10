@@ -27,7 +27,8 @@ public abstract class AVComponent {
         WORD,           //文字
         STICKER,         //贴纸
         TRANSACTION,    //转场
-        PIP             //画中画
+        PIP,             //画中画
+        ALL
     }
 
     private long srcStartTime;

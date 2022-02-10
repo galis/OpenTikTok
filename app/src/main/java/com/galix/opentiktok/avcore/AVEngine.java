@@ -255,6 +255,19 @@ public class AVEngine implements GLSurfaceView.Renderer {
         });
     }
 
+    public void compositeMp4(String mp4) {
+//        pause();
+//        reCalculate();//确保所有东西正确。
+//        final int fps = 30;
+//        final int WIDTH = 1920;
+//        final int HEIGHT = 1080;
+//        long curPos = 0;
+//        while (curPos < mVideoState.durationUS) {
+//            List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, curPos);
+//            for (components)
+//        }
+    }
+
     /**
      * 根据类型查找组件
      *
@@ -265,7 +278,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
         List<AVComponent> components = new LinkedList<>();
         for (AVComponent component : mComponents) {
-            if (component.getType() == type && component.isValid(position)) {
+            if (type == AVComponent.AVComponentType.ALL || (component.getType() == type && component.isValid(position))) {
                 components.add(component);
             }
         }
@@ -371,7 +384,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         if (mOnFrameUpdateCallback != null) {
             mOnFrameUpdateCallback.onFrameUpdate();
         }
-        dumpVideoState();
+//        dumpVideoState();
     }
 
     private void dumpVideoState() {

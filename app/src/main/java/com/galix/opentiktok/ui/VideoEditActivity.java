@@ -5,11 +5,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -28,6 +30,7 @@ import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVEngine;
 import com.galix.opentiktok.avcore.AVVideo;
 import com.galix.opentiktok.render.ImageViewRender;
+import com.galix.opentiktok.util.GestureUtils;
 import com.galix.opentiktok.util.GifDecoder;
 import com.galix.opentiktok.util.VideoUtil;
 
@@ -66,6 +69,7 @@ public class VideoEditActivity extends Activity {
     private RecyclerView mStickerRecyclerView;
 
     private ImageView mStickerView;
+    private EditText mEditTextView;
     private GifDecoder mGifDecoder;
     private TextView mWordView;
     private TextView mTimeInfo;
@@ -176,6 +180,9 @@ public class VideoEditActivity extends Activity {
         mThumbsList.add(foot);
 
         mStickerView = findViewById(R.id.image_sticker);
+        GestureUtils.setupView(mStickerView, new Rect(0, 0, 1920, 1080));
+        mEditTextView = findViewById(R.id.edit_tip);
+        GestureUtils.setupView(mEditTextView, new Rect(0, 0, 1920, 1080));
         mWordView = findViewById(R.id.tv_word);
         mSurfaceView = findViewById(R.id.glsurface_preview);
         mTimeInfo = findViewById(R.id.text_duration);
@@ -211,6 +218,8 @@ public class VideoEditActivity extends Activity {
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
+                    } else if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_text) {
+                        mEditTextView.setVisibility(View.VISIBLE);
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
                         Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
@@ -323,6 +332,7 @@ public class VideoEditActivity extends Activity {
                         mAVEngine.addComponent(new AVSticker(mAVEngine.getVideoState().positionUS, 18000000,//TODO
                                 getResources().openRawResource(mStickerList.get(position)),
                                 new ImageViewRender(mStickerView)));
+                        mStickerRecyclerView.setVisibility(View.GONE);
                     }
                 });
             }
