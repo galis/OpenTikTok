@@ -24,8 +24,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.galix.opentiktok.R;
 import com.galix.opentiktok.avcore.AVAudio;
+import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVEngine;
 import com.galix.opentiktok.avcore.AVVideo;
+import com.galix.opentiktok.render.ImageViewRender;
 import com.galix.opentiktok.util.GifDecoder;
 import com.galix.opentiktok.util.VideoUtil;
 
@@ -318,13 +320,9 @@ public class VideoEditActivity extends Activity {
                     @Override
                     public void onClick(View v) {
                         mStickerView.setVisibility(View.VISIBLE);
-                        if (mGifDecoder == null) {
-                            mGifDecoder = new GifDecoder();
-                            mGifDecoder.read(getResources().openRawResource(mStickerList.get(position)));
-                        }
-//                        mVideoState.stickerStartTime = mVideoState.position;
-//                        mVideoState.stickerEndTime = 10 * 1000000;
-//                        mVideoState.stickerCount = mGifDecoder.getFrameCount();
+                        mAVEngine.addComponent(new AVSticker(mAVEngine.getVideoState().positionUS, 18000000,//TODO
+                                getResources().openRawResource(mStickerList.get(position)),
+                                new ImageViewRender(mStickerView)));
                     }
                 });
             }
@@ -337,10 +335,9 @@ public class VideoEditActivity extends Activity {
 
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
-        mAVEngine.addComponent(new AVVideo(0, VideoUtil.mDuration, VideoUtil.mTargetPath, mAVEngine.nextValidTexture()));
-        mAVEngine.addComponent(new AVAudio(0, VideoUtil.mDuration, VideoUtil.mTargetPath));
+        mAVEngine.addComponent(new AVVideo(0, VideoUtil.mDuration, VideoUtil.mTargetPath, mAVEngine.nextValidTexture(), null));
+        mAVEngine.addComponent(new AVAudio(0, VideoUtil.mDuration, VideoUtil.mTargetPath, null));
         mAVEngine.setOnFrameUpdateCallback(() -> freshUI());
-        mAVEngine.start();
         checkPermission();
     }
 
@@ -352,14 +349,14 @@ public class VideoEditActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        Log.d(TAG,"onStop");
+        Log.d(TAG, "onStop");
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mAVEngine.release();
-        Log.d(TAG,"onDestroy");
+        Log.d(TAG, "onDestroy");
     }
 
     //不同线程都可以刷新UI
@@ -377,14 +374,6 @@ public class VideoEditActivity extends Activity {
                     int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.positionUS);
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
-//                if (mVideoState.stickerStartTime != -1 && mVideoState.stickerStartTime <= mVideoState.position && mVideoState.stickerEndTime >= mVideoState.position) {
-//                    mStickerView.setVisibility(View.VISIBLE);
-//                    int frameIdx = (int) ((mVideoState.position - mVideoState.stickerStartTime) / 1000 / mGifDecoder.getDelay(0));
-//                    frameIdx %= mVideoState.stickerCount;
-//                    mStickerView.setImageBitmap(mGifDecoder.getFrame(frameIdx));
-//                } else {
-//                    mStickerView.setVisibility(View.GONE);
-//                }
             }
         });
     }

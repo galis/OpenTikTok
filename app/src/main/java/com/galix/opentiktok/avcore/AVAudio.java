@@ -5,6 +5,8 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.util.Log;
 
+import com.galix.opentiktok.render.IRender;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -24,8 +26,8 @@ public class AVAudio extends AVComponent {
     private MediaFormat mediaFormat;
     private ByteBuffer sampleBuffer;
 
-    public AVAudio(long srcStartTime, long srcEndTime, String path) {
-        super(srcStartTime, srcEndTime, AVComponentType.AUDIO);
+    public AVAudio(long srcStartTime, long srcEndTime, String path, IRender render) {
+        super(srcStartTime, srcEndTime, AVComponentType.AUDIO,render);
         this.path = path;
     }
 

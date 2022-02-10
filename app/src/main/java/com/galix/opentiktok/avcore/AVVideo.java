@@ -7,6 +7,8 @@ import android.media.MediaFormat;
 import android.util.Log;
 import android.view.Surface;
 
+import com.galix.opentiktok.render.IRender;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -28,15 +30,15 @@ public class AVVideo extends AVComponent {
     private SurfaceTexture surfaceTexture;
 
     //输出到surface
-    public AVVideo(long srcStartTime, long srcEndTime, String path, int textureId) {
-        super(srcStartTime, srcEndTime, AVComponentType.VIDEO);
+    public AVVideo(long srcStartTime, long srcEndTime, String path, int textureId, IRender render) {
+        super(srcStartTime, srcEndTime, AVComponentType.VIDEO, render);
         this.path = path;
         this.textureId = textureId;
     }
 
     //输出到buffer
-    public AVVideo(long srcStartTime, long srcEndTime, String path) {
-        super(srcStartTime, srcEndTime, AVComponentType.VIDEO);
+    public AVVideo(long srcStartTime, long srcEndTime, String path, IRender render) {
+        super(srcStartTime, srcEndTime, AVComponentType.VIDEO, render);
         this.path = path;
         this.textureId = -1;
     }
@@ -98,6 +100,10 @@ public class AVVideo extends AVComponent {
             surface.release();
             surface = null;
         }
+        if (getRender() != null) {
+            getRender().close();
+            setRender(null);
+        }
         isInputEOF = false;
         isOutputEOF = false;
         markOpen(false);
@@ -129,6 +135,7 @@ public class AVVideo extends AVComponent {
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
                 int outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, -1);
                 if (outputBufIdx >= 0) {
+                    peekFrame().setValid(true);
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         isOutputEOF = true;
                         peekFrame().setEof(true);

@@ -1,5 +1,7 @@
 package com.galix.opentiktok.avcore;
 
+import com.galix.opentiktok.render.IRender;
+
 import java.util.List;
 
 /**
@@ -23,7 +25,7 @@ public abstract class AVComponent {
         VIDEO,          //视频
         AUDIO,          //音频
         WORD,           //文字
-        EFFECT,         //特效
+        STICKER,         //贴纸
         TRANSACTION,    //转场
         PIP             //画中画
     }
@@ -33,16 +35,19 @@ public abstract class AVComponent {
     private long duration;//原始数据
     private long position;
     private boolean isOpen;
+    private IRender render;
     private AVFrame cache;
     private AVComponentType type;
 
-    public AVComponent(long srcStartTime, long srcEndTime, AVComponentType type) {
+    public AVComponent(long srcStartTime, long srcEndTime, AVComponentType type, IRender render) {
         this.srcStartTime = srcStartTime;
         this.srcEndTime = srcEndTime;
         this.type = type;
         this.position = -1;
         this.isOpen = false;
         this.cache = new AVFrame();
+        this.render = render;
+        this.duration = srcEndTime - srcStartTime;
     }
 
     public long getSrcStartTime() {
@@ -113,6 +118,14 @@ public abstract class AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         cache.setValid(false);
         return RESULT_OK;
+    }
+
+    public IRender getRender() {
+        return render;
+    }
+
+    public void setRender(IRender render) {
+        this.render = render;
     }
 
     @Override

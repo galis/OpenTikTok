@@ -64,9 +64,9 @@ public class AVEngine implements GLSurfaceView.Renderer {
         public boolean isOutputEOF = false;
         public boolean isExit = false;
 
-        public long positionUS = 0;//当前视频位置 us
-        public long seekPositionUS = -1;
-        public long durationUS = 0;//视频总时长 us
+        public long positionUS = Long.MAX_VALUE;//当前视频位置 us
+        public long seekPositionUS = Long.MAX_VALUE;
+        public long durationUS = Long.MAX_VALUE;//视频总时长 us
         public long videoTimeUS = Long.MAX_VALUE;//视频播放时间戳
         public long audioTimeUS = Long.MAX_VALUE;//音频播放时间戳
         public VideoStatus status = VideoStatus.INIT;//播放状态
@@ -112,7 +112,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mTextures = new int[MAX_TEXTURE];
         GLES30.glGenTextures(MAX_TEXTURE, mTextures, 0);
         mValidTexture = 0;
-        createDaemon();
+        createAudioDaemon();
     }
 
     @Override
@@ -124,54 +124,94 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public void onDrawFrame(GL10 gl) {
         boolean needSwap = false;
         while (!needSwap && !mVideoState.isExit) {
-            if (mVideoState.status == PLAY || mVideoState.status == SEEK) {
-                long targetPosition = mVideoState.status == PLAY ? mVideoState.positionUS : mVideoState.seekPositionUS;
-                List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, targetPosition);
-                for (AVComponent component : components) {
+            //计算正确position
+            long targetPosition = mVideoState.positionUS == Long.MAX_VALUE ? 0 : mVideoState.positionUS;
+            if (mVideoState.status == SEEK) {
+                targetPosition = mVideoState.seekPositionUS;
+            }
+
+            //处理贴纸片段
+            List<AVComponent> effectComponents = findComponents(AVComponent.AVComponentType.STICKER, targetPosition);
+            for (AVComponent component : effectComponents) {
+                if (component.getRender() != null) {
                     if (mVideoState.status == PLAY) {
                         component.readFrame();
-                    } else {
+                    } else if (mVideoState.status == SEEK) {
                         component.seekFrame(targetPosition);
+                    } else {
+                        while (!component.peekFrame().isValid()) {
+                            component.readFrame();
+                        }
                     }
                     AVFrame avFrame = component.peekFrame();
-                    if (avFrame != null) {
-                        needSwap = true;
-                        boolean needRender = true;
-                        long delay = 0;
-                        if (mVideoState.status == PLAY) {
-                            needRender = avFrame.getPts() > mVideoState.audioTimeUS || (mVideoState.audioTimeUS - avFrame.getPts()) < 100000;
-                            delay = Math.max(avFrame.getPts() - mVideoState.audioTimeUS, 0);
-                        }
-                        if (needRender) {
-                            if (delay > 0) {
-                                Log.d(TAG, "delay#" + delay / 10000);
-                                try {
-                                    Thread.sleep(delay / 10000);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            mOesRender.render(avFrame);
-                        }
-                        mVideoState.positionUS = avFrame.getPts();
+                    if (avFrame.isValid()) {
+                        component.getRender().render(avFrame);
                     }
                 }
-                onFrameUpdate();
-            } else {
+            }
+
+            //处理视频片段
+            long delay = 0;
+            List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, targetPosition);
+            for (AVComponent component : components) {
+                if (mVideoState.status == PLAY) {
+                    component.readFrame();
+                } else if (mVideoState.status == SEEK) {
+                    component.seekFrame(targetPosition);
+                } else {
+                    while (!component.peekFrame().isValid()) {
+                        component.readFrame();
+                    }
+                }
+                AVFrame avFrame = component.peekFrame();
+                if (avFrame != null) {
+                    needSwap = true;
+                    //音视频同步.
+                    boolean needRender = true;
+                    if (mVideoState.status == PLAY) {
+                        needRender = avFrame.getPts() > mVideoState.audioTimeUS || (mVideoState.audioTimeUS - avFrame.getPts()) < 100000;
+                        delay = Math.max(avFrame.getPts() - mVideoState.audioTimeUS, 0);
+                    }
+                    if (needRender) {
+                        if (delay > 0) {
+                            Log.d(TAG, "delay#" + delay / 10000);//TODO /10000?
+                            try {
+                                Thread.sleep(delay / 10000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        if (component.getRender() != null) {
+                            component.getRender().render(avFrame);
+                        } else {
+                            mOesRender.render(avFrame);
+                        }
+                    }
+                    mVideoState.positionUS = avFrame.getPts();
+                }
+            }
+
+            //更新UI
+            onFrameUpdate();
+
+            //让出CPU？
+            if (delay == 0) {
                 try {
                     Thread.sleep(PLAY_GAP);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
+
         }
+
     }
 
     public void setOnFrameUpdateCallback(OnFrameUpdateCallback callback) {
         mOnFrameUpdateCallback = callback;
     }
 
-    private void createDaemon() {
+    private void createAudioDaemon() {
         mAudioRender = new AudioRender();
         mAudioRender.open();
         mAudioThread = new HandlerThread("audioThread");
@@ -194,7 +234,11 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             AVAudio audio = (AVAudio) components.get(0);
                             AVFrame audioFrame = audio.peekFrame();
                             if (mVideoState.status == PLAY) {
-                                mAudioRender.render(audioFrame);
+                                if (audio.getRender() != null) {
+                                    audio.getRender().render(audioFrame);
+                                } else {
+                                    mAudioRender.render(audioFrame);
+                                }
                             }
                             mVideoState.audioTimeUS = audioFrame.getPts();
                             audioFrame.markRead();
@@ -211,6 +255,13 @@ public class AVEngine implements GLSurfaceView.Renderer {
         });
     }
 
+    /**
+     * 根据类型查找组件
+     *
+     * @param type
+     * @param position
+     * @return
+     */
     public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
         List<AVComponent> components = new LinkedList<>();
         for (AVComponent component : mComponents) {
@@ -221,18 +272,31 @@ public class AVEngine implements GLSurfaceView.Renderer {
         return components;
     }
 
+    /**
+     * 添加组件
+     *
+     * @param avComponent
+     */
     public void addComponent(AVComponent avComponent) {
         mComponents.add(avComponent);
         avComponent.open();
         reCalculate();
     }
 
+    /**
+     * 删除组件
+     *
+     * @param avComponent
+     */
     public void removeComponent(AVComponent avComponent) {
         avComponent.close();
         mComponents.remove(avComponent);
         reCalculate();
     }
 
+    /**
+     * 计算总时长US.
+     */
     private void reCalculate() {
         for (AVComponent component : mComponents) {
             mVideoState.durationUS = Math.max(component.getSrcStartTime() + component.getDuration(), mVideoState.durationUS);
@@ -287,9 +351,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
             avComponent.close();
         }
 
-        mAudioRender.close();
-        mOesRender.close();
-
         mGLSurfaceView = null;
     }
 
@@ -310,7 +371,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         if (mOnFrameUpdateCallback != null) {
             mOnFrameUpdateCallback.onFrameUpdate();
         }
-//        dumpVideoState();
+        dumpVideoState();
     }
 
     private void dumpVideoState() {
