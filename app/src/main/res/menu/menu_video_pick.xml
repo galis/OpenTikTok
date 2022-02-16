@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!--showAsAction属性
+        always表示永远显示在ActionBar中，如果屏幕空间不够则无法显示
+        ifRoom表示屏幕空间够的情况下显示在ActionBar中，不够的话就显示在overflow中
+        never则表示永远显示在overflow中
+        withText：这个值使菜单项和它的图标，文本一起显示-->
+
+    <!--menuCategory：同种菜单项的种类。该属性可取4个值：container、system、secondary和alternative。-->
+
+    <!--orderInCategor:同种类菜单的排列顺序。该属性需要设置一个整数值-->
+
+    <item
+        android:id="@+id/action_done"
+        android:icon="@drawable/icon_done"
+        android:title="Done"
+        app:showAsAction="always" />
+</menu>

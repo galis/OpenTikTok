@@ -144,7 +144,7 @@ public class VideoUtil {
             try {
                 for (File video : videos) {
                     String gopMp4Path = getAdjustGopVideoPath(context, video.getPath());
-                    Mp4Adjust mp4Adjust = new Mp4Adjust(10, (int) (2.5 * 1024 * 1024), 44100, video.getAbsolutePath(), gopMp4Path);
+                    Mp4Adjust mp4Adjust = new Mp4Adjust(5, (int) (2.5 * 1024 * 1024), 44100, video.getAbsolutePath(), gopMp4Path);
                     mp4Adjust.process();
                 }
             } catch (Exception e) {
@@ -154,6 +154,5 @@ public class VideoUtil {
             }
         });
     }
-
 
 }

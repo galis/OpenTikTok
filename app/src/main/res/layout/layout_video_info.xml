@@ -19,4 +19,11 @@
         android:textColor="@color/white"
         android:textSize="16sp" />
 
+    <ImageView
+        android:id="@+id/image_pick"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:padding="10dp"
+        android:src="@drawable/selector_pick" />
+
 </RelativeLayout>

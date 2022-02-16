@@ -63,9 +63,10 @@ public class Mp4Adjust {
 
     private void openDecodeStream(int trackIdx) {
         MediaFormat mediaFormat = mMediaExtractor.getTrackFormat(trackIdx);
+        if (mediaFormat.getLong(MediaFormat.KEY_DURATION, 0) == 0) return;
         Stream stream = new Stream();
         stream.trackIdx = trackIdx;
-        stream.duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
+        stream.duration = mediaFormat.getLong(MediaFormat.KEY_DURATION, 0);
         stream.isInputEOF = stream.isOutputEOF = false;
         stream.buffer = ByteBuffer.allocateDirect(mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
         stream.format = mediaFormat;
@@ -88,6 +89,7 @@ public class Mp4Adjust {
 
     private void openEncodeStream(int trackIdx) {
         MediaFormat mediaFormat = mMediaExtractor.getTrackFormat(trackIdx);
+        if (mediaFormat.getLong(MediaFormat.KEY_DURATION, 0) == 0) return;
         if (mediaFormat.getString(MediaFormat.KEY_MIME).contains("video")) {
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420PackedPlanar);
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, mVb);
@@ -138,7 +140,7 @@ public class Mp4Adjust {
                         if (stream.trackIdx == 0) Log.d(TAG, "readFrame#isOutputEOF");
                     }
                     ByteBuffer byteBuffer = stream.mediaCodec.getOutputBuffer(outputBufIdx);
-                    if (avFrame.byteBuffer == null) {
+                    if (avFrame.byteBuffer == null || avFrame.byteBuffer.limit() < bufferInfo.size) {
                         avFrame.byteBuffer = ByteBuffer.allocateDirect(bufferInfo.size);
                     }
                     if (stream.trackIdx == 0) Log.d(TAG, "readFrame#pts#" + bufferInfo.presentationTimeUs);
@@ -188,36 +190,36 @@ public class Mp4Adjust {
      */
     private void writeFrame(Stream stream, Frame frame) {
         MediaCodec mediaCodec = stream.mediaCodec;
+        boolean ret = false;
         if (!stream.isInputEOF) {
-            int status = mediaCodec.dequeueInputBuffer(-1);
-            if (status >= 0) {
-                mediaCodec.getInputBuffer(status).put(frame.byteBuffer);
-                stream.isInputEOF = frame.isEOF;
-                if (stream.isInputEOF) Log.d(TAG, "writeFrame#isInputEOF");
-                mediaCodec.queueInputBuffer(status, 0, stream.isInputEOF ? 0 : frame.byteBuffer.limit(), stream.isInputEOF ? -1 : frame.pts, stream.isInputEOF ?
-                        BUFFER_FLAG_END_OF_STREAM : 0);
+            while (!ret) {
+                int status = mediaCodec.dequeueInputBuffer(-1);
+                if (status >= 0) {
+                    mediaCodec.getInputBuffer(status).put(frame.byteBuffer);
+                    stream.isInputEOF = frame.isEOF;
+                    if (stream.isInputEOF) Log.d(TAG, "writeFrame#isInputEOF");
+                    mediaCodec.queueInputBuffer(status, 0, stream.isInputEOF ? 0 : frame.byteBuffer.limit(), stream.isInputEOF ? -1 : frame.pts, stream.isInputEOF ?
+                            BUFFER_FLAG_END_OF_STREAM : 0);
+                    ret = true;
+                }
             }
         }
         if (!stream.isOutputEOF) {
             MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-            boolean ret = false;
-            while (!ret) {
-                int status = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
-                if (status >= 0) {
-                    if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
-                        stream.isOutputEOF = true;
-                        stream.nextPts = stream.duration;
-                        Log.d(TAG, "writeFrame#isOutputEOF");
-                    }
-                    if (!stream.isOutputEOF) {
-                        ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(status);
-                        Log.d(TAG, "writeSampleData#bufferSize#" + byteBuffer.limit() + "stream#index#" + stream.trackIdx);
-                        mMediaMuxer.writeSampleData(stream.trackIdx, mediaCodec.getOutputBuffer(status), bufferInfo);
-                        stream.nextPts = bufferInfo.presentationTimeUs;
-                    }
-                    mediaCodec.releaseOutputBuffer(status, false);
-                    ret = true;
+            int status = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+            if (status >= 0) {
+                if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
+                    stream.isOutputEOF = true;
+                    stream.nextPts = stream.duration;
+                    Log.d(TAG, "writeFrame#isOutputEOF");
                 }
+                if (!stream.isOutputEOF) {
+                    ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(status);
+                    Log.d(TAG, "writeSampleData#bufferSize#" + byteBuffer.limit() + "stream#index#" + stream.trackIdx);
+                    mMediaMuxer.writeSampleData(stream.trackIdx, mediaCodec.getOutputBuffer(status), bufferInfo);
+                    stream.nextPts = bufferInfo.presentationTimeUs;
+                }
+                mediaCodec.releaseOutputBuffer(status, false);
             }
         }
     }

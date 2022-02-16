@@ -10,3 +10,5 @@
 9.丢帧，可以不经过解码，编码步骤，不过只能丢掉特定的帧。
 10.bytebuffer.put复制解码内容的时候，要注意把position复位。。
 11.AudioTrack minBufferSize
+12.getSupportActionBar https://www.jianshu.com/p/81d0bcb282cb
+13.共享安卓图标资源 https://fonts.google.com/icons?selected=Material+Icons:done:

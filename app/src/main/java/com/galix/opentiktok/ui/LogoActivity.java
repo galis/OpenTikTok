@@ -16,7 +16,7 @@ public class LogoActivity extends AppCompatActivity {
         setContentView(R.layout.activity_logo);
 
         findViewById(R.id.btn_start_work).setOnClickListener(v -> {
-            startActivity(new Intent(LogoActivity.this, ResourceChooseActivity.class));
+            startActivity(new Intent(LogoActivity.this, VideoPickActivity.class));
         });
 
         findViewById(R.id.btn_take_video).setOnClickListener(v -> {

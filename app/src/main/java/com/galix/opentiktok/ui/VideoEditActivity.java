@@ -9,6 +9,8 @@ import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -17,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -48,7 +51,7 @@ import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
  * @Author Galis
  * @Date 2022.01.15
  */
-public class VideoEditActivity extends Activity {
+public class VideoEditActivity extends AppCompatActivity {
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -60,7 +63,9 @@ public class VideoEditActivity extends Activity {
     private static final int DRAG_HEAD = 0;
     private static final int DRAG_FOOT = 1;
     private static final int DRAG_IMG = 2;
-    private static final int DRAG_SPLIT = 3;
+    private static final int DRAG_ADD = 3;
+    private static final int DRAG_MUTE = 4;
+    private static final int DRAG_SPLIT = 5;
     private static final int THUMB_SLOT_WIDTH = 80;
 
     private LinkedList<ThumbInfo> mThumbsList;
@@ -168,9 +173,10 @@ public class VideoEditActivity extends Activity {
         mThumbsList = new LinkedList<>();
         ThumbInfo head = new ThumbInfo();
         head.type = DRAG_HEAD;
-        ThumbInfo foot = new ThumbInfo();
-        foot.type = DRAG_FOOT;
         mThumbsList.add(head);
+        ThumbInfo mute = new ThumbInfo();
+        mute.type = DRAG_MUTE;
+        mThumbsList.add(mute);
         int pts = 0;
         while (pts < VideoUtil.mDuration) {
             ThumbInfo img = new ThumbInfo();
@@ -179,6 +185,11 @@ public class VideoEditActivity extends Activity {
             pts += 1000000;
             mThumbsList.add(img);
         }
+        ThumbInfo addBtn = new ThumbInfo();
+        addBtn.type = DRAG_ADD;
+        mThumbsList.add(addBtn);
+        ThumbInfo foot = new ThumbInfo();
+        foot.type = DRAG_FOOT;
         mThumbsList.add(foot);
 
         mStickerView = findViewById(R.id.image_sticker);
@@ -236,6 +247,8 @@ public class VideoEditActivity extends Activity {
             }
         });
         mTabRecyclerView.getAdapter().notifyDataSetChanged();
+
+        final int SLOT_WIDTH = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
         mThumbDragRecyclerView = findViewById(R.id.recyclerview_drag_thumb);
         mThumbDragRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
         mThumbDragRecyclerView.setAdapter(new RecyclerView.Adapter() {
@@ -245,11 +258,9 @@ public class VideoEditActivity extends Activity {
                 ImageView view = new ImageView(parent.getContext());
                 if (viewType == DRAG_HEAD || viewType == DRAG_FOOT) {
                     view.setLayoutParams(new ViewGroup.LayoutParams(
-                            parent.getMeasuredWidth() / 2, (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density)));
+                            parent.getMeasuredWidth() / 2 - SLOT_WIDTH, SLOT_WIDTH));
                 } else {
-                    view.setLayoutParams(new ViewGroup.LayoutParams(
-                            (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density),
-                            (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density)));
+                    view.setLayoutParams(new ViewGroup.LayoutParams(SLOT_WIDTH, SLOT_WIDTH));
                 }
                 return new ThumbViewHolder(view);
             }
@@ -258,6 +269,22 @@ public class VideoEditActivity extends Activity {
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 if (getItemViewType(position) == DRAG_HEAD || getItemViewType(position) == DRAG_FOOT) {
                     holder.itemView.setBackgroundColor(0xFF000000);
+                } else if (getItemViewType(position) == DRAG_ADD) {
+                    holder.itemView.setBackgroundColor(0xFF0000FF);
+                    holder.itemView.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            VideoPickActivity.start(VideoEditActivity.this);
+                        }
+                    });
+                } else if (getItemViewType(position) == DRAG_MUTE) {
+                    holder.itemView.setBackgroundColor(0xFF00FFFF);
+                    holder.itemView.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            VideoPickActivity.start(VideoEditActivity.this);
+                        }
+                    });
                 } else {
                     ImageView imageView = (ImageView) holder.itemView;
                     imageView.setScaleType(ImageView.ScaleType.FIT_XY);
@@ -346,6 +373,11 @@ public class VideoEditActivity extends Activity {
             }
         });
 
+        //Actionbar
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeButtonEnabled(true);
+
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
         mAVEngine.addComponent(new AVVideo(0, VideoUtil.mDuration, VideoUtil.mTargetPath, mAVEngine.nextValidTexture(), null));
@@ -370,6 +402,31 @@ public class VideoEditActivity extends Activity {
         super.onDestroy();
         mAVEngine.release();
         Log.d(TAG, "onDestroy");
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return super.onSupportNavigateUp();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_video_edit, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_export:
+                break;
+            case R.id.action_pixel:
+                break;
+            default:
+                break;
+        }
+        return true;
     }
 
     //不同线程都可以刷新UI
