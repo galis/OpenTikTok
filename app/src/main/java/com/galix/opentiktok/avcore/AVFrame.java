@@ -119,4 +119,22 @@ public class AVFrame {
     public void markRead() {
         isValid = false;
     }
+
+    @Override
+    public String toString() {
+        return "AVFrame{" +
+                "pts=" + pts +
+                ", texture=" + texture +
+                ", eof=" + eof +
+                ", isValid=" + isValid +
+                ", duration=" + duration +
+                ", text='" + text + '\'' +
+                ", textSize=" + textSize +
+                ", textColor=" + textColor +
+                ", roi=" + roi +
+                ", bitmap=" + bitmap +
+                ", byteBuffer=" + byteBuffer +
+                ", surfaceTexture=" + surfaceTexture +
+                '}';
+    }
 }

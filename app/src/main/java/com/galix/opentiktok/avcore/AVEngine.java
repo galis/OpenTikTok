@@ -50,6 +50,19 @@ public class AVEngine implements GLSurfaceView.Renderer {
     }
 
     //视频核心信息类
+    public static class Clock {
+        public float speed = 1.0f;
+        public long lastUpdate = -1;
+
+        @Override
+        public String toString() {
+            return "Clock{" +
+                    "speed=" + speed +
+                    ", lastUpdate=" + lastUpdate +
+                    '}';
+        }
+    }
+
     public static class VideoState {
 
         public enum VideoStatus {
@@ -64,12 +77,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
         public boolean isOutputEOF = false;
         public boolean isExit = false;
 
-        public long positionUS = Long.MAX_VALUE;//当前视频位置 us
         public long seekPositionUS = Long.MAX_VALUE;
-        public long durationUS = Long.MAX_VALUE;//视频总时长 us
-        public long videoTimeUS = Long.MAX_VALUE;//视频播放时间戳
-        public long audioTimeUS = Long.MAX_VALUE;//音频播放时间戳
+        public long durationUS = Long.MIN_VALUE;//视频总时长 us
+        public Clock videoClock;
+        public Clock audioClock;
         public VideoStatus status = VideoStatus.INIT;//播放状态
+
+        public VideoState() {
+            videoClock = new Clock();
+            audioClock = new Clock();
+        }
 
         @Override
         public String toString() {
@@ -77,14 +94,33 @@ public class AVEngine implements GLSurfaceView.Renderer {
                     "isInputEOF=" + isInputEOF +
                     ", isOutputEOF=" + isOutputEOF +
                     ", isExit=" + isExit +
-                    ", positionUS=" + positionUS +
                     ", seekPositionUS=" + seekPositionUS +
                     ", durationUS=" + durationUS +
-                    ", videoTimeUS=" + videoTimeUS +
-                    ", audioTimeUS=" + audioTimeUS +
+                    ", videoClock=" + videoClock.toString() +
+                    ", audioClock=" + audioClock.toString() +
                     ", status=" + status +
                     '}';
         }
+    }
+
+    public long getCurrentTimeUs() {
+        return System.nanoTime() / 1000;
+    }
+
+    public void setClock(Clock clock, long time) {
+        clock.lastUpdate = time;
+    }
+
+    public long getClock(Clock clock) {
+        if (clock.lastUpdate == -1) {
+            return 0;
+        }
+        return getCurrentTimeUs() + clock.lastUpdate;
+    }
+
+    //获取主时钟
+    public long getMainClock() {
+        return getClock(mVideoState.videoClock);
     }
 
     public static AVEngine getVideoEngine() {
@@ -125,19 +161,20 @@ public class AVEngine implements GLSurfaceView.Renderer {
         boolean needSwap = false;
         while (!needSwap && !mVideoState.isExit) {
             //计算正确position
-            long targetPosition = mVideoState.positionUS == Long.MAX_VALUE ? 0 : mVideoState.positionUS;
+            long videoClk = getMainClock();
             if (mVideoState.status == SEEK) {
-                targetPosition = mVideoState.seekPositionUS;
+                videoClk = mVideoState.seekPositionUS;
             }
 
             //处理视频片段
+            Log.d(TAG, "CurPos#" + videoClk);
             long delay = 0;
-            List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, targetPosition);
+            List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, videoClk);
             for (AVComponent component : components) {
                 if (mVideoState.status == PLAY) {
                     component.readFrame();
                 } else if (mVideoState.status == SEEK) {
-                    component.seekFrame(targetPosition);
+                    component.seekFrame(videoClk);
                 } else {
                     while (!component.peekFrame().isValid()) {
                         component.readFrame();
@@ -148,15 +185,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
                     needSwap = true;
                     //音视频同步.
                     boolean needRender = true;
+                    long correctPts = avFrame.getPts();
                     if (mVideoState.status == PLAY) {
-                        needRender = avFrame.getPts() > mVideoState.audioTimeUS || (mVideoState.audioTimeUS - avFrame.getPts()) < 100000;
-                        delay = Math.max(avFrame.getPts() - mVideoState.audioTimeUS, 0);
+                        needRender = correctPts >= videoClk || (videoClk - correctPts) < 33000;
+                        delay = Math.max(correctPts - videoClk, 0);
                     }
                     if (needRender) {
                         if (delay > 0) {
-                            Log.d(TAG, "delay#" + delay / 10000);//TODO /10000?
                             try {
-                                Thread.sleep(delay / 10000);
+                                Log.d(TAG, "delay#" + delay / 1000);
+                                Thread.sleep(delay / 1000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -167,7 +205,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             mOesRender.render(avFrame);
                         }
                     }
-                    mVideoState.positionUS = avFrame.getPts();
+                    setClock(mVideoState.videoClock, correctPts - getCurrentTimeUs());
                 }
             }
 
@@ -175,12 +213,12 @@ public class AVEngine implements GLSurfaceView.Renderer {
             List<AVComponent> stickComponents = findComponents(AVComponent.AVComponentType.STICKER, -1);
             for (AVComponent component : stickComponents) {
                 if (component.getRender() != null) {
-                    if (component.isValid(mVideoState.positionUS)) {
+                    if (component.isValid(videoClk)) {
                         if (mVideoState.status == PLAY) {
                             component.readFrame();
                             component.getRender().render(component.peekFrame());
                         } else if (mVideoState.status == SEEK) {
-                            component.seekFrame(targetPosition);
+                            component.seekFrame(videoClk);
                             component.getRender().render(component.peekFrame());
                         } else {
                             while (!component.peekFrame().isValid()) {
@@ -200,7 +238,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
             for (AVComponent component : wordsComponents) {
                 if (component.getRender() != null) {
                     AVFrame wordFrame = component.peekFrame();
-                    if (component.isValid(mVideoState.positionUS)) {
+                    if (component.isValid(videoClk)) {
                         if (wordFrame.isValid()) {
                             component.getRender().render(wordFrame);
                         } else {
@@ -242,7 +280,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mAudioHandler.post(() -> {
             while (!mVideoState.isExit) {
                 if (mVideoState.status == PLAY || mVideoState.status == SEEK) {
-                    long targetPosition = mVideoState.status == PLAY ? mVideoState.positionUS : mVideoState.seekPositionUS;
+                    long targetPosition = getMainClock();
                     List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, targetPosition);
                     for (AVComponent avComponent : components) {
                         if (mVideoState.status == PLAY) {
@@ -255,6 +293,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
                         if (avComponent.peekFrame().isValid()) {
                             AVAudio audio = (AVAudio) components.get(0);
                             AVFrame audioFrame = audio.peekFrame();
+                            if (Math.abs(audioFrame.getPts() - getMainClock()) > 10000) {
+                                Log.d(TAG, "Drop Audio Frame#" + audioFrame.toString());
+                                continue;
+                            }
                             if (mVideoState.status == PLAY) {
                                 if (audio.getRender() != null) {
                                     audio.getRender().render(audioFrame);
@@ -262,7 +304,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                                     mAudioRender.render(audioFrame);
                                 }
                             }
-                            mVideoState.audioTimeUS = audioFrame.getPts();
+                            setClock(mVideoState.audioClock, audioFrame.getPts() - getCurrentTimeUs());
                             audioFrame.markRead();
                         }
                     }
@@ -368,11 +410,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public void release() {
         mVideoState.isExit = true;
         mVideoState.status = DESTROY;
-        mVideoState.positionUS = 0;//当前视频位置 us
         mVideoState.seekPositionUS = -1;
         mVideoState.durationUS = 0;//视频总时长 us
-        mVideoState.videoTimeUS = Long.MAX_VALUE;//视频播放时间戳
-        mVideoState.audioTimeUS = Long.MAX_VALUE;//音频播放时间戳
+//        mVideoState.videoTimeUS = Long.MAX_VALUE;//视频播放时间戳
+//        mVideoState.audioTimeUS = Long.MAX_VALUE;//音频播放时间戳
 
         if (mAudioHandler != null && mAudioThread != null) {
             mAudioHandler.getLooper().quit();
@@ -409,6 +450,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         }
 //        dumpVideoState();
     }
+
 
     private void dumpVideoState() {
         Log.d(TAG, mVideoState.toString());

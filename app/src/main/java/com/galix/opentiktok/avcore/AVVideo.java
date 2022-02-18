@@ -139,10 +139,10 @@ public class AVVideo extends AVComponent {
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         isOutputEOF = true;
                         peekFrame().setEof(true);
-                        peekFrame().setPts(mediaFormat.getLong(mediaFormat.KEY_DURATION));
+                        peekFrame().setPts(mediaFormat.getLong(mediaFormat.KEY_DURATION) + getSrcStartTime());
                     } else {
                         peekFrame().setEof(false);
-                        peekFrame().setPts(bufferInfo.presentationTimeUs);
+                        peekFrame().setPts(bufferInfo.presentationTimeUs + getSrcStartTime());
                     }
                     if (textureId == -1) {//no output surface texture
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);

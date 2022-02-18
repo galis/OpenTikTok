@@ -2,7 +2,6 @@ package com.galix.opentiktok.ui;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
 import android.os.Handler;
@@ -41,10 +40,10 @@ public class VideoPickActivity extends AppCompatActivity {
     private static final String TAG = VideoPickActivity.class.getSimpleName();
     private HandlerThread mLoadThread;
     private Handler mLoadHandler;
-    private ArrayList<FileEntry> mFileCache;
+    private ArrayList<VideoUtil.FileEntry> mFileCache;
     private RecyclerView mRecyclerView;
     private ContentLoadingProgressBar mProgressBar;
-    private LinkedList<FileEntry> mPickList;
+    private LinkedList<VideoUtil.FileEntry> mPickList;
 
     public static void start(Context context) {
         Intent intent = new Intent(context, VideoPickActivity.class);
@@ -60,15 +59,6 @@ public class VideoPickActivity extends AppCompatActivity {
         public ImageViewHolder(@NonNull View itemView) {
             super(itemView);
         }
-    }
-
-    private static class FileEntry {
-        public String path;
-        public long duration;
-        public long frameRate;
-        public int width;
-        public int height;
-        public Bitmap thumb;
     }
 
     @Override
@@ -98,7 +88,7 @@ public class VideoPickActivity extends AppCompatActivity {
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 ImageViewHolder imageViewHolder = (ImageViewHolder) holder;
                 imageViewHolder.imageView.setImageBitmap(mFileCache.get(position).thumb);
-                FileEntry fileEntry = mFileCache.get(position);
+                VideoUtil.FileEntry fileEntry = mFileCache.get(position);
                 imageViewHolder.pickBtn.setSelected(
                         mPickList.contains(fileEntry)
                 );
@@ -149,13 +139,14 @@ public class VideoPickActivity extends AppCompatActivity {
                 mediaMetadataRetriever.setDataSource(mp4.getAbsolutePath());
                 if (Integer.parseInt(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)) > 0) {
                     Log.d(TAG, mp4.getAbsolutePath());
-                    FileEntry fileEntry = new FileEntry();
+                    VideoUtil.FileEntry fileEntry = new VideoUtil.FileEntry();
                     fileEntry.duration = Integer.parseInt(mediaMetadataRetriever.extractMetadata
                             (MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
                     fileEntry.thumb = mediaMetadataRetriever.getFrameAtIndex(0);
                     fileEntry.width = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
                     fileEntry.height = Integer.parseInt(mediaMetadataRetriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
                     fileEntry.path = mp4.getAbsolutePath();
+                    fileEntry.adjustPath = VideoUtil.getAdjustGopVideoPath(VideoPickActivity.this, fileEntry.path);
                     mFileCache.add(fileEntry);
                     getWindow().getDecorView().post(new Runnable() {
                         @Override
@@ -209,19 +200,13 @@ public class VideoPickActivity extends AppCompatActivity {
 
     private void handleVideo() {
         //跳转前先处理资源
-        ArrayList<File> files = new ArrayList<>();
-        for (FileEntry fileEntry : mPickList) {
-            if (!mProgressBar.isShown()) {
-                mProgressBar.show();
-                VideoUtil.mTargetPath = VideoUtil.getAdjustGopVideoPath(VideoPickActivity.this, fileEntry.path);
-                VideoUtil.mDuration = fileEntry.duration;
-                files.add(new File(fileEntry.path));
-                VideoUtil.processVideo(VideoPickActivity.this, files, 3, 10000000, msg -> {
-                    VideoEditActivity.start(VideoPickActivity.this);
-                    finish();
-                    return true;
-                });
-            }
+        if (!mProgressBar.isShown()) {
+            mProgressBar.show();
         }
+        VideoUtil.processVideo(VideoPickActivity.this, mPickList, 3, 10000000, msg -> {
+            VideoEditActivity.start(VideoPickActivity.this);
+            finish();
+            return true;
+        });
     }
 }

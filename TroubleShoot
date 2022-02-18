@@ -4,7 +4,13 @@
 3.如何设置帧率？
 4.如何标记解码器终结？
 5.如何音视频同步?
-6.MediaCodec时间单位us Surface时间单位ns MediaMetadataRetriever ms
+
+6.各种时间单位
+MediaCodec时间单位us Surface时间单位ns MediaMetadataRetriever ms
+1s = 1000ms = 1000000us = 1000000000 ns
+System.currentMillis() ms
+System.nanoTime() ns
+
 7.pts为负数，最后一帧填入不正常的值
 8.currentMillis时间和日历可以相互转换，可以被修改，nanoTime就不可以，更精确
 9.丢帧，可以不经过解码，编码步骤，不过只能丢掉特定的帧。
@@ -12,3 +18,9 @@
 11.AudioTrack minBufferSize
 12.getSupportActionBar https://www.jianshu.com/p/81d0bcb282cb
 13.共享安卓图标资源 https://fonts.google.com/icons?selected=Material+Icons:done:
+14.避免不断获取Buffer MediaCodec
+15.解码时候传递COLOR_FORMAT...
+16.可以selectTrack多个。。
+17.csd adts https://www.jianshu.com/p/aeadf260258a
+18.encode decode cts / https://cs.android.com/android/platform/superproject/+/master:cts/tests/tests/media/codec/src/android/media/codec/cts/EncodeDecodeTest.java
+19.编码器貌似需要一个新的MediaFormat,直接用解码器的MediaFormat，有点问题.

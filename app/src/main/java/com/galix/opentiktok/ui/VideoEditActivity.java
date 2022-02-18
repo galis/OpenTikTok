@@ -169,29 +169,6 @@ public class VideoEditActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_edit);
 
-        //初始化Thumb信息
-        mThumbsList = new LinkedList<>();
-        ThumbInfo head = new ThumbInfo();
-        head.type = DRAG_HEAD;
-        mThumbsList.add(head);
-        ThumbInfo mute = new ThumbInfo();
-        mute.type = DRAG_MUTE;
-        mThumbsList.add(mute);
-        int pts = 0;
-        while (pts < VideoUtil.mDuration) {
-            ThumbInfo img = new ThumbInfo();
-            img.type = DRAG_IMG;
-            img.imgPath = VideoUtil.getThumbJpg(this, VideoUtil.mTargetPath, pts);
-            pts += 1000000;
-            mThumbsList.add(img);
-        }
-        ThumbInfo addBtn = new ThumbInfo();
-        addBtn.type = DRAG_ADD;
-        mThumbsList.add(addBtn);
-        ThumbInfo foot = new ThumbInfo();
-        foot.type = DRAG_FOOT;
-        mThumbsList.add(foot);
-
         mStickerView = findViewById(R.id.image_sticker);
         GestureUtils.setupView(mStickerView, new Rect(0, 0, 1920, 1080));
         mEditTextView = findViewById(R.id.edit_tip);
@@ -232,7 +209,7 @@ public class VideoEditActivity extends AppCompatActivity {
                     if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_text) {
-                        mAVEngine.addComponent(new AVWord(mAVEngine.getVideoState().positionUS, 5000000,
+                        mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 5000000,
                                 new TextRender(mEditTextView)));
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
@@ -359,7 +336,7 @@ public class VideoEditActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         mStickerView.setVisibility(View.VISIBLE);
-                        mAVEngine.addComponent(new AVSticker(mAVEngine.getVideoState().positionUS, 7000000,//TODO
+                        mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 2000000,//TODO
                                 getResources().openRawResource(mStickerList.get(position)),
                                 new ImageViewRender(mStickerView)));
                         mStickerRecyclerView.setVisibility(View.GONE);
@@ -378,10 +355,37 @@ public class VideoEditActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeButtonEnabled(true);
 
+        //初始化Thumb信息
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
-        mAVEngine.addComponent(new AVVideo(0, VideoUtil.mDuration, VideoUtil.mTargetPath, mAVEngine.nextValidTexture(), null));
-        mAVEngine.addComponent(new AVAudio(0, VideoUtil.mDuration, VideoUtil.mTargetPath, null));
+        mThumbsList = new LinkedList<>();
+        ThumbInfo head = new ThumbInfo();
+        head.type = DRAG_HEAD;
+        mThumbsList.add(head);
+        ThumbInfo mute = new ThumbInfo();
+        mute.type = DRAG_MUTE;
+        mThumbsList.add(mute);
+        int pts = 0;
+        long startTime = 0;
+        for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
+            mAVEngine.addComponent(new AVVideo(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, mAVEngine.nextValidTexture(), null));
+            mAVEngine.addComponent(new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null));
+            while (pts < fileEntry.duration) {
+                ThumbInfo img = new ThumbInfo();
+                img.type = DRAG_IMG;
+                img.imgPath = VideoUtil.getThumbJpg(this, fileEntry.path, pts - startTime);
+                pts += 1000000;
+                mThumbsList.add(img);
+            }
+            startTime += fileEntry.duration;
+        }
+
+        ThumbInfo addBtn = new ThumbInfo();
+        addBtn.type = DRAG_ADD;
+        mThumbsList.add(addBtn);
+        ThumbInfo foot = new ThumbInfo();
+        foot.type = DRAG_FOOT;
+        mThumbsList.add(foot);
         mAVEngine.setOnFrameUpdateCallback(() -> freshUI());
         checkPermission();
     }
@@ -434,14 +438,14 @@ public class VideoEditActivity extends AppCompatActivity {
         getWindow().getDecorView().post(() -> {
             AVEngine.VideoState mVideoState = AVEngine.getVideoEngine().getVideoState();
             if (mVideoState != null) {
-                long positionInS = mVideoState.positionUS / 1000000;
-                long durationInS = mVideoState.durationUS / 1000000;
-                mTimeInfo.setText(String.format("%02d:%02d / %02d:%02d",
-                        (int) (positionInS / 60 % 60), (int) (positionInS % 60),
-                        (int) (durationInS / 60 % 60), (int) (durationInS % 60)));
+                long positionInMS = (AVEngine.getVideoEngine().getMainClock() + 999) / 1000;
+                long durationInMS = (mVideoState.durationUS + 999) / 1000;
+                mTimeInfo.setText(String.format("%02d:%02d:%03d / %02d:%02d:%03d",
+                        positionInMS / 1000 / 60 % 60, positionInMS / 1000 % 60, positionInMS % 1000,
+                        durationInMS / 1000 / 60 % 60, durationInMS / 1000 % 60, durationInMS % 1000));
                 mPlayBtn.setImageResource(mVideoState.status == PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
                 if (mVideoState.status == PLAY) {
-                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * mVideoState.positionUS);
+                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * AVEngine.getVideoEngine().getMainClock());
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
             }

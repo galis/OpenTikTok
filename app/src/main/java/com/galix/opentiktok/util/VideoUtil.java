@@ -1,18 +1,23 @@
 package com.galix.opentiktok.util;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
+import android.media.MediaCodec;
+import android.media.MediaFormat;
 import android.opengl.EGLExt;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Surface;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -30,10 +35,20 @@ import javax.microedition.khronos.egl.EGLDisplay;
  * @Date:2022.01.16
  */
 public class VideoUtil {
+
     private static final String TAG = VideoUtil.class.getSimpleName();
     private static ThreadPoolExecutor mThreadPool;
-    public static String mTargetPath = "/sdcard/coach.mp4";
-    public static long mDuration = 0;
+    public static LinkedList<FileEntry> mTargetFiles;
+
+    public static class FileEntry {
+        public String path;
+        public String adjustPath;
+        public long duration;
+        public long frameRate;
+        public int width;
+        public int height;
+        public Bitmap thumb;
+    }
 
     static {
         mThreadPool = new ThreadPoolExecutor(2, 2,
@@ -126,7 +141,12 @@ public class VideoUtil {
      */
     public static String getAdjustGopVideoPath(Context context, String videoPath) {
         if (videoPath == null) return null;
-        return FileUtils.getCacheDir(context) + File.separator + md5(videoPath + "_gop") + ".mp4";
+        File file = new File(videoPath);
+        long modifyTime = 0;
+        if (file.exists()) {
+            modifyTime = file.lastModified();
+        }
+        return FileUtils.getCacheDir(context) + File.separator + md5(videoPath + "_gop_" + modifyTime) + ".mp4";
     }
 
     /**
@@ -139,18 +159,38 @@ public class VideoUtil {
      * @param bitrate  比特率
      * @param callback 回调
      */
-    public static void processVideo(Context context, final ArrayList<File> videos, int gop, int bitrate, Handler.Callback callback) {
+    public static void processVideo(Context context, final LinkedList<FileEntry> videos, int gop, int bitrate, Handler.Callback callback) {
         execute(() -> {
             try {
-                for (File video : videos) {
-                    String gopMp4Path = getAdjustGopVideoPath(context, video.getPath());
-                    Mp4Adjust mp4Adjust = new Mp4Adjust(5, (int) (2.5 * 1024 * 1024), 44100, video.getAbsolutePath(), gopMp4Path);
-                    mp4Adjust.process();
+                for (FileEntry video : videos) {
+                    File adjustFile = new File(video.adjustPath);
+                    if (adjustFile.exists()) continue;
+                    Mp4Adjust mp4Adjust = new Mp4Adjust(5, (int) (2.5 * 1024 * 1024), 44100, video.path, video.adjustPath, context.getCacheDir().getAbsolutePath());
+                    mp4Adjust.process(new Mp4Adjust.BufferCallback() {
+                        @Override
+                        public void handle(Mp4Adjust.Stream stream, ByteBuffer buffer, MediaCodec.BufferInfo bufferInfo) {
+                            if (stream.format.getString(MediaFormat.KEY_MIME).contains("video")) {
+                                //获取每一秒图片缩略图
+                                if (bufferInfo.size > 0 && bufferInfo.presentationTimeUs > stream.thumbPos) {
+                                    long now = System.currentTimeMillis();
+                                    int srcW = stream.format.getInteger(MediaFormat.KEY_WIDTH);
+                                    int srcH = stream.format.getInteger(MediaFormat.KEY_HEIGHT);
+                                    int colorFormat = stream.mediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_COLOR_FORMAT);
+                                    String dstJpg = VideoUtil.getThumbJpg(context, video.path, bufferInfo.presentationTimeUs);
+                                    YuvUtils.scaleAndSaveYuvAsJPEG(buffer, colorFormat, srcW, srcH, srcW / 5, srcH / 5, dstJpg);
+                                    long now2 = System.currentTimeMillis();
+                                    Log.d(TAG, "scaleAndSaveYuvAsJPEG#" + (now2 - now) + "#dst#" + dstJpg);
+                                    stream.thumbPos += 1000000;
+                                }
+                            }
+                        }
+                    });
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
                 callback.handleMessage(null);
+                mTargetFiles = videos;
             }
         });
     }
