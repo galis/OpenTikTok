@@ -1,7 +1,6 @@
 package com.galix.opentiktok.ui;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -42,8 +41,8 @@ import com.galix.opentiktok.util.VideoUtil;
 import java.util.LinkedList;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
-import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.PLAY;
 import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
+import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.START;
 
 /**
  * 视频编辑界面
@@ -180,7 +179,7 @@ public class VideoEditActivity extends AppCompatActivity {
         mPlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mAVEngine.playPause();
+                mAVEngine.startPause();
                 freshUI();
             }
         });
@@ -393,13 +392,11 @@ public class VideoEditActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        mSurfaceView.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mSurfaceView.onResume();
     }
 
     @Override
@@ -450,8 +447,8 @@ public class VideoEditActivity extends AppCompatActivity {
                 mTimeInfo.setText(String.format("%02d:%02d:%03d / %02d:%02d:%03d",
                         positionInMS / 1000 / 60 % 60, positionInMS / 1000 % 60, positionInMS % 1000,
                         durationInMS / 1000 / 60 % 60, durationInMS / 1000 % 60, durationInMS % 1000));
-                mPlayBtn.setImageResource(mVideoState.status == PLAY ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
-                if (mVideoState.status == PLAY) {
+                mPlayBtn.setImageResource(mVideoState.status == START ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
+                if (mVideoState.status == START) {
                     int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * AVEngine.getVideoEngine().getMainClock());
                     mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
