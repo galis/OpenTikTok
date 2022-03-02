@@ -465,11 +465,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
             Log.d(TAG, "mAudioThread quit");
         }
 
-        for (AVComponent avComponent : mComponents) {
-            avComponent.close();
-        }
-        mComponents.clear();
-
     }
 
     private void initInternal() {
@@ -493,7 +488,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 } else if (command.cmd == Command.Cmd.RELEASE) {
                     mVideoState.status = RELEASE;
                     mOesRender.close();
-//                    destroyInternal();
+                    for (AVComponent avComponent : mComponents) {
+                        avComponent.close();
+                    }
+                    mComponents.clear();
                 } else if (command.cmd == Command.Cmd.SEEK) {
                     mVideoState.status = SEEK;
                     mVideoState.isInputEOF = false;
