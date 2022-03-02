@@ -391,8 +391,15 @@ public class VideoEditActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        mSurfaceView.onPause();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        mSurfaceView.onResume();
     }
 
     @Override

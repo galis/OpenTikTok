@@ -2,6 +2,11 @@ package com.galix.opentiktok.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.MessageQueue;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,6 +23,8 @@ public class LogoActivity extends AppCompatActivity {
         findViewById(R.id.btn_start_work).setOnClickListener(v -> {
             startActivity(new Intent(LogoActivity.this, VideoPickActivity.class));
         });
+
+        getSystemService(ACTIVITY_SERVICE);
 
         findViewById(R.id.btn_take_video).setOnClickListener(v -> {
             Toast.makeText(LogoActivity.this, "暂未支持!", Toast.LENGTH_SHORT).show();
