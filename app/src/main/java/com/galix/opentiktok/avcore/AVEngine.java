@@ -38,6 +38,8 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private GLSurfaceView mGLSurfaceView;
     private OnFrameUpdateCallback mOnFrameUpdateCallback;
     private LinkedList<AVComponent> mComponents;
+    private AVComponent mLastVideoComponent;
+    private AVComponent mLastAudioComponent;
     private AudioRender mAudioRender;
     private OESRender mOesRender;
     private int[] mTextures;
@@ -215,10 +217,11 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
         //处理视频片段
         long delay = 0;
-        boolean needSeek = mVideoState.status == SEEK ||
-                (mVideoState.status == START && mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq);
         List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
         for (AVComponent component : components) {
+            boolean needSeek = mVideoState.status == SEEK
+                    || (mVideoState.status == START && mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq)
+                    || mLastVideoComponent != component;
             if (needSeek) {
                 component.seekFrame(extClk);
             } else {
@@ -262,6 +265,8 @@ public class AVEngine implements GLSurfaceView.Renderer {
             if (mVideoState.status == START && !avFrame.isEof()) {
                 avFrame.markRead();
             }
+
+            mLastVideoComponent = component;
         }
 
         //处理贴纸片段
@@ -333,8 +338,9 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 if (mVideoState.status == START) {
                     long extClk = getMainClock();
                     List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, extClk);
-                    boolean needSeek = mVideoState.audioClock.seekReq != mVideoState.audioClock.lastSeekReq;
                     for (AVComponent audio : components) {
+                        boolean needSeek = mVideoState.audioClock.seekReq != mVideoState.audioClock.lastSeekReq
+                                || (mLastAudioComponent != audio);
                         if (needSeek) {
                             audio.seekFrame(extClk);
                         } else {
@@ -358,6 +364,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                         setClock(mVideoState.audioClock, audioFrame.getPts());
                         mVideoState.audioClock.lastSeekReq = mVideoState.audioClock.seekReq;
                         audioFrame.markRead();
+                        mLastAudioComponent = audio;
                     }
                 } else {
                     try {
