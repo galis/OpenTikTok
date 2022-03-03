@@ -257,7 +257,9 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 setClock(mVideoState.videoClock, correctPts);
                 mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
             }
-            if (mVideoState.status == START) {
+
+            //如果是最后一帧，那么就保留，不是就mark read.
+            if (mVideoState.status == START && !avFrame.isEof()) {
                 avFrame.markRead();
             }
         }
