@@ -286,22 +286,19 @@ public class VideoEditActivity extends AppCompatActivity {
                 super.onScrollStateChanged(recyclerView, newState);
                 Log.d(TAG, "onScrollStateChanged#" + newState);
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    mAVEngine.seek(-1);//进入seek模式
+                    mAVEngine.seek(true);
                 } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    mAVEngine.pause();//退出seek模式，处于暂停状态
+                    mAVEngine.seek(false);
                 }
             }
 
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
+                int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
                 mScrollX += dx;
-                if (mThumbDragRecyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE &&
-                        mAVEngine.getVideoState().status == SEEK) {
-                    int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
-                    mAVEngine.seek((long) (1000000.f / slotWidth * mScrollX));
-                    Log.d(TAG, "mScrollX@" + mScrollX);
-                }
+                mAVEngine.seek((long) (1000000.f / slotWidth * mScrollX));
+                Log.d(TAG, "mScrollX@" + mScrollX);
             }
         });
 

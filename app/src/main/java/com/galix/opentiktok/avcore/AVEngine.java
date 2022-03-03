@@ -26,8 +26,10 @@ import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.RELEAS
  */
 public class AVEngine implements GLSurfaceView.Renderer {
 
-    private static final String TAG = AVEngine.class.getSimpleName();
-    private static final int PLAY_GAP = 100;//MS
+    private static final String TAG_VIDEO_STATE = "AVEngine_video_state";
+    private static final String TAG_COMPONENT = "AVEngine_component";
+    private static final String TAG = "AVEngine_normal";
+    private static final int PLAY_GAP = 10;//MS
     private static final int MAX_TEXTURE = 30;
     private static AVEngine gAVEngine = null;
     private VideoState mVideoState;
@@ -40,20 +42,21 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private OESRender mOesRender;
     private int[] mTextures;
     private int mValidTexture;//下一个有效纹理ID
-    private final LinkedList<Command> mCmdList;
+    private LinkedList<Command> mCmdList;
 
     public interface OnFrameUpdateCallback {
         void onFrameUpdate();
     }
 
     private AVEngine() {
+        mCmdList = new LinkedList<>();
         mVideoState = new VideoState();
         mComponents = new LinkedList<>();
-        mCmdList = new LinkedList<>();
     }
 
     private static class Command {
         public enum Cmd {
+            INIT,
             PLAY,
             PAUSE,
             SEEK,
@@ -66,16 +69,21 @@ public class AVEngine implements GLSurfaceView.Renderer {
         public Object args;
     }
 
-    public static class Clock {
+    private static class Clock {
         public float speed = 1.0f;
         public long lastUpdate = -1;
         public long delta = -1;
+        public long lastSeekReq = 0;
+        public long seekReq = 0;
 
         @Override
         public String toString() {
             return "Clock{" +
                     "speed=" + speed +
                     ", lastUpdate=" + lastUpdate +
+                    ", delta=" + delta +
+                    ", lastSeekReq=" + lastSeekReq +
+                    ", seekReq=" + seekReq +
                     '}';
         }
     }
@@ -91,19 +99,30 @@ public class AVEngine implements GLSurfaceView.Renderer {
             RELEASE
         }
 
-        public boolean isInputEOF = false;
-        public boolean isOutputEOF = false;
-        public boolean isLastVideoDisplay = false;
-
-        public long seekPositionUS = Long.MAX_VALUE;
-        public long durationUS = Long.MIN_VALUE;//视频总时长 us
+        public boolean isInputEOF;
+        public boolean isOutputEOF;
+        public boolean isLastVideoDisplay;
+        public long seekPositionUS;
+        public long durationUS;//视频总时长 us
         public Clock videoClock;
+        public Clock extClock;
         public Clock audioClock;
-        public VideoStatus status = VideoStatus.INIT;//播放状态
+        public VideoStatus status;//播放状态
 
         public VideoState() {
+            reset();
+        }
+
+        public void reset() {
             videoClock = new Clock();
             audioClock = new Clock();
+            extClock = new Clock();
+            durationUS = Long.MIN_VALUE;
+            isInputEOF = false;
+            isOutputEOF = false;
+            isLastVideoDisplay = false;
+            seekPositionUS = Long.MAX_VALUE;
+            status = VideoStatus.INIT;
         }
 
         @Override
@@ -114,8 +133,9 @@ public class AVEngine implements GLSurfaceView.Renderer {
                     ", isLastVideoDisplay=" + isLastVideoDisplay +
                     ", seekPositionUS=" + seekPositionUS +
                     ", durationUS=" + durationUS +
-                    ", videoClock=" + videoClock +
-                    ", audioClock=" + audioClock +
+                    ", videoClock=" + videoClock.toString() +
+                    ", extClock=" + extClock.toString() +
+                    ", audioClock=" + audioClock.toString() +
                     ", status=" + status +
                     '}';
         }
@@ -142,7 +162,11 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
     //获取主时钟
     public long getMainClock() {
-        return getClock(mVideoState.videoClock);
+        long currentClk = getClock(mVideoState.extClock);
+        if (currentClk > mVideoState.durationUS) {
+            return mVideoState.durationUS;
+        }
+        return currentClk;
     }
 
     public static AVEngine getVideoEngine() {
@@ -165,7 +189,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        initInternal();
+        mVideoState.reset();
         mOesRender = new OESRender();
         mOesRender.open();
         mTextures = new int[MAX_TEXTURE];
@@ -182,69 +206,72 @@ public class AVEngine implements GLSurfaceView.Renderer {
     @Override
     public void onDrawFrame(GL10 gl) {
 
-        if (mVideoState.status == RELEASE) return;
-
-        //计算正确position
-        long videoClk = getMainClock();
-        if (mVideoState.status == SEEK) {
-            videoClk = mVideoState.seekPositionUS;
+        if (mVideoState.status == RELEASE) {
+            mOesRender.close();
+            return;
         }
-        Log.d(TAG, "CurPos#" + videoClk);
+
+        long extClk = getMainClock();
 
         //处理视频片段
         long delay = 0;
-        List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, videoClk);
-        for (
-                AVComponent component : components) {
-            if (mVideoState.status == START) {
-                component.readFrame();
-            } else if (mVideoState.status == SEEK) {
-                component.seekFrame(videoClk);
+        boolean needSeek = mVideoState.status == SEEK ||
+                (mVideoState.status == START && mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq);
+        List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
+        for (AVComponent component : components) {
+            if (needSeek) {
+                component.seekFrame(extClk);
             } else {
-                while (!component.peekFrame().isValid()) {
+                if (!component.peekFrame().isValid()) {
                     component.readFrame();
                 }
             }
             AVFrame avFrame = component.peekFrame();
-            if (avFrame != null) {
-                //画面同步.
-                boolean needRender = true;
-                long correctPts = avFrame.getPts();
-                if (mVideoState.status == START) {
-                    needRender = correctPts >= videoClk || (videoClk - correctPts) < 33000;
-                    delay = Math.max(correctPts - videoClk, 0);
-                }
-                if (needRender) {
-                    if (delay > 0) {
-                        try {
-                            Log.d(TAG, "delay#" + delay / 1000);
-                            Thread.sleep(delay / 1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+            Log.d(TAG, "video#" + avFrame.toString());
+            if (!avFrame.isValid()) {
+                Log.d(TAG, "VIDEO#WTF???Something I don't understand!");
+                continue;
+            }
+            //画面同步.
+            boolean needRender = true;
+            long correctPts = avFrame.getPts();
+            if (mVideoState.status == START) {
+                needRender = correctPts >= extClk || (extClk - correctPts) < 33000;
+                delay = Math.max(correctPts - extClk, 0);
+            }
+            if (needRender) {
+                if (delay > 0) {
+                    try {
+                        Log.d(TAG, "delay#" + delay / 1000);
+                        Thread.sleep(delay / 1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                    if (component.getRender() != null) {
-                        component.getRender().render(avFrame);
-                    } else {
-                        mOesRender.render(avFrame);
-                    }
-                    mVideoState.isLastVideoDisplay = true;
                 }
+                if (component.getRender() != null) {
+                    component.getRender().render(avFrame);
+                } else {
+                    mOesRender.render(avFrame);
+                }
+                mVideoState.isLastVideoDisplay = true;
                 setClock(mVideoState.videoClock, correctPts);
+                mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
+            }
+            if (mVideoState.status == START) {
+                avFrame.markRead();
             }
         }
 
         //处理贴纸片段
         List<AVComponent> stickComponents = findComponents(AVComponent.AVComponentType.STICKER, -1);
-        for (
-                AVComponent component : stickComponents) {
+        for (AVComponent component : stickComponents) {
             if (component.getRender() != null) {
-                if (component.isValid(videoClk)) {
+                if (component.isValid(extClk)) {
                     if (mVideoState.status == START) {
                         component.readFrame();
                         component.getRender().render(component.peekFrame());
                     } else if (mVideoState.status == SEEK) {
-                        component.seekFrame(videoClk);
+                        component.seekFrame(extClk);
                         component.getRender().render(component.peekFrame());
                     } else {
                         while (!component.peekFrame().isValid()) {
@@ -261,11 +288,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
         //处理文字特效
         List<AVComponent> wordsComponents = findComponents(AVComponent.AVComponentType.WORD, -1);
-        for (
-                AVComponent component : wordsComponents) {
+        for (AVComponent component : wordsComponents) {
             if (component.getRender() != null) {
                 AVFrame wordFrame = component.peekFrame();
-                if (component.isValid(videoClk)) {
+                if (component.isValid(extClk)) {
                     if (wordFrame.isValid()) {
                         component.getRender().render(wordFrame);
                     } else {
@@ -299,34 +325,37 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 //处理命令
                 handleCmd();
 
-                if (mVideoState.status == START || mVideoState.status == SEEK) {
-                    long targetPosition = getMainClock();
-                    List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, targetPosition);
-                    for (AVComponent avComponent : components) {
-                        if (mVideoState.status == START) {
-                            if (!avComponent.peekFrame().isValid()) {
-                                avComponent.readFrame();
-                            }
+                dumpVideoState();
+
+                //只有运行时候才需要播放音频
+                if (mVideoState.status == START) {
+                    long extClk = getMainClock();
+                    List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, extClk);
+                    boolean needSeek = mVideoState.audioClock.seekReq != mVideoState.audioClock.lastSeekReq;
+                    for (AVComponent audio : components) {
+                        if (needSeek) {
+                            audio.seekFrame(extClk);
                         } else {
-                            avComponent.seekFrame(targetPosition);
+                            audio.readFrame();
                         }
-                        if (avComponent.peekFrame().isValid()) {
-                            AVAudio audio = (AVAudio) components.get(0);
-                            AVFrame audioFrame = audio.peekFrame();
-                            if (Math.abs(audioFrame.getPts() - getMainClock()) > 10000) {
-                                Log.d(TAG, "Drop Audio Frame#" + audioFrame.toString());
-                                continue;
-                            }
-                            if (mVideoState.status == START) {
-                                if (audio.getRender() != null) {
-                                    audio.getRender().render(audioFrame);
-                                } else {
-                                    mAudioRender.render(audioFrame);
-                                }
-                            }
-                            setClock(mVideoState.audioClock, audioFrame.getPts());
-                            audioFrame.markRead();
+                        AVFrame audioFrame = audio.peekFrame();
+                        if (!audioFrame.isValid()) {
+                            Log.d(TAG, "WTF???Something I don't understand!");
+                            continue;
                         }
+                        if (Math.abs(audioFrame.getPts() + audio.getSrcStartTime() - extClk) > 100000) {
+                            audioFrame.markRead();//掉帧
+                            Log.d(TAG, "Drop Audio Frame#" + audioFrame.toString());
+                            continue;
+                        }
+                        if (audio.getRender() != null) {
+                            audio.getRender().render(audioFrame);
+                        } else {
+                            mAudioRender.render(audioFrame);
+                        }
+                        setClock(mVideoState.audioClock, audioFrame.getPts());
+                        mVideoState.audioClock.lastSeekReq = mVideoState.audioClock.seekReq;
+                        audioFrame.markRead();
                     }
                 } else {
                     try {
@@ -445,6 +474,18 @@ public class AVEngine implements GLSurfaceView.Renderer {
         }
     }
 
+    private static final int SEEK_ENTER = -1;
+    private static final int SEEK_EXIT = -2;
+
+    public void seek(boolean status) {
+        synchronized (mCmdList) {
+            Command command = new Command();
+            command.cmd = Command.Cmd.SEEK;
+            command.args = (long) (status ? SEEK_ENTER : SEEK_EXIT);
+            mCmdList.add(command);
+        }
+    }
+
     public void release() {
 
         Log.d(TAG, "release()");
@@ -467,51 +508,68 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
     }
 
-    private void initInternal() {
-        mVideoState.isInputEOF = false;
-        mVideoState.isOutputEOF = false;
-        mVideoState.status = INIT;
-        mVideoState.isLastVideoDisplay = false;
-        mVideoState.seekPositionUS = Long.MAX_VALUE;
+    private void destroyInternal() {
+        synchronized (mComponents) {
+            for (AVComponent avComponent : mComponents) {
+                avComponent.close();
+            }
+            mComponents.clear();
+        }
+        mVideoState.status = RELEASE;
     }
 
     private void handleCmd() {
-        Log.d(TAG, "CMDS#" + mCmdList.size());
         if (mCmdList.isEmpty()) return;
         synchronized (mCmdList) {
             for (Command command : mCmdList) {
-                if (command.cmd == Command.Cmd.PLAY) {
+                if (command.cmd == Command.Cmd.INIT) {
+                    mVideoState.status = INIT;
+                } else if (command.cmd == Command.Cmd.PLAY) {
+                    setClock(mVideoState.extClock, getClock(mVideoState.extClock));
                     mVideoState.status = START;
-                    setClock(mVideoState.videoClock, getClock(mVideoState.videoClock));
                 } else if (command.cmd == Command.Cmd.PAUSE) {
+                    setClock(mVideoState.extClock, getClock(mVideoState.extClock));
                     mVideoState.status = PAUSE;
                 } else if (command.cmd == Command.Cmd.RELEASE) {
-                    mVideoState.status = RELEASE;
-                    mOesRender.close();
-                    for (AVComponent avComponent : mComponents) {
-                        avComponent.close();
-                    }
-                    mComponents.clear();
+                    destroyInternal();
                 } else if (command.cmd == Command.Cmd.SEEK) {
-                    mVideoState.status = SEEK;
-                    mVideoState.isInputEOF = false;
-                    mVideoState.isOutputEOF = false;
-                    mVideoState.seekPositionUS = (long) command.args;
+                    long args = (long) command.args;
+                    if (args == SEEK_EXIT && mVideoState.status == SEEK) {
+                        mVideoState.status = PAUSE;
+                        continue;
+                    }
+
+                    if (args == SEEK_ENTER) {//进入Seek模式
+                        mVideoState.status = SEEK;
+                        continue;
+                    }
+
+                    if (mVideoState.status == SEEK) {
+                        mVideoState.isInputEOF = false;
+                        mVideoState.isOutputEOF = false;
+                        mVideoState.seekPositionUS = (long) command.args;
+                        setClock(mVideoState.extClock, mVideoState.seekPositionUS);
+                        mVideoState.extClock.seekReq++;
+                        mVideoState.audioClock.seekReq = mVideoState.videoClock.seekReq = mVideoState.extClock.seekReq;
+                    }
                 } else if (command.cmd == Command.Cmd.ADD_COM) {
-                    AVComponent component = (AVComponent) command.args;
-                    component.open();
-                    mComponents.add(component);
-                    reCalculate();
+                    synchronized (mComponents) {
+                        AVComponent component = (AVComponent) command.args;
+                        component.open();
+                        mComponents.add(component);
+                        reCalculate();
+                    }
                 } else if (command.cmd == Command.Cmd.REMOVE_COM) {
-                    AVComponent component = (AVComponent) command.args;
-                    component.close();
-                    mComponents.remove(component);
-                    reCalculate();
+                    synchronized (mComponents) {
+                        AVComponent component = (AVComponent) command.args;
+                        component.close();
+                        mComponents.remove(component);
+                        reCalculate();
+                    }
                 } else {
                     Log.d(TAG, "Seek cmd error!");
                 }
             }
-
             mCmdList.clear();
         }
     }
@@ -533,15 +591,14 @@ public class AVEngine implements GLSurfaceView.Renderer {
         if (mOnFrameUpdateCallback != null) {
             mOnFrameUpdateCallback.onFrameUpdate();
         }
-//        dumpVideoState();
     }
 
 
     private void dumpVideoState() {
-        Log.d(TAG, mVideoState.toString());
-        for (AVComponent avComponent : mComponents) {
-            Log.d(TAG, avComponent.toString());
-        }
+        Log.d(TAG_VIDEO_STATE, mVideoState.toString());
+//        for (AVComponent avComponent : mComponents) {
+//            Log.d(TAG_KERNEL, avComponent.toString());
+//        }
     }
 
 }
