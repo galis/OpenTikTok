@@ -16,10 +16,10 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.INIT;
-import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.START;
 import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.PAUSE;
-import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.RELEASE;
+import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
+import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.START;
 
 /**
  * 视频引擎
@@ -219,9 +219,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
         long delay = 0;
         List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
         for (AVComponent component : components) {
-            boolean needSeek = mVideoState.status == SEEK
-                    || (mVideoState.status == START && mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq)
-                    || mLastVideoComponent != component;
+            boolean needSeek = mVideoState.status == SEEK//seek模式
+                    || (mVideoState.status == START &&
+                    mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq)//cmd[seek seek pause start]避免这种情况
+                    || mLastVideoComponent != component;//组件间切换需要seek..
             if (needSeek) {
                 component.seekFrame(extClk);
             } else {
