@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
@@ -128,12 +129,13 @@ public class VideoPickActivity extends AppCompatActivity {
         mLoadHandler.post(() -> {
             long now1 = System.currentTimeMillis();
             mFileCache = new ArrayList<>();
-            String path = "/sdcard";
+            String path = Environment.getExternalStorageDirectory().getPath();
             File dir = new File(path);
             if (!dir.exists()) {
                 return;
             }
             File[] mp4List = dir.listFiles((dir1, name) -> name.endsWith(".mp4"));
+            if (mp4List == null) return;
             for (File mp4 : mp4List) {
                 MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
                 mediaMetadataRetriever.setDataSource(mp4.getAbsolutePath());
@@ -148,12 +150,7 @@ public class VideoPickActivity extends AppCompatActivity {
                     fileEntry.path = mp4.getAbsolutePath();
                     fileEntry.adjustPath = VideoUtil.getAdjustGopVideoPath(VideoPickActivity.this, fileEntry.path);
                     mFileCache.add(fileEntry);
-                    getWindow().getDecorView().post(new Runnable() {
-                        @Override
-                        public void run() {
-                            mRecyclerView.getAdapter().notifyDataSetChanged();
-                        }
-                    });
+                    getWindow().getDecorView().post(() -> mRecyclerView.getAdapter().notifyDataSetChanged());
                 }
                 mediaMetadataRetriever.release();
             }

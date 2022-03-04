@@ -43,6 +43,14 @@ public class AVVideo extends AVComponent {
         this.textureId = -1;
     }
 
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
     @Override
     public int open() {
         if (isOpen()) return RESULT_FAILED;

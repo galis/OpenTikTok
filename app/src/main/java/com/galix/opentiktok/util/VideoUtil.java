@@ -176,7 +176,7 @@ public class VideoUtil {
                                     int srcW = stream.format.getInteger(MediaFormat.KEY_WIDTH);
                                     int srcH = stream.format.getInteger(MediaFormat.KEY_HEIGHT);
                                     int colorFormat = stream.mediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_COLOR_FORMAT);
-                                    String dstJpg = VideoUtil.getThumbJpg(context, video.path, bufferInfo.presentationTimeUs);
+                                    String dstJpg = VideoUtil.getThumbJpg(context, video.adjustPath, bufferInfo.presentationTimeUs);
                                     YuvUtils.scaleAndSaveYuvAsJPEG(buffer, colorFormat, srcW, srcH, srcW / 5, srcH / 5, dstJpg);
                                     long now2 = System.currentTimeMillis();
                                     Log.d(TAG, "scaleAndSaveYuvAsJPEG#" + (now2 - now) + "#dst#" + dstJpg);

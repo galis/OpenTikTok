@@ -4,16 +4,22 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +27,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -71,7 +78,7 @@ public class VideoEditActivity extends AppCompatActivity {
     private LinkedList<Integer> mStickerList;//贴纸
     private GLSurfaceView mSurfaceView;
     private RecyclerView mTabRecyclerView;
-    private RecyclerView mThumbDragRecyclerView;
+    private HorizontalScrollView mThumbDragRecyclerView;
     private RecyclerView mStickerRecyclerView;
 
     private ImageView mStickerView;
@@ -116,7 +123,6 @@ public class VideoEditActivity extends AppCompatActivity {
         public ImageViewHolder(@NonNull View itemView) {
             super(itemView);
         }
-
     }
 
     private class ThumbViewHolder extends RecyclerView.ViewHolder {
@@ -128,39 +134,6 @@ public class VideoEditActivity extends AppCompatActivity {
         }
     }
 
-
-    //权限部分
-    private void checkPermission() {
-        if (ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(VideoEditActivity.this,
-                        Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(VideoEditActivity.this,
-                    new String[]{Manifest.permission.CAMERA,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                            Manifest.permission.READ_EXTERNAL_STORAGE,
-                            Manifest.permission.INTERNET,
-                            Manifest.permission.ACCESS_NETWORK_STATE
-                    }, REQUEST_CODE);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CODE) {
-            for (int i = 0; i < grantResults.length; i++) {
-                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, permissions[i] + "IS NOT ALLOW!!", Toast.LENGTH_LONG).show();
-                    finish();
-                    return;
-                }
-            }
-        }
-    }
 
     //UI回调
     @Override
@@ -224,84 +197,7 @@ public class VideoEditActivity extends AppCompatActivity {
         });
         mTabRecyclerView.getAdapter().notifyDataSetChanged();
 
-        final int SLOT_WIDTH = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
         mThumbDragRecyclerView = findViewById(R.id.recyclerview_drag_thumb);
-        mThumbDragRecyclerView.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
-        mThumbDragRecyclerView.setAdapter(new RecyclerView.Adapter() {
-            @NonNull
-            @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                ImageView view = new ImageView(parent.getContext());
-                if (viewType == DRAG_HEAD || viewType == DRAG_FOOT) {
-                    view.setLayoutParams(new ViewGroup.LayoutParams(
-                            parent.getMeasuredWidth() / 2 - SLOT_WIDTH, SLOT_WIDTH));
-                } else {
-                    view.setLayoutParams(new ViewGroup.LayoutParams(SLOT_WIDTH, SLOT_WIDTH));
-                }
-                return new ThumbViewHolder(view);
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                if (getItemViewType(position) == DRAG_HEAD || getItemViewType(position) == DRAG_FOOT) {
-                    holder.itemView.setBackgroundColor(0xFF000000);
-                } else if (getItemViewType(position) == DRAG_ADD) {
-                    holder.itemView.setBackgroundColor(0xFF0000FF);
-                    holder.itemView.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            VideoPickActivity.start(VideoEditActivity.this);
-                        }
-                    });
-                } else if (getItemViewType(position) == DRAG_MUTE) {
-                    holder.itemView.setBackgroundColor(0xFF00FFFF);
-                    holder.itemView.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            VideoPickActivity.start(VideoEditActivity.this);
-                        }
-                    });
-                } else {
-                    ImageView imageView = (ImageView) holder.itemView;
-                    imageView.setScaleType(ImageView.ScaleType.FIT_XY);
-                    Glide.with(VideoEditActivity.this)
-                            .load(mThumbsList.get(position).imgPath)
-                            .into(imageView);
-                }
-            }
-
-            @Override
-            public int getItemCount() {
-                return mThumbsList.size();
-            }
-
-            @Override
-            public int getItemViewType(int position) {
-                return mThumbsList.get(position).type;
-            }
-        });
-        mThumbDragRecyclerView.setOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-                Log.d(TAG, "onScrollStateChanged#" + newState);
-                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    mAVEngine.seek(true);
-                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    mAVEngine.seek(false);
-                }
-            }
-
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
-                mScrollX += dx;
-                mAVEngine.seek((long) (1000000.f / slotWidth * mScrollX));
-                Log.d(TAG, "mScrollX@" + mScrollX);
-            }
-        });
-
         mStickerList = new LinkedList<>();
         mStickerList.add(R.raw.aini);
         mStickerList.add(R.raw.buyuebuyue);
@@ -354,36 +250,28 @@ public class VideoEditActivity extends AppCompatActivity {
         //初始化Thumb信息
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
-        mThumbsList = new LinkedList<>();
-        ThumbInfo head = new ThumbInfo();
-        head.type = DRAG_HEAD;
-        mThumbsList.add(head);
-        ThumbInfo mute = new ThumbInfo();
-        mute.type = DRAG_MUTE;
-        mThumbsList.add(mute);
-        int pts = 0;
         long startTime = 0;
+        LinearLayout linearLayout = findViewById(R.id.linear_parent);
+        View head = new View(this);
+        head.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
+        linearLayout.addView(head);
+        View tail = new View(this);
+        tail.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
             mAVEngine.addComponent(new AVVideo(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, mAVEngine.nextValidTexture(), null));
             mAVEngine.addComponent(new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null));
-            while (pts < fileEntry.duration) {
-                ThumbInfo img = new ThumbInfo();
-                img.type = DRAG_IMG;
-                img.imgPath = VideoUtil.getThumbJpg(this, fileEntry.path, pts - startTime);
-                pts += 1000000;
-                mThumbsList.add(img);
-            }
+            ComponentView view = new ComponentView.Builder(this)
+                    .setComponent(new AVVideo(startTime, fileEntry.duration, fileEntry.adjustPath, null))
+                    .setPaddingColor(Color.YELLOW)
+                    .setTileSize((int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density))
+                    .setPaddingLeftRight(0)
+                    .setPaddingTopBottom(0)
+                    .build();
             startTime += fileEntry.duration;
+            linearLayout.addView(view);
         }
-
-        ThumbInfo addBtn = new ThumbInfo();
-        addBtn.type = DRAG_ADD;
-        mThumbsList.add(addBtn);
-        ThumbInfo foot = new ThumbInfo();
-        foot.type = DRAG_FOOT;
-        mThumbsList.add(foot);
+        linearLayout.addView(tail);
         mAVEngine.setOnFrameUpdateCallback(() -> freshUI());
-        checkPermission();
     }
 
     @Override
@@ -447,7 +335,7 @@ public class VideoEditActivity extends AppCompatActivity {
                 mPlayBtn.setImageResource(mVideoState.status == START ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
                 if (mVideoState.status == START) {
                     int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * AVEngine.getVideoEngine().getMainClock());
-                    mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
+//                    mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
                 }
             }
         });
