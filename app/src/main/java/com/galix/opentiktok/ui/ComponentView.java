@@ -54,6 +54,12 @@ public class ComponentView extends RelativeLayout {
         mClipLayout.setClipCallback(new ClipView.ClipCallback() {
             @Override
             public void onClip(Rect src, Rect dst) {
+                long duration = mAVComponent.getSrcEndTime() - mAVComponent.getSrcStartTime();
+                mAVComponent.setSrcStartTime((long) (duration * (dst.left * 1.0f / src.width())));
+                mAVComponent.setSrcEndTime((long) (duration * (dst.right * 1.0f / src.width())));
+                freshData();
+                buildViews();
+                setStatus(false);
                 //TODO
             }
         });
@@ -70,8 +76,8 @@ public class ComponentView extends RelativeLayout {
         mThumbsList.clear();
         if (mAVComponent.getType() == AVComponent.AVComponentType.VIDEO) {
             AVVideo video = (AVVideo) mAVComponent;
-            long pts = 0;
-            while (pts < video.getDuration()) {
+            long pts = mAVComponent.getSrcStartTime();
+            while (pts < video.getSrcEndTime()) {
                 ThumbInfo img = new ThumbInfo();
                 img.type = DRAG_IMG;
                 img.imgPath = VideoUtil.getThumbJpg(getContext(), video.getPath(), pts - video.getSrcStartTime());
@@ -79,33 +85,15 @@ public class ComponentView extends RelativeLayout {
                 pts += 1000000;
                 mThumbsList.add(img);
             }
-            mThumbsList.get(mThumbsList.size() - 1).duration = video.getDuration() % 1000000;
+            mThumbsList.get(0).duration = (video.getSrcStartTime() / 1000000 + 1) * 1000000 - video.getSrcStartTime();
+            mThumbsList.get(mThumbsList.size() - 1).duration = video.getSrcEndTime() % 1000000;
         }
     }
 
     public void buildViews() {
         mVideoLayout.removeAllViews();
         for (ThumbInfo thumbInfo : mThumbsList) {
-            if (mStatus && (thumbInfo.type == DRAG_HEAD || thumbInfo.type == DRAG_FOOT)) {
-                View view = new View(getContext());
-                view.setLayoutParams(new LinearLayout.LayoutParams(30, mTileSize));
-                view.setBackgroundColor(Color.RED);
-                view.setOnTouchListener(new OnTouchListener() {
-                    @Override
-                    public boolean onTouch(View v, MotionEvent event) {
-                        switch (event.getAction()) {
-                            case MotionEvent.ACTION_DOWN:
-                                break;
-                            case MotionEvent.ACTION_MOVE:
-                                break;
-                            case MotionEvent.ACTION_UP:
-                                break;
-                        }
-                        return true;
-                    }
-                });
-                mVideoLayout.addView(view);
-            } else if (thumbInfo.type == DRAG_IMG) {
+            if (thumbInfo.type == DRAG_IMG) {
                 ImageView imageView = new ImageView(getContext());
                 imageView.setLayoutParams(new LinearLayout.LayoutParams((int) ((thumbInfo.duration / 1000000.f) * (mTileSize - mPaddingTopBottom * 2)), mTileSize - mPaddingTopBottom * 2));
                 imageView.setScaleType(ImageView.ScaleType.FIT_XY);
@@ -126,11 +114,8 @@ public class ComponentView extends RelativeLayout {
     public void setStatus(boolean status) {
         mStatus = status;
         if (mStatus) {
-            setPadding(mPaddingLeftRight, mPaddingTopBottom,
-                    mPaddingLeftRight, mPaddingTopBottom);
             mClipLayout.setVisibility(VISIBLE);
         } else {
-            setPadding(0, 0, 0, 0);
             mClipLayout.setVisibility(INVISIBLE);
         }
     }
@@ -190,7 +175,7 @@ public class ComponentView extends RelativeLayout {
             componentView.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    componentView.toggleStatus();
+                    componentView.setStatus(true);
                 }
             });
             return componentView;

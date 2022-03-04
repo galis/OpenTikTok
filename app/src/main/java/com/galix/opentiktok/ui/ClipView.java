@@ -55,35 +55,36 @@ public class ClipView extends View {
                             getParent().requestDisallowInterceptTouchEvent(true);
                         }
                         Log.d(TAG, "ACTION_DOWN" + event.toString());
-                        return mIsDrag;
                     case MotionEvent.ACTION_MOVE:
-                        if (mDragLeft) {
-                            mRect[2].left = Math.max(0, (int) event.getX());
-                            mRect[2].right = mRect[2].left + DRAG_BTN_WIDTH;
-                            mRect[0].left = mRect[1].left = (int) event.getX();
-                        } else if (mDragRight) {
-                            mRect[3].left = Math.min((int) event.getX(), getMeasuredWidth() - DRAG_BTN_WIDTH);
-                            mRect[3].right = mRect[3].left + DRAG_BTN_WIDTH;
-                            mRect[0].right = mRect[1].right = (int) event.getX();
+                        if (mIsDrag) {
+                            if (mDragLeft) {
+                                mRect[2].left = Math.max(0, (int) event.getX());
+                                mRect[2].right = mRect[2].left + DRAG_BTN_WIDTH;
+                                mRect[0].left = mRect[1].left = (int) event.getX();
+                            } else if (mDragRight) {
+                                mRect[3].left = Math.min((int) event.getX(), getMeasuredWidth() - DRAG_BTN_WIDTH);
+                                mRect[3].right = mRect[3].left + DRAG_BTN_WIDTH;
+                                mRect[0].right = mRect[1].right = (int) event.getX();
+                            }
                         }
                         Log.d(TAG, "ACTION_MOVE" + event.toString());
                         break;
                     case MotionEvent.ACTION_UP:
                         mIsDrag = false;
                         getParent().requestDisallowInterceptTouchEvent(false);
-                        if (event.getEventTime() - event.getDownTime() < 10) {
+                        if (event.getEventTime() - event.getDownTime() < 100) {
                             mIsEdit = !mIsEdit;
-                            Log.d(TAG, "ACTION_UP" + event.toString());
                             callbackIfNeed();
+                            Log.d(TAG, "ACTION_UP" + event.toString());
                         }
                         break;
                     case MotionEvent.ACTION_CANCEL:
                         getParent().requestDisallowInterceptTouchEvent(false);
                         mIsDrag = false;
-                        if (event.getEventTime() - event.getDownTime() < 10) {
+                        if (event.getEventTime() - event.getDownTime() < 100) {
                             mIsEdit = !mIsEdit;
+//                            callbackIfNeed();
                             Log.d(TAG, "ACTION_CANCEL" + event.toString());
-                            callbackIfNeed();
                         }
                         break;
                 }
@@ -126,20 +127,23 @@ public class ClipView extends View {
 
     private void callbackIfNeed() {
         if (mClipCallback != null) {
-            mRect[5].left = 0;
-            mRect[5].right = getMeasuredWidth();
-            mRect[6].left = mRect[2].left;
-            mRect[6].right = mRect[3].right;
-            mClipCallback.onClip(mRect[5], mRect[6]);
+            mRect[4].left = 0;
+            mRect[4].right = getMeasuredWidth();
+            mRect[5].left = mRect[2].left;
+            mRect[5].right = mRect[3].right;
+            mClipCallback.onClip(mRect[4], mRect[5]);
         }
     }
 
     public void setClipCallback(ClipCallback clipCallback) {
-        mClipCallback = mClipCallback;
+        mClipCallback = clipCallback;
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
+        if (!mIsEdit) {
+            freshRoi();
+        }
         canvas.drawRect(mRect[0], mPaint);
         canvas.drawRect(mRect[1], mPaint);
         canvas.drawRect(mRect[2], mPaint);
