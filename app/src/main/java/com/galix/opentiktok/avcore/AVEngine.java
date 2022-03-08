@@ -393,8 +393,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
                                 reCalculate();
                             }
                         }
-                        EngineCallback callback = (EngineCallback) command.args1;
-                        callback.onCallback(null);
+                        if (command.args1 != null) {
+                            EngineCallback callback = (EngineCallback) command.args1;
+                            callback.onCallback(null);
+                        }
                     } else if (command.cmd == Command.Cmd.REMOVE_COM) {
                         AVComponent component = (AVComponent) command.args;
                         component.lock();
@@ -411,8 +413,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
                                 reCalculate();
                             }
                         }
-                        EngineCallback callback = (EngineCallback) command.args1;
-                        callback.onCallback(null);
+                        if (command.args1 != null) {
+                            EngineCallback callback = (EngineCallback) command.args1;
+                            callback.onCallback(null);
+                        }
                     } else if (command.cmd == Command.Cmd.CHANGE_COM) {
                         LinkedList<AVComponent> components = (LinkedList<AVComponent>) command.args;
                         Rect src = (Rect) command.args1;
@@ -430,8 +434,8 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             component.unlock();
                         }
                         reCalculate();
-                        EngineCallback callback = (EngineCallback) command.args3;
-                        if (callback != null) {
+                        if (command.args3 != null) {
+                            EngineCallback callback = (EngineCallback) command.args3;
                             callback.onCallback(null);
                         }
                     } else {
