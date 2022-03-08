@@ -1,9 +1,7 @@
 package com.galix.opentiktok.ui;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
@@ -14,19 +12,15 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -35,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.galix.opentiktok.R;
 import com.galix.opentiktok.avcore.AVAudio;
+import com.galix.opentiktok.avcore.AVComponent;
 import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVEngine;
 import com.galix.opentiktok.avcore.AVVideo;
@@ -48,7 +43,6 @@ import com.galix.opentiktok.util.VideoUtil;
 import java.util.LinkedList;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
-import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.START;
 
 /**
@@ -78,7 +72,7 @@ public class VideoEditActivity extends AppCompatActivity {
     private LinkedList<Integer> mStickerList;//贴纸
     private GLSurfaceView mSurfaceView;
     private RecyclerView mTabRecyclerView;
-    private HorizontalScrollView mThumbDragRecyclerView;
+    private CustomHorizontalScrollView mThumbDragRecyclerView;
     private RecyclerView mStickerRecyclerView;
 
     private ImageView mStickerView;
@@ -90,6 +84,7 @@ public class VideoEditActivity extends AppCompatActivity {
     private ImageView mFullScreenBtn;
     private int mScrollX = 0;
     private AVEngine mAVEngine;
+    private Runnable mScrollViewRunnable;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
@@ -182,7 +177,7 @@ public class VideoEditActivity extends AppCompatActivity {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_text) {
                         mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 5000000,
-                                new TextRender(mEditTextView)));
+                                new TextRender(mEditTextView)), null);
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
                         Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
@@ -198,6 +193,31 @@ public class VideoEditActivity extends AppCompatActivity {
         mTabRecyclerView.getAdapter().notifyDataSetChanged();
 
         mThumbDragRecyclerView = findViewById(R.id.recyclerview_drag_thumb);
+        mThumbDragRecyclerView.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+            @Override
+            public void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY) {
+                mAVEngine.seek((long) (1000000.f / (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) * scrollX));
+                Log.d(TAG, "ss##" + scrollX + "#" + oldScrollX);
+            }
+        });
+        mScrollViewRunnable = new Runnable() {
+            @Override
+            public void run() {
+                mAVEngine.seek(false);
+                Log.d(TAG, "ss##seek(false)");
+            }
+        };
+        mThumbDragRecyclerView.setScrollStateListener(new CustomHorizontalScrollView.ScrollStateChangeListener() {
+            @Override
+            public void onScrollStateChange(CustomHorizontalScrollView.State state) {
+                if (state == CustomHorizontalScrollView.State.DOWN) {
+                    mThumbDragRecyclerView.removeCallbacks(mScrollViewRunnable);
+                    mAVEngine.seek(true);
+                } else {
+                    mThumbDragRecyclerView.postDelayed(mScrollViewRunnable, 400);
+                }
+            }
+        });
         mStickerList = new LinkedList<>();
         mStickerList.add(R.raw.aini);
         mStickerList.add(R.raw.buyuebuyue);
@@ -230,7 +250,7 @@ public class VideoEditActivity extends AppCompatActivity {
                         mStickerView.setVisibility(View.VISIBLE);
                         mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 2000000,//TODO
                                 getResources().openRawResource(mStickerList.get(position)),
-                                new ImageViewRender(mStickerView)));
+                                new ImageViewRender(mStickerView)), null);
                         mStickerRecyclerView.setVisibility(View.GONE);
                     }
                 });
@@ -258,20 +278,71 @@ public class VideoEditActivity extends AppCompatActivity {
         View tail = new View(this);
         tail.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
-            mAVEngine.addComponent(new AVVideo(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, mAVEngine.nextValidTexture(), null));
-            mAVEngine.addComponent(new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null));
+            AVVideo video = new AVVideo(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, mAVEngine.nextValidTexture(), null);
+            AVAudio audio = new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null);
+            LinkedList<AVComponent> components = new LinkedList<>();
+            components.add(video);
+            components.add(audio);
             ComponentView view = new ComponentView.Builder(this)
-                    .setComponent(new AVVideo(startTime, fileEntry.duration, fileEntry.adjustPath, null))
+                    .setComponents(components)
                     .setPaddingColor(Color.YELLOW)
                     .setTileSize((int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density))
                     .setPaddingLeftRight(0)
                     .setPaddingTopBottom(0)
+                    .setClipCallback(new ComponentView.ClipCallback() {
+                        @Override
+                        public void onClip(ComponentView view, LinkedList<AVComponent> avComponents, Rect src, Rect dst) {
+                            mAVEngine.changeComponent(avComponents, src, dst, new AVEngine.EngineCallback() {
+                                @Override
+                                public void onCallback(Object[] args1) {
+                                    view.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            view.buildViews();
+                                        }
+                                    });
+                                }
+                            });
+                            mAVEngine.seek(true);
+                            mAVEngine.seek(mAVEngine.getClock(mAVEngine.getVideoState().extClock));
+                            mAVEngine.seek(false);
+                        }
+                    })
                     .build();
             startTime += fileEntry.duration;
             linearLayout.addView(view);
+
+            mAVEngine.addComponent(video, new AVEngine.EngineCallback() {
+                @Override
+                public void onCallback(Object[] args1) {
+                    view.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            view.buildViews();
+                        }
+                    });
+                }
+            });
+            mAVEngine.addComponent(audio, new AVEngine.EngineCallback() {
+                @Override
+                public void onCallback(Object[] args1) {
+                    view.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            view.buildViews();
+                        }
+                    });
+                }
+            });
+
         }
         linearLayout.addView(tail);
-        mAVEngine.setOnFrameUpdateCallback(() -> freshUI());
+        mAVEngine.setOnFrameUpdateCallback(new AVEngine.EngineCallback() {
+            @Override
+            public void onCallback(Object[] args1) {
+                freshUI();
+            }
+        });
     }
 
     @Override
@@ -323,6 +394,18 @@ public class VideoEditActivity extends AppCompatActivity {
     }
 
     //不同线程都可以刷新UI
+    private Runnable mScrollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * AVEngine.getVideoEngine().getMainClock());
+            int currentScrollX = mThumbDragRecyclerView.getScrollX();
+            if (currentScrollX != correctScrollX) {
+                mThumbDragRecyclerView.scrollBy((correctScrollX - currentScrollX > 0 ? 1 : -1) * 5, 0);
+                mThumbDragRecyclerView.post(this);
+            }
+        }
+    };
+
     private void freshUI() {
         getWindow().getDecorView().post(() -> {
             AVEngine.VideoState mVideoState = AVEngine.getVideoEngine().getVideoState();
@@ -334,8 +417,7 @@ public class VideoEditActivity extends AppCompatActivity {
                         durationInMS / 1000 / 60 % 60, durationInMS / 1000 % 60, durationInMS % 1000));
                 mPlayBtn.setImageResource(mVideoState.status == START ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
                 if (mVideoState.status == START) {
-                    int correctScrollX = (int) ((THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density) / 1000000.f * AVEngine.getVideoEngine().getMainClock());
-//                    mThumbDragRecyclerView.smoothScrollBy(correctScrollX - mScrollX, 0);
+                    mThumbDragRecyclerView.post(mScrollRunnable);
                 }
             }
         });

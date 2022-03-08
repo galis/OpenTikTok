@@ -43,7 +43,10 @@ public class AVAudio extends AVComponent {
                 if (mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME).contains("audio")) {
                     mediaFormat = mediaExtractor.getTrackFormat(i);
                     mediaExtractor.selectTrack(i);
-                    setDuration(mediaFormat.getLong(MediaFormat.KEY_DURATION));
+                    long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
+                    setFileStartTime(0);
+                    setFileEndTime(duration);
+                    setDuration(duration);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
                     break;
                 }
@@ -118,7 +121,7 @@ public class AVAudio extends AVComponent {
                     peekFrame().getByteBuffer().put(byteBuffer);
                     byteBuffer.position(0);
                     peekFrame().getByteBuffer().position(0);
-                    avFrame.setPts(bufferInfo.presentationTimeUs);
+                    avFrame.setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());//换算Engine的时间
                     avFrame.setValid(true);
                     mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                     break;
@@ -138,13 +141,13 @@ public class AVAudio extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
-        long correctPosition = position - getSrcStartTime();
-        if (position < getSrcStartTime() || position > getSrcEndTime() || correctPosition > getDuration()) {
+        long correctPosition = position - getEngineStartTime();
+        if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getDuration()) {
             return RESULT_FAILED;
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition, MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+        mediaExtractor.seekTo(correctPosition + getFileStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
         mediaCodec.flush();
         return readFrame();
     }

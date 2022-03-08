@@ -7,8 +7,7 @@
 #include <string>
 #include <GLES2/gl2ext.h>
 
-static const std::string VS = R"(
-#version 300 es
+static const std::string VS = R"(#version 300 es
 layout(location = 0) in vec3 aVertCoord;
 layout(location = 1) in vec2 aTextureCoord;
 out vec2 vTextureCoord;
@@ -18,8 +17,7 @@ void main(){
 }
 )";
 
-static const std::string FS = R"(
-#version 300 es
+static const std::string FS = R"(#version 300 es
 #extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 uniform samplerExternalOES sOesTexture;

@@ -3,7 +3,6 @@ package com.galix.opentiktok.ui;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -35,9 +34,9 @@ public class ComponentView extends RelativeLayout {
     private int mPaddingTopBottom = 0;
     private int mPaddingLeftRight = 0;
     private int mPaddingColor = 0;
-    private Callback mCallback;
+    private ClipCallback mClipCallback;
     private boolean mStatus;
-    private AVComponent mAVComponent;
+    private LinkedList<AVComponent> mAVComponents;
     private LinkedList<ThumbInfo> mThumbsList;
     private LinearLayout mVideoLayout;
     private ClipView mClipLayout;
@@ -54,13 +53,9 @@ public class ComponentView extends RelativeLayout {
         mClipLayout.setClipCallback(new ClipView.ClipCallback() {
             @Override
             public void onClip(Rect src, Rect dst) {
-                long duration = mAVComponent.getSrcEndTime() - mAVComponent.getSrcStartTime();
-                mAVComponent.setSrcStartTime((long) (duration * (dst.left * 1.0f / src.width())));
-                mAVComponent.setSrcEndTime((long) (duration * (dst.right * 1.0f / src.width())));
-                freshData();
-                buildViews();
-                setStatus(false);
-                //TODO
+                if (mClipCallback != null) {
+                    mClipCallback.onClip(ComponentView.this, mAVComponents, src, dst);
+                }
             }
         });
     }
@@ -71,26 +66,28 @@ public class ComponentView extends RelativeLayout {
         public long duration;
     }
 
-    public void freshData() {
+    private void freshData() {
         if (mThumbsList == null) mThumbsList = new LinkedList<>();
         mThumbsList.clear();
-        if (mAVComponent.getType() == AVComponent.AVComponentType.VIDEO) {
-            AVVideo video = (AVVideo) mAVComponent;
-            long pts = mAVComponent.getSrcStartTime();
-            while (pts < video.getSrcEndTime()) {
-                ThumbInfo img = new ThumbInfo();
-                img.type = DRAG_IMG;
-                img.imgPath = VideoUtil.getThumbJpg(getContext(), video.getPath(), pts - video.getSrcStartTime());
-                img.duration = 1000000;
-                pts += 1000000;
-                mThumbsList.add(img);
+        for (AVComponent avComponent : mAVComponents) {
+            if (avComponent.getType() == AVComponent.AVComponentType.VIDEO) {
+                AVVideo video = (AVVideo) avComponent;
+                long pts = video.getFileStartTime();
+                while (pts < video.getFileEndTime()) {
+                    ThumbInfo img = new ThumbInfo();
+                    img.type = DRAG_IMG;
+                    img.imgPath = VideoUtil.getThumbJpg(getContext(), video.getPath(), pts);
+                    img.duration = Math.min(video.getFileEndTime() - pts, 1000000 - pts % 1000000);
+                    pts = (pts / 1000000 + 1) * 1000000;
+                    mThumbsList.add(img);
+                }
             }
-            mThumbsList.get(0).duration = (video.getSrcStartTime() / 1000000 + 1) * 1000000 - video.getSrcStartTime();
-            mThumbsList.get(mThumbsList.size() - 1).duration = video.getSrcEndTime() % 1000000;
         }
     }
 
     public void buildViews() {
+        setStatus(false);
+        freshData();
         mVideoLayout.removeAllViews();
         for (ThumbInfo thumbInfo : mThumbsList) {
             if (thumbInfo.type == DRAG_IMG) {
@@ -106,11 +103,6 @@ public class ComponentView extends RelativeLayout {
         }
     }
 
-
-    public interface Callback {
-        void onDurationChange(long duration);
-    }
-
     public void setStatus(boolean status) {
         mStatus = status;
         if (mStatus) {
@@ -124,8 +116,12 @@ public class ComponentView extends RelativeLayout {
         setStatus(!mStatus);
     }
 
-    public void setCallback(Callback callback) {
-        mCallback = callback;
+    public interface ClipCallback {
+        void onClip(ComponentView view, LinkedList<AVComponent> avComponents, Rect src, Rect dst);
+    }
+
+    public interface UpdateCallback {
+        void onUpdate();
     }
 
     public static class Builder {
@@ -155,8 +151,13 @@ public class ComponentView extends RelativeLayout {
             return this;
         }
 
-        public Builder setComponent(AVComponent avComponent) {
-            componentView.mAVComponent = avComponent;
+        public Builder setClipCallback(ClipCallback clipCallback) {
+            componentView.mClipCallback = clipCallback;
+            return this;
+        }
+
+        public Builder setComponents(LinkedList<AVComponent> avComponents) {
+            componentView.mAVComponents = avComponents;
             return this;
         }
 
@@ -164,12 +165,8 @@ public class ComponentView extends RelativeLayout {
             componentView.setPadding(componentView.mPaddingLeftRight, componentView.mPaddingTopBottom,
                     componentView.mPaddingLeftRight, componentView.mPaddingTopBottom);
             componentView.setBackgroundColor(componentView.mPaddingColor);
-            if (componentView.mAVComponent == null) return null;
-            if (!componentView.mAVComponent.isOpen()) {
-                componentView.mAVComponent.open();
-            }
+            if (componentView.mAVComponents == null) return null;
             componentView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            componentView.freshData();
             componentView.buildViews();
             componentView.setStatus(false);
             componentView.setOnClickListener(new OnClickListener() {

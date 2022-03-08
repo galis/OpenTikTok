@@ -123,7 +123,7 @@
         android:layout_height="120dp"
         android:layout_below="@id/rl_video_info">
 
-        <HorizontalScrollView
+        <com.galix.opentiktok.ui.CustomHorizontalScrollView
             android:id="@+id/recyclerview_drag_thumb"
             android:layout_width="match_parent"
             android:layout_height="80dp">
@@ -133,10 +133,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:scrollbars="none">
-            </LinearLayout>
+                android:scrollbars="none" />
 
-        </HorizontalScrollView>
+        </com.galix.opentiktok.ui.CustomHorizontalScrollView>
 
         <ImageView
             android:layout_width="2dp"

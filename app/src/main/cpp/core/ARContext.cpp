@@ -11,8 +11,8 @@ int slar::ARContext::create() {
     if (mState) {
         return 0;
     }
-    mFilter.reset(new slfilter::Filter3D);
-    mFilter->init();
+//    mFilter.reset(new slfilter::Filter3D);
+//    mFilter->init();
     mCameraFilter.reset(new slfilter::FilterOES);
     mCameraFilter->init();
     return 0;
@@ -51,10 +51,10 @@ void slar::ARContext::setFace(float x, float y, float scale, float pitch, float 
 }
 
 int slar::ARContext::onSurfaceChanged(int width, int height) {
-    mFilter->onOutputChanged(width, height);
+//    mFilter->onOutputChanged(width, height);
     mCameraFilter->onOutputChanged(width, height);
-    mFilter->setFrameBufferSize(SLSize(width, height));
     mCameraFilter->setFrameBufferSize(SLSize(width, height));
+//    mFilter->setFrameBufferSize(SLSize(width, height));
     return 0;
 }
 

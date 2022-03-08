@@ -11,6 +11,7 @@ import com.galix.opentiktok.render.IRender;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
 
@@ -30,15 +31,15 @@ public class AVVideo extends AVComponent {
     private SurfaceTexture surfaceTexture;
 
     //输出到surface
-    public AVVideo(long srcStartTime, long srcEndTime, String path, int textureId, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.VIDEO, render);
+    public AVVideo(long engineStartTime, long engineEndTime, String path, int textureId, IRender render) {
+        super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
         this.path = path;
         this.textureId = textureId;
     }
 
     //输出到buffer
-    public AVVideo(long srcStartTime, long srcEndTime, String path, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.VIDEO, render);
+    public AVVideo(long engineStartTime, long engineEndTime, String path, IRender render) {
+        super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
         this.path = path;
         this.textureId = -1;
     }
@@ -63,7 +64,10 @@ public class AVVideo extends AVComponent {
                     mediaFormat = mediaExtractor.getTrackFormat(i);
                     mediaExtractor.selectTrack(i);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
-                    setDuration(mediaFormat.getLong(MediaFormat.KEY_DURATION));
+                    long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
+                    setFileStartTime(0);
+                    setFileEndTime(duration);
+                    setDuration(duration);
                     break;
                 }
             }
@@ -141,16 +145,16 @@ public class AVVideo extends AVComponent {
             }
             if (!isOutputEOF) {
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-                int outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, -1);
+                int outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
                 if (outputBufIdx >= 0) {
                     peekFrame().setValid(true);
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         isOutputEOF = true;
                         peekFrame().setEof(true);
-                        peekFrame().setPts(mediaFormat.getLong(mediaFormat.KEY_DURATION) + getSrcStartTime());
+                        peekFrame().setPts(getDuration() + getEngineStartTime());
                     } else {
                         peekFrame().setEof(false);
-                        peekFrame().setPts(bufferInfo.presentationTimeUs + getSrcStartTime());
+                        peekFrame().setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());
                     }
                     if (textureId == -1) {//no output surface texture
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
@@ -177,13 +181,13 @@ public class AVVideo extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
-        long correctPosition = position - getSrcStartTime();
-        if (position < getSrcStartTime() || position > getSrcEndTime() || correctPosition > getDuration()) {
+        long correctPosition = position - getEngineStartTime();//engine position => file position
+        if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getEngineDuration()) {
             return RESULT_FAILED;
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+        mediaExtractor.seekTo(correctPosition + getFileStartTime(), MediaExtractor.SEEK_TO_CLOSEST_SYNC);
         mediaCodec.flush();
         readFrame();
         return RESULT_OK;

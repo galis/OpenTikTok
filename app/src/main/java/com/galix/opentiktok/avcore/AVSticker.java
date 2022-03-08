@@ -66,12 +66,12 @@ public class AVSticker extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
-        if (position < getSrcStartTime() || (position - getSrcStartTime() > getDuration())) {
+        if (position < getEngineStartTime() || (position - getEngineStartTime() > getDuration())) {
             peekFrame().setBitmap(null);
             peekFrame().setValid(true);
             return RESULT_FAILED;
         }
-        long correctPos = (position - getSrcStartTime()) % getEffectDuration();
+        long correctPos = (position - getEngineStartTime()) % getEffectDuration();
         if (correctPos < 0) {
             peekFrame().setBitmap(null);
             peekFrame().setValid(true);

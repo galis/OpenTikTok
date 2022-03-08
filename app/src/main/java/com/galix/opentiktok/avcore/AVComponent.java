@@ -2,7 +2,7 @@ package com.galix.opentiktok.avcore;
 
 import com.galix.opentiktok.render.IRender;
 
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AV组件，视频，音频，文字，特效，转场等
@@ -31,40 +31,81 @@ public abstract class AVComponent {
         ALL
     }
 
-    private long srcStartTime;
-    private long srcEndTime;
-    private long duration;//原始数据
+    private long engineStartTime;//引擎相关
+    private long engineEndTime;//引擎相关
+    private long fileStartTime;//文件相关的
+    private long fileEndTime;//文件相关
+    private long duration;//组件本身duration,不可改变
     private long position;
     private boolean isOpen;
     private IRender render;
     private AVFrame cache;
     private AVComponentType type;
+    private AtomicBoolean lockLock;
 
-    public AVComponent(long srcStartTime, long srcEndTime, AVComponentType type, IRender render) {
-        this.srcStartTime = srcStartTime;
-        this.srcEndTime = srcEndTime;
+    public AVComponent(long engineStartTime, long engineEndTime,
+                       AVComponentType type, IRender render) {
+        this.engineStartTime = engineStartTime;
+        this.engineEndTime = engineEndTime;
         this.type = type;
         this.position = -1;
         this.isOpen = false;
         this.cache = new AVFrame();
         this.render = render;
-        this.duration = srcEndTime - srcStartTime;
+        this.lockLock = new AtomicBoolean(false);
     }
 
-    public long getSrcStartTime() {
-        return srcStartTime;
+    public AVComponent() {
+        this.engineStartTime = -1;
+        this.engineEndTime = -1;
+        this.fileStartTime = -1;
+        this.fileEndTime = -1;
+        this.type = type;
+        this.position = -1;
+        this.isOpen = false;
+        this.cache = new AVFrame();
+        this.render = null;
+        this.lockLock = new AtomicBoolean(false);
     }
 
-    public void setSrcStartTime(long srcStartTime) {
-        this.srcStartTime = srcStartTime;
+    public long getEngineStartTime() {
+        return engineStartTime;
     }
 
-    public long getSrcEndTime() {
-        return srcEndTime;
+    public void setEngineStartTime(long engineStartTime) {
+        this.engineStartTime = engineStartTime;
     }
 
-    public void setSrcEndTime(long srcEndTime) {
-        this.srcEndTime = srcEndTime;
+    public long getEngineEndTime() {
+        return engineEndTime;
+    }
+
+    public void setEngineEndTime(long engineEndTime) {
+        this.engineEndTime = engineEndTime;
+    }
+
+    public long getFileStartTime() {
+        return fileStartTime;
+    }
+
+    public void setFileStartTime(long fileStartTime) {
+        this.fileStartTime = fileStartTime;
+    }
+
+    public long getFileEndTime() {
+        return fileEndTime;
+    }
+
+    public void setFileEndTime(long fileEndTime) {
+        this.fileEndTime = fileEndTime;
+    }
+
+    public long getEngineDuration() {
+        return engineEndTime - engineStartTime;
+    }
+
+    public long getFileDuration() {
+        return fileEndTime - fileStartTime;
     }
 
     public long getDuration() {
@@ -100,7 +141,7 @@ public abstract class AVComponent {
     }
 
     public boolean isValid(long position) {
-        return position >= srcStartTime && position <= srcEndTime;
+        return position >= engineStartTime && position <= engineEndTime;
     }
 
     public abstract int open();
@@ -129,15 +170,28 @@ public abstract class AVComponent {
         this.render = render;
     }
 
+    public void lock() {
+        while (!lockLock.compareAndSet(false, true)) ;
+    }
+
+    public void unlock() {
+        while (!lockLock.compareAndSet(true, false)) ;
+    }
+
+
     @Override
     public String toString() {
         return "AVComponent{" +
-                "srcStartTime=" + srcStartTime +
-                ", srcEndTime=" + srcEndTime +
+                "engineStartTime=" + engineStartTime +
+                ", engineEndTime=" + engineEndTime +
+                ", clipStartTime=" + fileStartTime +
+                ", clipEndTime=" + fileEndTime +
                 ", duration=" + duration +
                 ", position=" + position +
-                ", type=" + type +
                 ", isOpen=" + isOpen +
+                ", render=" + render +
+                ", cache=" + cache +
+                ", type=" + type +
                 '}';
     }
 }
