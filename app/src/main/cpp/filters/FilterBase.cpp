@@ -106,7 +106,6 @@ void main(){
         }
         glUseProgram(mGLProgram);
         mActiveTexture = GL_TEXTURE0;
-
         //执行tasks
         {
             lock_guard<mutex> autoLock(mMutex);
@@ -138,8 +137,6 @@ void main(){
     }
 
     void FilterBase::onInitialized() {
-        bindAttr("position", DEFAULT_VERT_ARRAY);
-        bindAttr("inputTextureCoordinate", TEXTURE_NO_ROTATION);
     }
 
     void FilterBase::onDestroy() {
@@ -195,6 +192,16 @@ void main(){
         });
     }
 
+    void FilterBase::bindFloatVec3(string &&key, float *floatValue) {
+        lock_guard<mutex> autoLock(mMutex);
+        mTasks.emplace_back([&]() {
+            if (!mLocations[key]) {
+                mLocations[key] = glGetUniformLocation(mGLProgram, key.c_str());
+            }
+            glUniform3fv(mLocations[key], 1, floatValue);
+        });
+    }
+
     void FilterBase::bindFloatArray(string &&key, float values[], int length) {
         lock_guard<mutex> autoLock(mMutex);
         mTasks.emplace_back([&]() {
@@ -206,7 +213,13 @@ void main(){
     }
 
     void FilterBase::bindTMat(string &&key, SLMat &mat) {
-
+        if (mat.empty()) {
+            return;
+        }
+        if (!mLocations[key]) {
+            mLocations[key] = glGetUniformLocation(mGLProgram, key.c_str());
+        }
+        glUniformMatrix3fv(mLocations[key], 1, false, reinterpret_cast<const GLfloat *>(mat.data));
     }
 
     void FilterBase::bindTexture(string &&key, GLuint texture) {

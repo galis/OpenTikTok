@@ -24,7 +24,6 @@ namespace slfilter {
         string mVertShader;
         string mFragShader;
         map<string, GLuint> mLocations;
-        map<string, GLuint> mUniforms;
         mutex mMutex;
         RenderMode mRenderMode;
         vector<function<void(void)>> mTasks;
@@ -87,6 +86,8 @@ namespace slfilter {
         void bindFloat(string &&key, float value);//绑定Float值
 
         void bindTMat(string &&key, SLMat &mat);//绑定变换矩阵 for opencv
+
+        void bindFloatVec3(string &&key, float *floatValue);
 
         void bindFloatArray(string &&key, float values[], int length);
 

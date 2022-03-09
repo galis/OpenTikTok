@@ -4,6 +4,7 @@
 
 #include "FilterOES.h"
 #include "../utils/SLGLUtil.h"
+#include "../utils/SLMath.h"
 #include <string>
 #include <GLES2/gl2ext.h>
 
@@ -20,11 +21,20 @@ void main(){
 static const std::string FS = R"(#version 300 es
 #extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
-uniform samplerExternalOES sOesTexture;
 in vec2 vTextureCoord;
 out vec4 vFragColor;
+uniform samplerExternalOES sOesTexture;
+uniform mat3 inputMat;
+uniform vec3 bgColor;
+
+
 void main(){
-    vFragColor = texture(sOesTexture,vTextureCoord);
+    vec3 targetCoord = inputMat*vec3(vTextureCoord,1.0);
+   if(targetCoord.x < 0.0||targetCoord.x>1.0||targetCoord.y<0.0||targetCoord.y>1.0) {
+        vFragColor = vec4(bgColor,1.0);
+   }else{
+        vFragColor = texture(sOesTexture,targetCoord.xy);
+   }
 }
 )";
 
@@ -77,7 +87,9 @@ namespace slfilter {
         glViewport(0, 0, getFrameBufferSize().width, getFrameBufferSize().height);
         glBindVertexArray(mVAO);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(1.0, 1.0, 1.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureId);
         glTexParameterf(GL_TEXTURE_EXTERNAL_OES,
                         GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -87,6 +99,25 @@ namespace slfilter {
                         GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_EXTERNAL_OES,
                         GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        SLPoint2f srcPoints[]{SLPoint2f(0, 0), SLPoint2f(getFrameBufferSize().width, 0),
+                              SLPoint2f(getFrameBufferSize().width / 2, getFrameBufferSize().height / 2)};
+        int targetHeight = getFrameBufferSize().width * (mTextureSize.height * 1.0f / mTextureSize.width);
+        int targetWidth = getFrameBufferSize().height * (mTextureSize.width * 1.0f / mTextureSize.height);
+        if (targetHeight <= getFrameBufferSize().height) {//宽度铺满
+            int deltaHeight = (getFrameBufferSize().height - targetHeight) / 2;
+            SLPoint2f dstPoints[]{SLPoint2f(0, deltaHeight), SLPoint2f(getFrameBufferSize().width, deltaHeight),
+                                  SLPoint2f(getFrameBufferSize().width / 2, getFrameBufferSize().height / 2)};
+            SLMat mat = slutil::SLMath::getTransformMat(srcPoints, dstPoints, getFrameBufferSize(), getFrameBufferSize());
+            bindTMat("inputMat", mat);
+        } else {
+            int deltaWidth = (getFrameBufferSize().width - targetWidth) / 2;
+            SLPoint2f dstPoints[]{SLPoint2f(deltaWidth, 0), SLPoint2f(getFrameBufferSize().width - deltaWidth, 0),
+                                  SLPoint2f(getFrameBufferSize().width / 2, getFrameBufferSize().height / 2)};
+            SLMat mat = slutil::SLMath::getTransformMat(srcPoints, dstPoints, getFrameBufferSize(), getFrameBufferSize());
+            bindTMat("inputMat", mat);
+        }
+        glUniform1i(glGetUniformLocation(getProgram(), "sOesTexture"), 0);
+        glUniform3fv(glGetUniformLocation(getProgram(), "bgColor"), 1, mColor);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
         glFlush();
@@ -96,5 +127,14 @@ namespace slfilter {
         if (mVAO) glDeleteVertexArrays(1, &mVAO);
         if (mVBO) glDeleteVertexArrays(1, &mVBO);
         if (mEBO) glDeleteVertexArrays(1, &mEBO);
+    }
+
+    void FilterOES::setTextureInfo(SLSize size) {
+        mTextureSize = size;
+    }
+
+    void FilterOES::setBgColor(int color) {
+        slutil::SLMath::getNormalColor(color, mColor);
+//        bindFloatVec3("bgColor", mColor);
     }
 }

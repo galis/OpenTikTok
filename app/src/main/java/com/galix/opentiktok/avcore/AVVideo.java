@@ -1,5 +1,6 @@
 package com.galix.opentiktok.avcore;
 
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
@@ -75,6 +76,7 @@ public class AVVideo extends AVComponent {
                 return RESULT_FAILED;
             }
             peekFrame().setByteBuffer(ByteBuffer.allocateDirect(mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)));
+            peekFrame().setRoi(new Rect(0, 0, mediaFormat.getInteger(MediaFormat.KEY_WIDTH), mediaFormat.getInteger(MediaFormat.KEY_HEIGHT)));
             if (textureId != -1) {
                 surfaceTexture = new SurfaceTexture(textureId);
                 surface = new Surface(surfaceTexture);

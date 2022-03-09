@@ -6,6 +6,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Size;
 
 import com.galix.opentiktok.render.AudioRender;
 import com.galix.opentiktok.render.OESRender;
@@ -36,6 +37,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private static final int MAX_TEXTURE = 30;
     private static AVEngine gAVEngine = null;
     private VideoState mVideoState;
+    private int mBgColor;
     private HandlerThread mAudioThread;
     private Handler mAudioHandler;
     private HandlerThread mEngineThread;
@@ -200,6 +202,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
     }
 
+    public void setCanvasSize(Size size) {
+        mGLSurfaceView.getLayoutParams().width = size.getWidth();
+        mGLSurfaceView.getLayoutParams().height = size.getHeight();
+        mGLSurfaceView.requestLayout();
+    }
+
+    public void setBgColor(int color){
+        mBgColor = color;
+    }
+
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         mVideoState.reset();
@@ -214,6 +226,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
+        Log.d(TAG, "width#" + width + "#" + height);
         mOesRender.write(new OESRender.OesRenderConfig(width, height));
     }
 
@@ -269,6 +282,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 if (component.getRender() != null) {
                     component.getRender().render(avFrame);
                 } else {
+                    avFrame.setTextColor(mBgColor);
                     mOesRender.render(avFrame);
                 }
                 mVideoState.isLastVideoDisplay = true;
@@ -568,6 +582,14 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mCmdQueue.add(command);
     }
 
+    /**
+     * 修改组件时间信息
+     *
+     * @param avComponent    目标组件
+     * @param src            原始Rect
+     * @param dst            目的Rect
+     * @param engineCallback 回调
+     */
     public void changeComponent(LinkedList<AVComponent> avComponent, Rect src, Rect dst, EngineCallback engineCallback) {
         Command command = new Command();
         command.cmd = Command.Cmd.CHANGE_COM;

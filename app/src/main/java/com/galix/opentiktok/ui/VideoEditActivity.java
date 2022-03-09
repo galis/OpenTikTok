@@ -7,13 +7,12 @@ import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -21,7 +20,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -30,8 +28,8 @@ import com.bumptech.glide.Glide;
 import com.galix.opentiktok.R;
 import com.galix.opentiktok.avcore.AVAudio;
 import com.galix.opentiktok.avcore.AVComponent;
-import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVEngine;
+import com.galix.opentiktok.avcore.AVSticker;
 import com.galix.opentiktok.avcore.AVVideo;
 import com.galix.opentiktok.avcore.AVWord;
 import com.galix.opentiktok.render.ImageViewRender;
@@ -66,7 +64,7 @@ public class VideoEditActivity extends AppCompatActivity {
     private static final int DRAG_ADD = 3;
     private static final int DRAG_MUTE = 4;
     private static final int DRAG_SPLIT = 5;
-    private static final int THUMB_SLOT_WIDTH = 80;
+    private static final int THUMB_SLOT_WIDTH = 60;
 
     private LinkedList<ThumbInfo> mThumbsList;
     private LinkedList<Integer> mStickerList;//贴纸
@@ -173,11 +171,56 @@ public class VideoEditActivity extends AppCompatActivity {
                 imageViewHolder.imageView.setImageResource(TAB_INFO_LIST[2 * position]);
                 imageViewHolder.textView.setText(TAB_INFO_LIST[2 * position + 1]);
                 imageViewHolder.itemView.setOnClickListener(v -> {
-                    if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_sticker) {
+                    int index = TAB_INFO_LIST[2 * position + 1];
+                    if (index == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
-                    } else if (TAB_INFO_LIST[2 * position + 1] == R.string.tab_text) {
+                    } else if (index == R.string.tab_text) {
                         mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 5000000,
                                 new TextRender(mEditTextView)), null);
+                    } else if (index == R.string.tab_ratio) {
+                        ViewGroup view = findViewById(R.id.view_ratio_tablist);
+                        ((RatioTabListView) view.getChildAt(0)).buildView(1920, 1080, new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                RatioTabListView.RatioInfo info = (RatioTabListView.RatioInfo) v.getTag();
+                                if (info == null) {
+                                    view.setVisibility(View.GONE);
+                                    return;
+                                }
+                                int width = getWindowManager().getCurrentWindowMetrics().getBounds().width();
+                                int height = (int) (350 * getResources().getDisplayMetrics().density);
+                                if (info.text.equalsIgnoreCase("原始")) {
+                                    height = (int) (width * VideoUtil.mTargetFiles.get(0).height * 1.0f /
+                                            VideoUtil.mTargetFiles.get(0).width);
+                                } else if (info.text.equalsIgnoreCase("4:3")) {
+                                    height = (int) (width * 3.0f / 4.0f);
+                                } else if (info.text.equalsIgnoreCase("3:4")) {
+                                    width = (int) (height * 3.f / 4.0f);
+                                } else if (info.text.equalsIgnoreCase("1:1")) {
+                                    width = height;
+                                } else if (info.text.equalsIgnoreCase("16:9")) {
+                                    height = (int) (width * 9.0f / 16.0f);
+                                } else if (info.text.equalsIgnoreCase("9:16")) {
+                                    width = (int) (height * 9.0f / 16.0f);
+                                }
+                                mAVEngine.setCanvasSize(new Size(width, height));
+                                Toast.makeText(getBaseContext(), info.text, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        view.setVisibility(View.VISIBLE);
+                    } else if (index == R.string.tab_background) {
+                        ViewGroup view = findViewById(R.id.view_background_tablist);
+                        ((BackgroundTabListView) view.getChildAt(0)).buildView(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                if (v.getTag() == null) {
+                                    view.setVisibility(View.GONE);
+                                    return;
+                                }
+                                mAVEngine.setBgColor((Integer) v.getTag());
+                            }
+                        });
+                        view.setVisibility(View.VISIBLE);
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
                         Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
@@ -285,7 +328,7 @@ public class VideoEditActivity extends AppCompatActivity {
             components.add(audio);
             ComponentView view = new ComponentView.Builder(this)
                     .setComponents(components)
-                    .setPaddingColor(Color.YELLOW)
+                    .setPaddingColor(Color.BLACK)
                     .setTileSize((int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density))
                     .setPaddingLeftRight(0)
                     .setPaddingTopBottom(0)

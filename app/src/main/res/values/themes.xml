@@ -2,8 +2,8 @@
     <!-- Base application theme. -->
     <style name="Theme.OpenTikTok" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/theme_orangeC9</item>
-        <item name="colorPrimaryVariant">@color/theme_orangeA9</item>
+        <item name="colorPrimary">@color/theme_black48</item>
+        <item name="colorPrimaryVariant">@color/theme_black48</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/teal_200</item>

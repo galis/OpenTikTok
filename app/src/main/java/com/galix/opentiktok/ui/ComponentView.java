@@ -94,7 +94,6 @@ public class ComponentView extends RelativeLayout {
                 ImageView imageView = new ImageView(getContext());
                 imageView.setLayoutParams(new LinearLayout.LayoutParams((int) ((thumbInfo.duration / 1000000.f) * (mTileSize - mPaddingTopBottom * 2)), mTileSize - mPaddingTopBottom * 2));
                 imageView.setScaleType(ImageView.ScaleType.FIT_XY);
-                imageView.setBackgroundColor(Color.BLUE);
                 Glide.with(getContext())
                         .load(thumbInfo.imgPath)
                         .into(imageView);

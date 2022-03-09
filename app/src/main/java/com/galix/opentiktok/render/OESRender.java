@@ -14,8 +14,7 @@ public class OESRender implements IRender {
         }
     }
 
-    private ARContext mARContext;
-    private OesRenderConfig mOESRenderConfig;
+    private long mNativeObj = -1;
 
     public OESRender() {
 
@@ -23,25 +22,36 @@ public class OESRender implements IRender {
 
     @Override
     public void open() {
-        mARContext = new ARContext();
-        mARContext.create();
+        if(mNativeObj!=-1) return;
+        mNativeObj = nativeOpen();
     }
 
     @Override
     public void close() {
-        mARContext.destroy();
+        if (mNativeObj == -1) {
+            return;
+        }
+        nativeClose(mNativeObj);
+        mNativeObj = -1;
     }
 
     @Override
     public void write(Object config) {
         if (config == null) return;
-        mOESRenderConfig = (OesRenderConfig) config;
-        mARContext.onSurfaceChanged(mOESRenderConfig.width, mOESRenderConfig.height);
+        nativeWrite(mNativeObj, ((OesRenderConfig) config).width, ((OesRenderConfig) config).height);
     }
 
     @Override
     public void render(AVFrame avFrame) {
         avFrame.getSurfaceTexture().updateTexImage();
-        mARContext.draw(avFrame.getTexture());
+        nativeRender(mNativeObj, avFrame.getTexture(), avFrame.getRoi().width(), avFrame.getRoi().height(),avFrame.getTextColor());
     }
+
+    private native long nativeOpen();
+
+    private native int nativeWrite(long nativeObj, int surfaceWidth, int surfaceHeight);
+
+    private native int nativeRender(long nativeObj, int textureId, int textureWidth, int textureHeight,int color);
+
+    private native int nativeClose(long nativeObj);
 }

@@ -10,11 +10,17 @@
 namespace slfilter {
     class FilterOES : public FilterBase {
     private:
-        GLuint mVAO, mVBO, mEBO;
+        GLuint mVAO = -1, mVBO = -1, mEBO = -1;
+        SLSize mTextureSize;
+        float mColor[3];
     public:
         FilterOES();
 
         void onDraw(GLuint textureId) override;
+
+        void setTextureInfo(SLSize size);
+
+        void setBgColor(int color);
 
         ~FilterOES();
     };

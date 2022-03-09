@@ -47,6 +47,8 @@ public abstract class AVComponent {
                        AVComponentType type, IRender render) {
         this.engineStartTime = engineStartTime;
         this.engineEndTime = engineEndTime;
+        this.fileStartTime = -1;
+        this.fileEndTime = -1;
         this.type = type;
         this.position = -1;
         this.isOpen = false;
@@ -178,20 +180,20 @@ public abstract class AVComponent {
         while (!lockLock.compareAndSet(true, false)) ;
     }
 
-
     @Override
     public String toString() {
         return "AVComponent{" +
                 "engineStartTime=" + engineStartTime +
                 ", engineEndTime=" + engineEndTime +
-                ", clipStartTime=" + fileStartTime +
-                ", clipEndTime=" + fileEndTime +
+                ", fileStartTime=" + fileStartTime +
+                ", fileEndTime=" + fileEndTime +
                 ", duration=" + duration +
                 ", position=" + position +
                 ", isOpen=" + isOpen +
                 ", render=" + render +
                 ", cache=" + cache +
                 ", type=" + type +
+                ", lockLock=" + lockLock +
                 '}';
     }
 }
