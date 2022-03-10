@@ -1,7 +1,6 @@
 package com.galix.opentiktok.ui;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,9 +11,9 @@ import android.widget.RelativeLayout;
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
-import com.galix.opentiktok.avcore.AVComponent;
-import com.galix.opentiktok.avcore.AVVideo;
-import com.galix.opentiktok.util.VideoUtil;
+import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.avcore.AVVideo;
+import com.galix.avcore.util.VideoUtil;
 
 import java.util.LinkedList;
 

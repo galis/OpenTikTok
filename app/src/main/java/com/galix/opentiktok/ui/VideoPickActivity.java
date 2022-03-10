@@ -22,7 +22,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.galix.opentiktok.R;
-import com.galix.opentiktok.util.VideoUtil;
+import com.galix.avcore.util.VideoUtil;
 
 import java.io.File;
 import java.util.ArrayList;

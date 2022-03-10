@@ -26,22 +26,22 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.galix.opentiktok.R;
-import com.galix.opentiktok.avcore.AVAudio;
-import com.galix.opentiktok.avcore.AVComponent;
-import com.galix.opentiktok.avcore.AVEngine;
-import com.galix.opentiktok.avcore.AVSticker;
-import com.galix.opentiktok.avcore.AVVideo;
-import com.galix.opentiktok.avcore.AVWord;
-import com.galix.opentiktok.render.ImageViewRender;
-import com.galix.opentiktok.render.TextRender;
-import com.galix.opentiktok.util.GestureUtils;
-import com.galix.opentiktok.util.GifDecoder;
-import com.galix.opentiktok.util.VideoUtil;
+import com.galix.avcore.avcore.AVAudio;
+import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.avcore.AVEngine;
+import com.galix.avcore.avcore.AVSticker;
+import com.galix.avcore.avcore.AVVideo;
+import com.galix.avcore.avcore.AVWord;
+import com.galix.avcore.render.ImageViewRender;
+import com.galix.avcore.render.TextRender;
+import com.galix.avcore.util.GestureUtils;
+import com.galix.avcore.util.GifDecoder;
+import com.galix.avcore.util.VideoUtil;
 
 import java.util.LinkedList;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
-import static com.galix.opentiktok.avcore.AVEngine.VideoState.VideoStatus.START;
+import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 
 /**
  * 视频编辑界面

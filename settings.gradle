@@ -1,2 +1,3 @@
+include ':avcore'
 include ':app'
 rootProject.name = "OpenTikTok"
