@@ -18,4 +18,10 @@
     <string name="tab_adjust">调节</string>
     <string name="choose_video">选择视频</string>
     <string name="ss">22sdf</string>
+    <string name="title_activity_game">GameActivity</string>
+    <!--
+    This string is used for square devices and overridden by hello_world in
+    values-round/strings.xml for round devices.
+    -->
+    <string name="hello_world">Hello Square World!</string>
 </resources>

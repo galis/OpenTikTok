@@ -24,9 +24,16 @@
         android:roundIcon="@drawable/icon_app"
         android:supportsRtl="true"
         android:theme="@style/Theme.OpenTikTok">
+
+        <activity
+            android:name=".dp.GameActivity"
+            android:label="@string/title_activity_game">
+
+        </activity>
         <activity
             android:name=".ui.VideoPickActivity"
             android:theme="@style/Theme.OpenTikTok" />
+
         <activity android:name=".ui.LogoActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

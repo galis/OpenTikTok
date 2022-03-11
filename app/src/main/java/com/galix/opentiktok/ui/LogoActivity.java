@@ -4,11 +4,6 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.MessageQueue;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,6 +12,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.galix.opentiktok.R;
+import com.galix.opentiktok.dp.GameActivity;
 
 public class LogoActivity extends AppCompatActivity {
 
@@ -38,7 +34,8 @@ public class LogoActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.btn_record_screen).setOnClickListener(v -> {
-            Toast.makeText(LogoActivity.this, "暂未支持!", Toast.LENGTH_SHORT).show();
+            GameActivity.start(LogoActivity.this);
+//            Toast.makeText(LogoActivity.this, "暂未支持!", Toast.LENGTH_SHORT).show();
         });
 
 //        getWindow().getDecorView().postDelayed(new Runnable() {

@@ -30,6 +30,10 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
  */
 public class AVEngine implements GLSurfaceView.Renderer {
 
+    static {
+        System.loadLibrary("arcore");
+    }
+
     private static final String TAG_VIDEO_STATE = "AVEngine_video_state";
     private static final String TAG_COMPONENT = "AVEngine_component";
     private static final String TAG = "AVEngine_normal";
@@ -51,7 +55,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private AudioRender mAudioRender;
     private OESRender mOesRender;
     private int[] mTextures;
-    private int mValidTexture;//下一个有效纹理ID
+    private int mValidTexture = 1;//下一个有效纹理ID
     private BlockingQueue<Command> mCmdQueue;
 
     public interface EngineCallback {
@@ -208,18 +212,17 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mGLSurfaceView.requestLayout();
     }
 
-    public void setBgColor(int color){
+    public void setBgColor(int color) {
         mBgColor = color;
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         mVideoState.reset();
-        mOesRender = new OESRender();
-        mOesRender.open();
         mTextures = new int[MAX_TEXTURE];
         GLES30.glGenTextures(MAX_TEXTURE, mTextures, 0);
-        mValidTexture = 0;
+        mOesRender = new OESRender();
+        mOesRender.open();
         createEngineDaemon();
         createAudioDaemon();
     }
@@ -243,22 +246,23 @@ public class AVEngine implements GLSurfaceView.Renderer {
         //处理视频片段
         long delay = 0;
         List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
+        boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
+        if (needSeek) {//优先处理seek行为
+            for (AVComponent component : components) {
+                component.lock();
+                component.seekFrame(extClk);
+                component.unlock();
+            }
+        }
+        mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
+
         for (AVComponent component : components) {
             component.lock();
-            boolean needSeek = mVideoState.status == SEEK//seek模式
-                    || (mVideoState.status == START &&
-                    mVideoState.videoClock.lastSeekReq != mVideoState.videoClock.seekReq)//cmd[seek seek pause start]避免这种情况
-                    || mLastVideoComponent != component;//组件间切换需要seek..
-            if (needSeek) {
-                component.seekFrame(extClk);
-            } else {
-                if (!component.peekFrame().isValid()) {
-                    component.readFrame();
-                }
+            if (!component.peekFrame().isValid()) {
+                component.readFrame();
             }
             component.unlock();
             AVFrame avFrame = component.peekFrame();
-            Log.d(TAG, "video#" + avFrame.toString());
             if (!avFrame.isValid()) {
                 Log.d(TAG, "VIDEO#WTF???Something I don't understand!");
                 continue;
@@ -273,13 +277,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
             if (needRender) {
                 if (delay > 0) {
                     try {
-                        Log.d(TAG, "delay#" + delay / 1000);
+//                        Log.d(TAG, "delay#" + delay / 1000);
                         Thread.sleep(delay / 1000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
                 if (component.getRender() != null) {
+                    if (!component.getRender().isOpen()) {
+                        component.getRender().open();
+                    }
                     component.getRender().render(avFrame);
                 } else {
                     avFrame.setTextColor(mBgColor);
@@ -287,7 +294,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 }
                 mVideoState.isLastVideoDisplay = true;
                 setClock(mVideoState.videoClock, correctPts);
-                mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
             }
 
             //如果是最后一帧，那么就保留，不是就mark read.
@@ -297,7 +303,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
 
             mLastVideoComponent = component;
         }
-
+//
         //处理贴纸片段
         List<AVComponent> stickComponents = findComponents(AVComponent.AVComponentType.STICKER, -1);
         for (AVComponent component : stickComponents) {
@@ -387,9 +393,9 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             mVideoState.isInputEOF = false;
                             mVideoState.isOutputEOF = false;
                             mVideoState.seekPositionUS = (long) command.args;
-                            setClock(mVideoState.extClock, mVideoState.seekPositionUS);
                             mVideoState.extClock.seekReq++;
                             mVideoState.audioClock.seekReq = mVideoState.videoClock.seekReq = mVideoState.extClock.seekReq;
+                            setClock(mVideoState.extClock, mVideoState.seekPositionUS);
                         }
                     } else if (command.cmd == Command.Cmd.ADD_COM) {
                         AVComponent component = (AVComponent) command.args;
@@ -488,6 +494,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                                 || (mLastAudioComponent != audio);
                         if (needSeek) {
                             audio.seekFrame(extClk);
+                            mVideoState.audioClock.lastSeekReq = mVideoState.audioClock.seekReq;
                         } else {
                             audio.readFrame();
                         }
@@ -508,7 +515,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             mAudioRender.render(audioFrame);
                         }
                         setClock(mVideoState.audioClock, audioFrame.getPts());
-                        mVideoState.audioClock.lastSeekReq = mVideoState.audioClock.seekReq;
                         audioFrame.markRead();
                         mLastAudioComponent = audio;
                     }
@@ -544,14 +550,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
      * @param position -1默认通过
      * @return 目标组件
      */
+
     public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
-        List<AVComponent> components = new LinkedList<>();
+        List<AVComponent> mTargetComponents = new LinkedList<>();
+        mTargetComponents.clear();
         if (type == AVComponent.AVComponentType.AUDIO) {
             synchronized (mAudioComponents) {
                 for (AVComponent component : mAudioComponents) {
                     if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                             (position == -1 || component.isValid(position)))) {
-                        components.add(component);
+                        mTargetComponents.add(component);
                     }
                 }
             }
@@ -560,13 +568,12 @@ public class AVEngine implements GLSurfaceView.Renderer {
                 for (AVComponent component : mVideoComponents) {
                     if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                             (position == -1 || component.isValid(position)))) {
-                        components.add(component);
+                        mTargetComponents.add(component);
                     }
                 }
             }
         }
-
-        return components;
+        return mTargetComponents;
     }
 
     /**
@@ -637,7 +644,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mCmdQueue.add(command);
     }
 
-    public void startPause() {
+    public void togglePlayPause() {
         if (mVideoState.status == START) {
             pause();
         } else {

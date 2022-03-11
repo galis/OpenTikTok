@@ -13,6 +13,11 @@ public class ImageViewRender implements IRender {
     }
 
     @Override
+    public boolean isOpen() {
+        return false;
+    }
+
+    @Override
     public void open() {
 
     }

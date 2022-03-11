@@ -13,8 +13,13 @@ public class AudioRender implements IRender {
     private int mMinBufferSize;
 
     @Override
+    public boolean isOpen() {
+        return mAudioTrack != null;
+    }
+
+    @Override
     public void open() {
-        if (mAudioTrack != null) return;
+        if (isOpen()) return;
         mMinBufferSize = 4096;
         mAudioTrack = new AudioTrack(
                 AudioManager.STREAM_MUSIC,

@@ -8,7 +8,8 @@ import java.nio.ByteBuffer;
 
 public class AVFrame {
     private long pts = -1;
-    private int texture = -1;
+    private int texture = 0;
+    private int textureExt = 0;
     private boolean eof = false;
     private boolean isValid = false;
     private long duration = 0;
@@ -19,6 +20,7 @@ public class AVFrame {
     private Bitmap bitmap;
     private ByteBuffer byteBuffer;
     private SurfaceTexture surfaceTexture;
+    private SurfaceTexture surfaceTextureExt;
 
     public long getPts() {
         return pts;
@@ -34,6 +36,14 @@ public class AVFrame {
 
     public void setTexture(int texture) {
         this.texture = texture;
+    }
+
+    public int getTextureExt() {
+        return textureExt;
+    }
+
+    public void setTextureExt(int textureExt) {
+        this.textureExt = textureExt;
     }
 
     public boolean isEof() {
@@ -66,6 +76,14 @@ public class AVFrame {
 
     public void setSurfaceTexture(SurfaceTexture surfaceTexture) {
         this.surfaceTexture = surfaceTexture;
+    }
+
+    public SurfaceTexture getSurfaceTextureExt() {
+        return surfaceTextureExt;
+    }
+
+    public void setSurfaceTextureExt(SurfaceTexture surfaceTextureExt) {
+        this.surfaceTextureExt = surfaceTextureExt;
     }
 
     public boolean isValid() {

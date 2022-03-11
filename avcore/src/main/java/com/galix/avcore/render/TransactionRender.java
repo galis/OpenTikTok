@@ -9,6 +9,11 @@ public class TransactionRender implements IRender {
     }
 
     @Override
+    public boolean isOpen() {
+        return false;
+    }
+
+    @Override
     public void open() {
 
     }

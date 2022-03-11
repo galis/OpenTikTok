@@ -51,11 +51,6 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
  */
 public class VideoEditActivity extends AppCompatActivity {
 
-    // Used to load the 'native-lib' library on application startup.
-    static {
-        System.loadLibrary("arcore");
-    }
-
     private static final String TAG = VideoEditActivity.class.getSimpleName();
     private static final int REQUEST_CODE = 1;
     private static final int DRAG_HEAD = 0;
@@ -145,7 +140,7 @@ public class VideoEditActivity extends AppCompatActivity {
         mPlayBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mAVEngine.startPause();
+                mAVEngine.togglePlayPause();
                 freshUI();
             }
         });

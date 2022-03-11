@@ -14,6 +14,11 @@ public class TextRender implements IRender {
     }
 
     @Override
+    public boolean isOpen() {
+        return false;
+    }
+
+    @Override
     public void open() {
 
     }
