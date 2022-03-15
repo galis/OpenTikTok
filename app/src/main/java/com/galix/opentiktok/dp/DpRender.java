@@ -30,6 +30,7 @@ import java.util.Map;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
 import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
+import static android.opengl.GLES20.GL_LUMINANCE;
 import static android.opengl.GLES20.GL_RGB;
 import static android.opengl.GLES20.GL_RGBA;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
@@ -214,39 +215,38 @@ public class DpRender implements IRender {
         }
 
 //        :地平线byte[]可以用这个,ByteBuffer.wrap(byte[]);
-//        if (avFrame.getByteBuffer() != null) {
-//            if (mSportConfig.mPlayerMaskId.get(0) != 0) {
-//                glDeleteTextures(1, mSportConfig.mPlayerMaskId);
-//            }
-//            mSportConfig.mPlayerMaskId.position(0);
-//            GLES30.glGenTextures(1,mSportConfig.mPlayerMaskId);
-//            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//            glBindTexture(GL_TEXTURE_2D,mSportConfig.mPlayerMaskId.get(0));
-//                    GLES30.glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,
-//                mSportConfig.mPlayerMaskRoi.width,mSportConfig.mPlayerMaskRoi.height,0,
-//                GL_RGB,
-//                GL_UNSIGNED_BYTE,
-//                avFrame.getByteBuffer());
-//        } else {
-//            mSportConfig.mPlayerMaskId.position(0);
-//            mSportConfig.mPlayerMaskId.put(0);
-//        }
-//        mSportConfig.mPlayerMaskId.position(0);
-
-        if (avFrame.getBitmap() != null) {
+        if (avFrame.getByteBuffer() != null) {
             if (mSportConfig.mPlayerMaskId.get(0) != 0) {
                 glDeleteTextures(1, mSportConfig.mPlayerMaskId);
             }
             mSportConfig.mPlayerMaskId.position(0);
-            mSportConfig.mPlayerMaskId.put(GLUtil.loadTexture(0, avFrame.getBitmap()));
+            GLES30.glGenTextures(1,mSportConfig.mPlayerMaskId);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glBindTexture(GL_TEXTURE_2D,mSportConfig.mPlayerMaskId.get(0));
+                    GLES30.glTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE,
+                            256,204,
+                            0, GL_LUMINANCE,     GL_UNSIGNED_BYTE,
+                avFrame.getByteBuffer());//注意检查 avFrame.getByteBuffer() position==0 limit==width*height
         } else {
             mSportConfig.mPlayerMaskId.position(0);
             mSportConfig.mPlayerMaskId.put(0);
         }
         mSportConfig.mPlayerMaskId.position(0);
+
+//        if (avFrame.getBitmap() != null) {
+//            if (mSportConfig.mPlayerMaskId.get(0) != 0) {
+//                glDeleteTextures(1, mSportConfig.mPlayerMaskId);
+//            }
+//            mSportConfig.mPlayerMaskId.position(0);
+//            mSportConfig.mPlayerMaskId.put(GLUtil.loadTexture(0, avFrame.getBitmap()));
+//        } else {
+//            mSportConfig.mPlayerMaskId.position(0);
+//            mSportConfig.mPlayerMaskId.put(0);
+//        }
+//        mSportConfig.mPlayerMaskId.position(0);
 
         if (mSportConfig.mSurfaceSize == null) {
             mSportConfig.mSurfaceSize = new Size();

@@ -39,6 +39,12 @@ public final class IOUtils {
         return buffer.toByteArray();
     }
 
+    public static ByteBuffer read(InputStream is,int targetSize) throws IOException {
+        byte[] isData = new byte[targetSize];
+        is.read(isData);
+        return ByteBuffer.wrap(isData);
+    }
+
     public static String readStr(InputStream is) throws IOException {
         return new String(read(is));
     }
