@@ -44,6 +44,10 @@
         <activity
             android:name=".ui.VideoEditActivity"
             android:launchMode="singleTop" />
+
+        <activity
+            android:name=".ui.VideoExportActivity"
+            android:launchMode="singleTop" />
     </application>
 
 </manifest>

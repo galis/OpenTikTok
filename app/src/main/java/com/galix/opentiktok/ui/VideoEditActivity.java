@@ -414,6 +414,7 @@ public class VideoEditActivity extends BaseActivity {
         super.onOptionsItemSelected(item);
         switch (item.getItemId()) {
             case R.id.action_export:
+                VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
                 break;
