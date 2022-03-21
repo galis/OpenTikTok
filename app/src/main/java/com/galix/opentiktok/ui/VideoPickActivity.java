@@ -36,7 +36,7 @@ import java.util.LinkedList;
  * @Author:Galis
  * @Date:2022.01.16
  */
-public class VideoPickActivity extends AppCompatActivity {
+public class VideoPickActivity extends BaseActivity {
 
     private static final String TAG = VideoPickActivity.class.getSimpleName();
     private HandlerThread mLoadThread;
@@ -66,6 +66,9 @@ public class VideoPickActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_pick);
+
+        //Actionbar
+        getSupportActionBar().setTitle(R.string.choose_video);
         mProgressBar = findViewById(R.id.pb_loading);
         mProgressBar.hide();
         mPickList = new LinkedList<>();
@@ -116,12 +119,6 @@ public class VideoPickActivity extends AppCompatActivity {
 
         });
 
-        //Actionbar
-        getSupportActionBar().setTitle(R.string.choose_video);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setHomeButtonEnabled(true);
-
-
         //创建线程开始加载
         mLoadThread = new HandlerThread("LoadResource");
         mLoadThread.start();
@@ -160,11 +157,6 @@ public class VideoPickActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        return super.onSupportNavigateUp();
-    }
-
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_video_pick, menu);
         return true;
@@ -172,12 +164,9 @@ public class VideoPickActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_done:
-                handleVideo();
-                break;
-            default:
-                break;
+        super.onOptionsItemSelected(item);
+        if (item.getItemId() == R.id.action_done) {
+            handleVideo();
         }
         return true;
     }

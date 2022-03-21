@@ -14,7 +14,7 @@ import androidx.core.content.ContextCompat;
 import com.galix.opentiktok.R;
 import com.galix.opentiktok.dp.GameActivity;
 
-public class LogoActivity extends AppCompatActivity {
+public class LogoActivity extends BaseActivity {
 
     private static final int REQUEST_CODE = 0;
 
@@ -22,6 +22,9 @@ public class LogoActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_logo);
+
+        getSupportActionBar().setTitle(R.string.opentt);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(false);
 
         findViewById(R.id.btn_start_work).setOnClickListener(v -> {
             startActivity(new Intent(LogoActivity.this, VideoPickActivity.class));

@@ -49,7 +49,7 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
  * @Author Galis
  * @Date 2022.01.15
  */
-public class VideoEditActivity extends AppCompatActivity {
+public class VideoEditActivity extends BaseActivity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
     private static final int REQUEST_CODE = 1;
@@ -128,6 +128,7 @@ public class VideoEditActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_edit);
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
 
         mStickerView = findViewById(R.id.image_sticker);
         GestureUtils.setupView(mStickerView, new Rect(0, 0, 1920, 1080));
@@ -300,11 +301,6 @@ public class VideoEditActivity extends AppCompatActivity {
             }
         });
 
-        //Actionbar
-        getSupportActionBar().setDisplayShowTitleEnabled(false);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setHomeButtonEnabled(true);
-
         //初始化Thumb信息
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
@@ -406,11 +402,6 @@ public class VideoEditActivity extends AppCompatActivity {
         Log.d(TAG, "onDestroy");
     }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return super.onSupportNavigateUp();
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -420,6 +411,7 @@ public class VideoEditActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        super.onOptionsItemSelected(item);
         switch (item.getItemId()) {
             case R.id.action_export:
                 break;
