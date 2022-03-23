@@ -15,7 +15,7 @@
         android:background="@color/theme_black48">
 
         <!--预览GlSurface-->
-        <android.opengl.GLSurfaceView
+        <SurfaceView
             android:id="@+id/glsurface_preview"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

@@ -6,8 +6,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -19,6 +21,7 @@ import androidx.annotation.Nullable;
  */
 public class ExportProgressView extends androidx.appcompat.widget.AppCompatImageView {
 
+    private static final String TAG = ExportProgressView.class.getSimpleName();
     private Bitmap mBitmap;
     private int mProgress;
     private Paint mPaint;
@@ -67,6 +70,8 @@ public class ExportProgressView extends androidx.appcompat.widget.AppCompatImage
             mIsFirst = true;
         }
         super.onDraw(canvas);
+//        int color = Color.argb((int) ((100 - mProgress) / 100.f * 255), 0, 255, 255);
+//        canvas.drawColor(color, PorterDuff.Mode.ADD);
 
         mPaint.setColor(Color.GRAY);
         canvas.drawPath(mPath, mPaint);

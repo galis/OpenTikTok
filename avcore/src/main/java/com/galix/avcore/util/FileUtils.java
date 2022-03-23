@@ -68,6 +68,10 @@ public class FileUtils {
         return context.getCacheDir().getAbsolutePath();
     }
 
+    public static String getCompositeDir(Context context) {
+        return context.getCacheDir().getAbsolutePath() + File.separator + "composite";
+    }
+
     private static File addParentFile(File folder, List<File> fileList) {
         File parentFile = null;
         if (folder != null) {

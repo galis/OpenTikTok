@@ -1,16 +1,24 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
-import android.opengl.GLES30;
-import android.opengl.GLSurfaceView;
+import android.media.MediaCodec;
+import android.opengl.EGLContext;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+
+import androidx.annotation.NonNull;
 
 import com.galix.avcore.render.AudioRender;
 import com.galix.avcore.render.OESRender;
+import com.galix.avcore.util.EglHelper;
+import com.galix.avcore.util.Mp4Composite;
 
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -28,7 +36,7 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 /**
  * 视频引擎
  */
-public class AVEngine implements GLSurfaceView.Renderer {
+public class AVEngine {
 
     static {
         System.loadLibrary("arcore");
@@ -41,25 +49,26 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private static final int MAX_TEXTURE = 30;
     private static AVEngine gAVEngine = null;
     private VideoState mVideoState;
-    private int mBgColor;
     private HandlerThread mAudioThread;
     private Handler mAudioHandler;
     private HandlerThread mEngineThread;
     private Handler mEngineHandler;
-    private GLSurfaceView mGLSurfaceView;
-    private EngineCallback mUpdateCallback;
+    private EglHelper mEglHelper;
+    private SurfaceView mSurfaceView;
+    private EngineCallback mUpdateCallback, mCompositeCallback;
     private final LinkedList<AVComponent> mVideoComponents;//非音频类
     private final LinkedList<AVComponent> mAudioComponents;//音频 Audio
     private AVComponent mLastVideoComponent;
     private AVComponent mLastAudioComponent;
     private AudioRender mAudioRender;
     private OESRender mOesRender;
+    private EGLContext mEglContext;
     private int[] mTextures;
     private int mValidTexture = 1;//下一个有效纹理ID
     private BlockingQueue<Command> mCmdQueue;
 
     public interface EngineCallback {
-        void onCallback(Object[] args1);
+        void onCallback(Object... args1);
     }
 
     private AVEngine() {
@@ -78,11 +87,15 @@ public class AVEngine implements GLSurfaceView.Renderer {
             RELEASE,
             ADD_COM,
             REMOVE_COM,
-            CHANGE_COM
+            CHANGE_COM,
+            SURFACE_CREATED,
+            SURFACE_CHANGED,
+            SURFACE_DESTROYED,
+            COMPOSITE;
         }
 
         public Cmd cmd;
-        public Object args;
+        public Object args0;
         public Object args1;
         public Object args2;
         public Object args3;
@@ -110,6 +123,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     //视频核心信息类
     public static class VideoState {
 
+
         public enum VideoStatus {
             INIT,
             START,
@@ -123,6 +137,16 @@ public class AVEngine implements GLSurfaceView.Renderer {
         public boolean isLastVideoDisplay;
         public long seekPositionUS;
         public long durationUS;//视频总时长 us
+        public int mBgColor;
+        public int mTargetGop;
+        public int mTargetAb;
+        public int mTargetVb;
+        public boolean hasAudio;
+        public boolean hasVideo;
+        public boolean readyAudio;//合成视频用
+        public boolean readyVideo;//合成视频用
+        public Size mTargetSize;//合成视频目标宽高
+        public String mTargetPath;//合成视频路径
         public Clock videoClock;
         public Clock extClock;
         public Clock audioClock;
@@ -199,52 +223,71 @@ public class AVEngine implements GLSurfaceView.Renderer {
         return gAVEngine;
     }
 
-    public void configure(GLSurfaceView glSurfaceView) {
-        mGLSurfaceView = glSurfaceView;
-        mGLSurfaceView.setEGLContextClientVersion(3);
-        mGLSurfaceView.setRenderer(this);
-        mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    public void configure(SurfaceView glSurfaceView) {
+        mSurfaceView = glSurfaceView;
+        mSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback2() {
+            @Override
+            public void surfaceRedrawNeeded(@NonNull SurfaceHolder holder) {
+
+            }
+
+            @Override
+            public void surfaceCreated(@NonNull SurfaceHolder holder) {
+                Log.d(TAG, "surfaceCreated");
+                AVEngine.this.surfaceCreated(holder.getSurface());
+            }
+
+            @Override
+            public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+                Log.d(TAG, "surfaceChanged");
+                AVEngine.this.surfaceChanged(holder.getSurface(), width, height);
+                seek(true);
+                seek(0);
+                seek(false);
+            }
+
+            @Override
+            public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+                Log.d(TAG, "surfaceDestroyed");
+                AVEngine.this.surfaceDestroyed();
+            }
+        });
     }
 
+    /**
+     * 设置画布大小
+     *
+     * @param size 画布大小
+     */
     public void setCanvasSize(Size size) {
-        mGLSurfaceView.getLayoutParams().width = size.getWidth();
-        mGLSurfaceView.getLayoutParams().height = size.getHeight();
-        mGLSurfaceView.requestLayout();
+        mSurfaceView.getLayoutParams().width = size.getWidth();
+        mSurfaceView.getLayoutParams().height = size.getHeight();
+        mSurfaceView.requestLayout();
+        mVideoState.mTargetSize = size;
     }
 
+    /**
+     * 设置背景颜色
+     *
+     * @param color
+     */
     public void setBgColor(int color) {
-        mBgColor = color;
+        mVideoState.mBgColor = color;
     }
 
-    @Override
-    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        mVideoState.reset();
-        mTextures = new int[MAX_TEXTURE];
-        GLES30.glGenTextures(MAX_TEXTURE, mTextures, 0);
-        mOesRender = new OESRender();
-        mOesRender.open();
-        createEngineDaemon();
-        createAudioDaemon();
-    }
+    public long onDrawFrame() {
 
-    @Override
-    public void onSurfaceChanged(GL10 gl, int width, int height) {
-        Log.d(TAG, "width#" + width + "#" + height);
-        mOesRender.write(new OESRender.OesRenderConfig(width, height));
-    }
-
-    @Override
-    public void onDrawFrame(GL10 gl) {
-
+        long delay = 0;
         if (mVideoState.status == RELEASE) {
             mOesRender.close();
-            return;
+            return delay;
         }
 
-        long extClk = getMainClock();
-
         //处理视频片段
-        long delay = 0;
+        if (mVideoComponents.isEmpty()) {
+            return delay;
+        }
+        long extClk = getMainClock();
         List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
         boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
         if (needSeek) {//优先处理seek行为
@@ -289,7 +332,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                     }
                     component.getRender().render(avFrame);
                 } else {
-                    avFrame.setTextColor(mBgColor);
+                    avFrame.setTextColor(mVideoState.mBgColor);
                     mOesRender.render(avFrame);
                 }
                 mVideoState.isLastVideoDisplay = true;
@@ -349,6 +392,8 @@ public class AVEngine implements GLSurfaceView.Renderer {
         //更新UI
         onFrameUpdate();
 
+        return delay;
+
     }
 
     public void setOnFrameUpdateCallback(EngineCallback callback) {
@@ -360,10 +405,38 @@ public class AVEngine implements GLSurfaceView.Renderer {
         mEngineThread.start();
         mEngineHandler = new Handler(mEngineThread.getLooper());
         mEngineHandler.post(() -> {
+            mEglHelper = new EglHelper();
+            mEglHelper.create(null, EglHelper.GL_VERSION_3);
+            mEglHelper.makeCurrent();
+            mVideoState.reset();
+            boolean isSurfaceReady = false;
             while (mVideoState.status != RELEASE) {
-                try {
-                    Command command = mCmdQueue.take();
-                    if (command.cmd == Command.Cmd.INIT) {
+                Log.d(TAG, "Engine callback");
+                dumpVideoState();
+                while (!mCmdQueue.isEmpty()) {
+                    Command command = mCmdQueue.poll();
+                    if (command.cmd == Command.Cmd.SURFACE_CREATED) {
+                        Log.d(TAG, "Surface SURFACE_CREATED!");
+                    } else if (command.cmd == Command.Cmd.SURFACE_CHANGED) {
+                        Log.d(TAG, "Surface SURFACE_CHANGED!");
+                        mEglHelper.createSurface((Surface) command.args0);
+                        mEglHelper.makeCurrent();
+                        if (mOesRender == null) {
+                            mOesRender = new OESRender();
+                            mOesRender.open();
+                        }
+                        int width = (int) command.args1;
+                        int height = (int) command.args2;
+                        mOesRender.write(new OESRender.OesRenderConfig(width, height));
+                        isSurfaceReady = true;
+                    } else if (command.cmd == Command.Cmd.SURFACE_DESTROYED) {
+                        Log.d(TAG, "Surface SURFACE_DESTROYED!");
+                        mEglHelper.destroySurface();
+                        mEglHelper.makeCurrent();
+                        mOesRender.close();
+                        mOesRender = null;
+                        isSurfaceReady = false;
+                    } else if (command.cmd == Command.Cmd.INIT) {
                         mVideoState.status = INIT;
                     } else if (command.cmd == Command.Cmd.PLAY) {
                         setClock(mVideoState.extClock, getClock(mVideoState.extClock));
@@ -374,7 +447,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                     } else if (command.cmd == Command.Cmd.RELEASE) {
                         destroyInternal();
                     } else if (command.cmd == Command.Cmd.SEEK) {
-                        long args = (long) command.args;
+                        long args = (long) command.args0;
                         if (args == SEEK_EXIT && mVideoState.status == SEEK) {
                             mVideoState.status = PAUSE;
                             continue;
@@ -386,19 +459,19 @@ public class AVEngine implements GLSurfaceView.Renderer {
                         }
 
                         if (mVideoState.status == SEEK) {
-                            long seekPositionUS = (long) command.args;
+                            long seekPositionUS = (long) command.args0;
                             if (seekPositionUS < 0 || seekPositionUS > mVideoState.durationUS) {
                                 continue;
                             }
                             mVideoState.isInputEOF = false;
                             mVideoState.isOutputEOF = false;
-                            mVideoState.seekPositionUS = (long) command.args;
+                            mVideoState.seekPositionUS = (long) command.args0;
                             mVideoState.extClock.seekReq++;
                             mVideoState.audioClock.seekReq = mVideoState.videoClock.seekReq = mVideoState.extClock.seekReq;
                             setClock(mVideoState.extClock, mVideoState.seekPositionUS);
                         }
                     } else if (command.cmd == Command.Cmd.ADD_COM) {
-                        AVComponent component = (AVComponent) command.args;
+                        AVComponent component = (AVComponent) command.args0;
                         component.lock();
                         component.open();
                         component.unlock();
@@ -418,7 +491,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             callback.onCallback(null);
                         }
                     } else if (command.cmd == Command.Cmd.REMOVE_COM) {
-                        AVComponent component = (AVComponent) command.args;
+                        AVComponent component = (AVComponent) command.args0;
                         component.lock();
                         component.close();
                         component.unlock();
@@ -438,7 +511,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             callback.onCallback(null);
                         }
                     } else if (command.cmd == Command.Cmd.CHANGE_COM) {
-                        LinkedList<AVComponent> components = (LinkedList<AVComponent>) command.args;
+                        LinkedList<AVComponent> components = (LinkedList<AVComponent>) command.args0;
                         Rect src = (Rect) command.args1;
                         Rect dst = (Rect) command.args2;
                         for (AVComponent component : components) {
@@ -458,13 +531,30 @@ public class AVEngine implements GLSurfaceView.Renderer {
                             EngineCallback callback = (EngineCallback) command.args3;
                             callback.onCallback(null);
                         }
+                    } else if (command.cmd == Command.Cmd.COMPOSITE) {
+                        EngineCallback callback = (EngineCallback) command.args1;
+                        mCompositeCallback = callback;
+//                        mVideoState.mTargetPath = (String) command.args0;
+                        compositeMp4Internal();
                     } else {
                         Log.d(TAG, "Seek cmd error!");
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                }
+
+                //处理视频
+                if (isSurfaceReady) {
+                    long delay = onDrawFrame();
+                    mEglHelper.swap();
+                    if (delay == 0) {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
+            mEglHelper.release();
         });
     }
 
@@ -476,9 +566,6 @@ public class AVEngine implements GLSurfaceView.Renderer {
             mAudioRender = new AudioRender();
             mAudioRender.open();
             while (mVideoState.status != RELEASE) {
-
-
-                dumpVideoState();
 
                 //只有运行时候才需要播放音频
                 if (mVideoState.status == START) {
@@ -530,17 +617,23 @@ public class AVEngine implements GLSurfaceView.Renderer {
         });
     }
 
-    public void compositeMp4(String mp4) {
-//        pause();
-//        reCalculate();//确保所有东西正确。
-//        final int fps = 30;
-//        final int WIDTH = 1920;
-//        final int HEIGHT = 1080;
-//        long curPos = 0;
-//        while (curPos < mVideoState.durationUS) {
-//            List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, curPos);
-//            for (components)
-//        }
+    //先暂停，然后合成MP4
+    public void compositeMp4(String mp4Path, EngineCallback callback) {
+        pause();
+        Command command = new Command();
+        command.cmd = Command.Cmd.COMPOSITE;
+        command.args0 = mp4Path;
+        command.args1 = callback;
+        mCmdQueue.add(command);
+    }
+
+    private void compositeMp4Internal() {
+        Mp4Composite mp4Composite = new Mp4Composite(this);
+        mp4Composite.process(progress -> {
+            if (mCompositeCallback != null) {
+                mCompositeCallback.onCallback(progress);
+            }
+        });
     }
 
     /**
@@ -584,7 +677,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public void addComponent(AVComponent avComponent, EngineCallback engineCallback) {
         Command command = new Command();
         command.cmd = Command.Cmd.ADD_COM;
-        command.args = avComponent;
+        command.args0 = avComponent;
         command.args1 = engineCallback;
         mCmdQueue.add(command);
     }
@@ -600,7 +693,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public void changeComponent(LinkedList<AVComponent> avComponent, Rect src, Rect dst, EngineCallback engineCallback) {
         Command command = new Command();
         command.cmd = Command.Cmd.CHANGE_COM;
-        command.args = avComponent;
+        command.args0 = avComponent;
         command.args1 = src;
         command.args2 = dst;
         command.args3 = engineCallback;
@@ -615,7 +708,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
     public void removeComponent(AVComponent avComponent) {
         Command command = new Command();
         command.cmd = Command.Cmd.REMOVE_COM;
-        command.args = avComponent;
+        command.args0 = avComponent;
         mCmdQueue.add(command);
     }
 
@@ -630,6 +723,27 @@ public class AVEngine implements GLSurfaceView.Renderer {
         for (AVComponent component : mAudioComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
         }
+    }
+
+    private void surfaceCreated(Surface surface) {
+        Command command = new Command();
+        command.cmd = Command.Cmd.SURFACE_CREATED;
+        mCmdQueue.add(command);
+    }
+
+    private void surfaceChanged(Surface surface, int width, int height) {
+        Command command = new Command();
+        command.cmd = Command.Cmd.SURFACE_CHANGED;
+        command.args0 = surface;
+        command.args1 = width;
+        command.args2 = height;
+        mCmdQueue.add(command);
+    }
+
+    private void surfaceDestroyed() {
+        Command command = new Command();
+        command.cmd = Command.Cmd.SURFACE_DESTROYED;
+        mCmdQueue.add(command);
     }
 
     public void start() {
@@ -655,18 +769,36 @@ public class AVEngine implements GLSurfaceView.Renderer {
     private static final int SEEK_ENTER = -1;
     private static final int SEEK_EXIT = -2;
 
+    /**
+     * SEEK部分
+     * fastSeek用于快速seek某个位置，自动进退seek模式
+     * seek(true)进入seek模式
+     * seek(false)退出seek模式
+     */
+
+    public void fastSeek(long position) {
+        seek(true);
+        seek(position);
+        seek(false);
+    }
+
     public void seek(long position) {
         Command command = new Command();
         command.cmd = Command.Cmd.SEEK;
-        command.args = position;
+        command.args0 = position;
         mCmdQueue.add(command);
     }
 
     public void seek(boolean status) {
         Command command = new Command();
         command.cmd = Command.Cmd.SEEK;
-        command.args = (long) (status ? SEEK_ENTER : SEEK_EXIT);
+        command.args0 = (long) (status ? SEEK_ENTER : SEEK_EXIT);
         mCmdQueue.add(command);
+    }
+
+    public void create() {
+        createEngineDaemon();
+        createAudioDaemon();
     }
 
     public void release() {
@@ -688,7 +820,7 @@ public class AVEngine implements GLSurfaceView.Renderer {
         }
 
         if (mEngineHandler != null && mEngineThread != null) {
-            mEngineHandler.getLooper().quit();
+            mEngineHandler.getLooper().quitSafely();
             try {
                 mEngineThread.join();
             } catch (InterruptedException e) {
@@ -696,6 +828,8 @@ public class AVEngine implements GLSurfaceView.Renderer {
             }
             Log.d(TAG, "mEngineThread quit");
         }
+
+        AVEngine.gAVEngine = null;//...貌似不是很合适。。
 
     }
 
@@ -720,6 +854,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
         return mVideoState;
     }
 
+    public EglHelper getEglHelper() {
+        return mEglHelper;
+    }
+
     public int nextValidTexture() {
         int targetTexture = -1;
         if (mValidTexture < MAX_TEXTURE) {
@@ -727,6 +865,10 @@ public class AVEngine implements GLSurfaceView.Renderer {
             mValidTexture++;
         }
         return targetTexture;
+    }
+
+    public EGLContext getGLContext() {
+        return mEglContext;
     }
 
     private void onFrameUpdate() {

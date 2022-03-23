@@ -4,12 +4,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -19,13 +19,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.galix.opentiktok.R;
 import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
@@ -37,6 +35,7 @@ import com.galix.avcore.render.TextRender;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.GifDecoder;
 import com.galix.avcore.util.VideoUtil;
+import com.galix.opentiktok.R;
 
 import java.util.LinkedList;
 
@@ -63,7 +62,7 @@ public class VideoEditActivity extends BaseActivity {
 
     private LinkedList<ThumbInfo> mThumbsList;
     private LinkedList<Integer> mStickerList;//贴纸
-    private GLSurfaceView mSurfaceView;
+    private SurfaceView mSurfaceView;
     private RecyclerView mTabRecyclerView;
     private CustomHorizontalScrollView mThumbDragRecyclerView;
     private RecyclerView mStickerRecyclerView;
@@ -304,6 +303,7 @@ public class VideoEditActivity extends BaseActivity {
         //初始化Thumb信息
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
+        mAVEngine.create();
         long startTime = 0;
         LinearLayout linearLayout = findViewById(R.id.linear_parent);
         View head = new View(this);
@@ -312,7 +312,7 @@ public class VideoEditActivity extends BaseActivity {
         View tail = new View(this);
         tail.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
-            AVVideo video = new AVVideo(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, mAVEngine.nextValidTexture(), null);
+            AVVideo video = new AVVideo(true, startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null);
             AVAudio audio = new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null);
             LinkedList<AVComponent> components = new LinkedList<>();
             components.add(video);

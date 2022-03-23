@@ -5,10 +5,13 @@ import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.opengl.EGL14;
+import android.opengl.GLES30;
 import android.util.Log;
 import android.view.Surface;
 
 import com.galix.avcore.render.IRender;
+import com.galix.avcore.util.EglCore;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -29,19 +32,14 @@ public class AVVideo extends AVComponent {
     private MediaFormat mediaFormat;
     private Surface surface;
     private SurfaceTexture surfaceTexture;
+    private boolean isTextureType;
 
     //输出到surface
-    public AVVideo(long engineStartTime, long engineEndTime, String path, int textureId, IRender render) {
+    public AVVideo(boolean isTextureType, long engineStartTime, long engineEndTime, String path, IRender render) {
         super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
+        this.isTextureType = isTextureType;
         this.path = path;
-        this.textureId = textureId;
-    }
-
-    //输出到buffer
-    public AVVideo(long engineStartTime, long engineEndTime, String path, IRender render) {
-        super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
-        this.path = path;
-        this.textureId = -1;
+        this.textureId = 0;
     }
 
     public String getPath() {
@@ -76,7 +74,10 @@ public class AVVideo extends AVComponent {
             }
             peekFrame().setByteBuffer(ByteBuffer.allocateDirect(mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)));
             peekFrame().setRoi(new Rect(0, 0, mediaFormat.getInteger(MediaFormat.KEY_WIDTH), mediaFormat.getInteger(MediaFormat.KEY_HEIGHT)));
-            if (textureId != -1) {
+            if (isTextureType) {
+                int[] textures = new int[1];
+                GLES30.glGenTextures(1, textures, 0);
+                textureId = textures[0];
                 surfaceTexture = new SurfaceTexture(textureId);
                 surface = new Surface(surfaceTexture);
                 peekFrame().setTexture(textureId);
@@ -96,6 +97,11 @@ public class AVVideo extends AVComponent {
     @Override
     public int close() {
         if (!isOpen()) return RESULT_FAILED;
+        if (textureId != 0) {
+            int[] textures = new int[]{textureId};
+            GLES30.glDeleteTextures(1, textures, 0);
+            textureId = 0;
+        }
         if (mediaCodec != null) {
             mediaCodec.stop();
             mediaCodec.release();
@@ -157,7 +163,8 @@ public class AVVideo extends AVComponent {
                         peekFrame().setEof(false);
                         peekFrame().setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());
                     }
-                    if (textureId == -1) {//no output surface texture
+                    peekFrame().setDuration((long) (1000000.f / 30));//TODO
+                    if (!isTextureType) {//no output surface texture
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
                         peekFrame().getByteBuffer().put(byteBuffer);
                         byteBuffer.position(0);
@@ -206,6 +213,7 @@ public class AVVideo extends AVComponent {
                 ", mediaFormat=" + mediaFormat +
                 ", surface=" + surface +
                 ", surfaceTexture=" + surfaceTexture +
+                ", isTextureType=" + isTextureType +
                 "} " + super.toString();
     }
 }

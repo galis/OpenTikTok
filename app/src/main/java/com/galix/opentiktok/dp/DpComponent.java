@@ -21,8 +21,6 @@ public class DpComponent extends AVComponent {
     private AVVideo mPlayerTestVideo;
     private String mCoachPath;
     private String mPlayerTestPath;
-    private int mCoachTextureId;
-    private int mPlayerTextureId;
     private AVFrame mFrame;
     private Bitmap mTestPlayerMaskBitmap;//这里写死
     private ByteBuffer mTestPlayerByteBuffer;
@@ -32,8 +30,6 @@ public class DpComponent extends AVComponent {
         super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
-        this.mCoachTextureId = coachTextureId;
-        this.mPlayerTextureId = playerTextureId;
     }
 
     @Override
@@ -41,13 +37,13 @@ public class DpComponent extends AVComponent {
         if (isOpen()) return RESULT_OK;
         mTestPlayerMaskBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.playmask);
         try {
-            mTestPlayerByteBuffer = IOUtils.read(context.getResources().openRawResource(R.raw.playmask),52224);
+            mTestPlayerByteBuffer = IOUtils.read(context.getResources().openRawResource(R.raw.playmask), 52224);
         } catch (IOException e) {
             e.printStackTrace();
         }
         mTestPlayerByteBuffer.position(0);
-        mCoachVideo = new AVVideo(getEngineStartTime(), getEngineEndTime(), mCoachPath, mCoachTextureId, null);
-        mPlayerTestVideo = new AVVideo(getEngineStartTime(), getEngineEndTime(), mPlayerTestPath, mPlayerTextureId, null);
+        mCoachVideo = new AVVideo(true, getEngineStartTime(), getEngineEndTime(), mCoachPath, null);
+        mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), getEngineEndTime(), mPlayerTestPath, null);
         mCoachVideo.open();
         mPlayerTestVideo.open();
         markOpen(true);

@@ -116,11 +116,12 @@ public class AVAudio extends AVComponent {
                         isOutputEOF = true;
                     }
                     ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
-                    Log.d(TAG, "AVAudio#getOutputBuffer#size" + bufferInfo.size);
+                    Log.d(TAG, "AVAudio#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset+"#pts#"+bufferInfo.presentationTimeUs);
                     peekFrame().getByteBuffer().position(0);
                     peekFrame().getByteBuffer().put(byteBuffer);
-                    byteBuffer.position(0);
                     peekFrame().getByteBuffer().position(0);
+                    peekFrame().setDuration(22320);//TODO
+                    byteBuffer.position(0);
                     avFrame.setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());//换算Engine的时间
                     avFrame.setValid(true);
                     mediaCodec.releaseOutputBuffer(outputBufIdx, false);

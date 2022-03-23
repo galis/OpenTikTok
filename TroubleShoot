@@ -24,3 +24,8 @@ System.nanoTime() ns
 17.csd adts https://www.jianshu.com/p/aeadf260258a
 18.encode decode cts / https://cs.android.com/android/platform/superproject/+/master:cts/tests/tests/media/codec/src/android/media/codec/cts/EncodeDecodeTest.java
 19.编码器貌似需要一个新的MediaFormat,直接用解码器的MediaFormat，有点问题.
+20.编码速度https://segmentfault.com/a/1190000021223837?utm_source=tag-newest
+21.采用surface输入，signalEndOfInputStream标记结束
+22.多线程绑定同一个context，必须要其他线程先解绑，然后才能绑定。
+23.多线程共享纹理，可以在创建context的时候传入sharecontext，这样子就能使用纹理。
+24.SurfaceTexture和context一对一绑定。

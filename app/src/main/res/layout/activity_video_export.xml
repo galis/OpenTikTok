@@ -15,7 +15,7 @@
         android:scaleType="fitXY" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/textview_tip"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
@@ -28,7 +28,7 @@
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/textView"
+        android:layout_below="@id/textview_tip"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="5dp"
         android:text="@string/export_tip"
