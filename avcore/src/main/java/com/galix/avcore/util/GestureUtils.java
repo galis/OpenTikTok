@@ -19,7 +19,7 @@ import static android.widget.RelativeLayout.CENTER_IN_PARENT;
  * 设置view相关手势
  */
 public class GestureUtils {
-    private static final int POINT = 1;
+    private static final int POINT = R.id.tag_point;
     private static final String TAG = GestureUtils.class.getSimpleName();
 
     public static void setupView(View view, Rect rect) {
