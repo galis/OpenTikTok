@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.opengl.GLES20;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -28,16 +29,22 @@ import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVSticker;
+import com.galix.avcore.avcore.AVTransaction;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.avcore.AVWord;
 import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.TextRender;
+import com.galix.avcore.render.TransactionRender;
+import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.GifDecoder;
+import com.galix.avcore.util.IOUtils;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
+import java.io.IOException;
 import java.util.LinkedList;
+import java.util.List;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
@@ -51,13 +58,6 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 public class VideoEditActivity extends BaseActivity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
-    private static final int REQUEST_CODE = 1;
-    private static final int DRAG_HEAD = 0;
-    private static final int DRAG_FOOT = 1;
-    private static final int DRAG_IMG = 2;
-    private static final int DRAG_ADD = 3;
-    private static final int DRAG_MUTE = 4;
-    private static final int DRAG_SPLIT = 5;
     private static final int THUMB_SLOT_WIDTH = 60;
 
     private LinkedList<ThumbInfo> mThumbsList;
@@ -182,23 +182,7 @@ public class VideoEditActivity extends BaseActivity {
                                     view.setVisibility(View.GONE);
                                     return;
                                 }
-                                int width = getWindowManager().getCurrentWindowMetrics().getBounds().width();
-                                int height = (int) (350 * getResources().getDisplayMetrics().density);
-                                if (info.text.equalsIgnoreCase("原始")) {
-                                    height = (int) (width * VideoUtil.mTargetFiles.get(0).height * 1.0f /
-                                            VideoUtil.mTargetFiles.get(0).width);
-                                } else if (info.text.equalsIgnoreCase("4:3")) {
-                                    height = (int) (width * 3.0f / 4.0f);
-                                } else if (info.text.equalsIgnoreCase("3:4")) {
-                                    width = (int) (height * 3.f / 4.0f);
-                                } else if (info.text.equalsIgnoreCase("1:1")) {
-                                    width = height;
-                                } else if (info.text.equalsIgnoreCase("16:9")) {
-                                    height = (int) (width * 9.0f / 16.0f);
-                                } else if (info.text.equalsIgnoreCase("9:16")) {
-                                    width = (int) (height * 9.0f / 16.0f);
-                                }
-                                mAVEngine.setCanvasSize(new Size(width, height));
+                                mAVEngine.setCanvasSize(calCanvasSize(info.text));
                                 Toast.makeText(getBaseContext(), info.text, Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -303,6 +287,7 @@ public class VideoEditActivity extends BaseActivity {
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
         mAVEngine.create();
+        mAVEngine.setCanvasSize(calCanvasSize("原始"));
         long startTime = 0;
         LinearLayout linearLayout = findViewById(R.id.linear_parent);
         View head = new View(this);
@@ -378,6 +363,26 @@ public class VideoEditActivity extends BaseActivity {
         });
     }
 
+    private Size calCanvasSize(String text) {
+        int width = getWindowManager().getCurrentWindowMetrics().getBounds().width();
+        int height = (int) (350 * getResources().getDisplayMetrics().density);
+        if (text.equalsIgnoreCase("原始")) {
+            height = (int) (width * VideoUtil.mTargetFiles.get(0).height * 1.0f /
+                    VideoUtil.mTargetFiles.get(0).width);
+        } else if (text.equalsIgnoreCase("4:3")) {
+            height = (int) (width * 3.0f / 4.0f);
+        } else if (text.equalsIgnoreCase("3:4")) {
+            width = (int) (height * 3.f / 4.0f);
+        } else if (text.equalsIgnoreCase("1:1")) {
+            width = height;
+        } else if (text.equalsIgnoreCase("16:9")) {
+            height = (int) (width * 9.0f / 16.0f);
+        } else if (text.equalsIgnoreCase("9:16")) {
+            width = (int) (height * 9.0f / 16.0f);
+        }
+        return new Size(width, height);
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -416,11 +421,33 @@ public class VideoEditActivity extends BaseActivity {
                 VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
+                test();
                 break;
             default:
                 break;
         }
         return true;
+    }
+
+    private void test() {
+        List<AVComponent> components = mAVEngine.findComponents(AVComponent.AVComponentType.VIDEO, -1);
+        if (components.size() == 2) {
+            AVVideo video0 = (AVVideo) components.get(0);
+            AVVideo video1 = (AVVideo) components.get(1);
+            video1.setEngineStartTime(video1.getEngineStartTime() - 1000000);
+            TransactionRender render = new TransactionRender();
+            TransactionRender.TransactionConfig config = new TransactionRender.TransactionConfig();
+            config.surfaceSize = mAVEngine.getVideoState().mTargetSize;
+            try {
+                config.vs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_vs));
+                config.fs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_fs));
+                render.write(config);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mAVEngine.addComponent(new AVTransaction(video1.getEngineStartTime(), 0, video0, video1, render), null);
+            freshUI();
+        }
     }
 
     //不同线程都可以刷新UI

@@ -13,9 +13,10 @@ public class AVFrame {
     private boolean eof = false;
     private boolean isValid = false;
     private long duration = 0;
-    private String text;
     private int textSize;
     private int textColor;
+    private float delta;
+    private String text;
     private Rect roi;
     private Bitmap bitmap;
     private ByteBuffer byteBuffer;
@@ -124,6 +125,14 @@ public class AVFrame {
 
     public void setTextColor(int textColor) {
         this.textColor = textColor;
+    }
+
+    public float getDelta() {
+        return delta;
+    }
+
+    public void setDelta(float delta) {
+        this.delta = delta;
     }
 
     public Rect getRoi() {

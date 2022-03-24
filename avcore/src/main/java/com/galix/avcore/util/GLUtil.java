@@ -90,7 +90,6 @@ public final class GLUtil {
 
         int[] compiled = new int[1];
         GLES30.glGetShaderiv(shader, GLES30.GL_COMPILE_STATUS, compiled, 0);
-        Log.d("GLUtil", "Shader compilation info: " + GLES30.glGetShaderInfoLog(shader));
         if (compiled[0] == 0) {
             Log.e("GLUtil", "Shader error: " + GLES30.glGetShaderInfoLog(shader) + "\n" + shaderCode);
             GLES30.glDeleteShader(shader);

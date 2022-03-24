@@ -85,7 +85,7 @@ public class AVVideo extends AVComponent {
                 mediaCodec.configure(mediaFormat, null, null, 0);
             }
             mediaCodec.start();
-            setEngineEndTime(getEngineStartTime()+getDuration());
+            setEngineEndTime(getEngineStartTime() + getDuration());
             markOpen(true);
         } catch (IOException e) {
             e.printStackTrace();

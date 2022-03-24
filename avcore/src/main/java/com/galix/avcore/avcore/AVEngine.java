@@ -283,7 +283,11 @@ public class AVEngine {
             return delay;
         }
         long extClk = getMainClock();
-        List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
+        List<AVComponent> components;
+        components = findComponents(AVComponent.AVComponentType.TRANSACTION, extClk);
+        if (components.isEmpty()) {
+            components = findComponents(AVComponent.AVComponentType.VIDEO, extClk);
+        }
         boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
         if (needSeek) {//优先处理seek行为
             for (AVComponent component : components) {
@@ -324,6 +328,7 @@ public class AVEngine {
                 if (component.getRender() != null) {
                     if (!component.getRender().isOpen()) {
                         component.getRender().open();
+                        component.getRender().write(mVideoState.mTargetSize);
                     }
                     component.getRender().render(avFrame);
                 } else {
@@ -477,7 +482,7 @@ public class AVEngine {
                             }
                         } else {
                             synchronized (mVideoComponents) {
-                                mVideoComponents.add(component);
+                                mVideoComponents.add( component);
                                 reCalculate();
                             }
                         }

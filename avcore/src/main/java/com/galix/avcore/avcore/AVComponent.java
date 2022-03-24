@@ -170,11 +170,27 @@ public abstract class AVComponent {
 
     public abstract int close();
 
+    /**
+     * 读取一帧数据，通过peekFrame可以获取
+     *
+     * @return RESULT_SUCCESS/RESULT_FAILED
+     */
     public abstract int readFrame();//block模式 读取一帧数据，放到AVFrame
 
+    /**
+     * 针对Engine Time
+     *
+     * @param position time of engine
+     * @return RESULT_SUCCESS/RESULT_FAILED
+     */
     public abstract int seekFrame(long position);////block模式 定位到特定位置，然后读一帧数据
 
-    public AVFrame peekFrame() {//获取AVFrame
+    /**
+     * 获取一帧数据
+     *
+     * @return AVFrame
+     */
+    public AVFrame peekFrame() {
         return cache;
     }
 
