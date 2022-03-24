@@ -7,7 +7,7 @@
     android:background="@color/black"
     tools:context=".ui.VideoEditActivity">
 
-    <android.opengl.GLSurfaceView
+    <SurfaceView
         android:id="@+id/glsurface_game"
         android:layout_width="match_parent"
         android:layout_height="350dp" />

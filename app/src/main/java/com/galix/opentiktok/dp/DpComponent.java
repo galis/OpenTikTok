@@ -26,7 +26,7 @@ public class DpComponent extends AVComponent {
     private ByteBuffer mTestPlayerByteBuffer;
     public static Context context;
 
-    public DpComponent(long engineStartTime, String coachPath, int coachTextureId, String playerTestVideoPath, int playerTextureId, IRender render) {
+    public DpComponent(long engineStartTime, String coachPath, String playerTestVideoPath, IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
