@@ -1,7 +1,6 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
-import android.media.MediaCodec;
 import android.opengl.EGLContext;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -18,14 +17,10 @@ import com.galix.avcore.render.OESRender;
 import com.galix.avcore.util.EglHelper;
 import com.galix.avcore.util.Mp4Composite;
 
-import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
 
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.INIT;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.PAUSE;
@@ -519,8 +514,8 @@ public class AVEngine {
                             //裁剪操作的是file start/end time
                             long duration = component.getFileDuration();
                             float scale = duration * 1.0f / src.width();
-                            component.setFileStartTime(component.getFileStartTime() + (long) ((dst.left - src.left) * scale));
-                            component.setFileEndTime(component.getFileEndTime() - (long) ((src.right - dst.right) * scale));
+                            component.setClipStartTime(component.getClipStartTime() + (long) ((dst.left - src.left) * scale));
+                            component.setClipEndTime(component.getClipEndTime() - (long) ((src.right - dst.right) * scale));
                             //重新设置EngineTime
                             component.setEngineEndTime(component.getEngineStartTime() + component.getFileDuration());
                             component.peekFrame().setValid(false);

@@ -44,9 +44,9 @@ public class GameActivity extends AppCompatActivity {
         }));
         DpComponent.context = this;
         DpRender.context = this;
-        DpComponent videoCom1 = new DpComponent(0, 180000000, "/sdcard/testplayer.mp4", mAVEngine.nextValidTexture(),
+        DpComponent videoCom1 = new DpComponent(0, "/sdcard/testplayer.mp4", mAVEngine.nextValidTexture(),
                 "/sdcard/testplayer.mp4", mAVEngine.nextValidTexture(), mDpRender);
-        AVAudio audio = new AVAudio(0, 180000000, "/sdcard/coach.mp4", null);
+        AVAudio audio = new AVAudio(0, "/sdcard/coach.mp4", null);
         mAVEngine.addComponent(videoCom1, null);
         mAVEngine.addComponent(audio, null);
         mToggleButton = findViewById(R.id.btn_toggle_play_pause);

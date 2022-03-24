@@ -26,8 +26,8 @@ public class DpComponent extends AVComponent {
     private ByteBuffer mTestPlayerByteBuffer;
     public static Context context;
 
-    public DpComponent(long engineStartTime, long engineEndTime, String coachPath, int coachTextureId, String playerTestVideoPath, int playerTextureId, IRender render) {
-        super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
+    public DpComponent(long engineStartTime, String coachPath, int coachTextureId, String playerTestVideoPath, int playerTextureId, IRender render) {
+        super(engineStartTime, AVComponentType.VIDEO, render);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
     }
@@ -42,10 +42,12 @@ public class DpComponent extends AVComponent {
             e.printStackTrace();
         }
         mTestPlayerByteBuffer.position(0);
-        mCoachVideo = new AVVideo(true, getEngineStartTime(), getEngineEndTime(), mCoachPath, null);
-        mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), getEngineEndTime(), mPlayerTestPath, null);
+        mCoachVideo = new AVVideo(true, getEngineStartTime(), mCoachPath, null);
+        mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), mPlayerTestPath, null);
         mCoachVideo.open();
         mPlayerTestVideo.open();
+        setDuration(mCoachVideo.getDuration());
+        setEngineEndTime(mCoachVideo.getEngineStartTime() + getDuration());
         markOpen(true);
         return RESULT_OK;
     }

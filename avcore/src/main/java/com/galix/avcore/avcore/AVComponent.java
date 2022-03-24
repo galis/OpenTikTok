@@ -10,8 +10,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 2.提供open,close,read,seek等方法
  * 滤镜，背景这些就不属于了。
  * <p>
- * srcStartTime <= curStartTime <= curEndTime <= srcEndTime
- * </p>
+ * du1:duration of file1            20s
+ * cst1:clipStartTime of file1      第7s
+ * cet1:clipEndTime of file1        第10s
+ * est1:engineStartTime of file1    第0s
+ * eet1:engineEndTime of file1      第3s
+ * <p>
+ * du2:duration of file2            30s
+ * cst2:clipStartTime of file2      第10s
+ * cet2:clipEndTime of file2        第20s
+ * est2:engineStartTime of file1    第3s
+ * eet2:engineEndTime of file2      第13s
+ * <p>
+ * File1:
+ * 0|====================|du1
+ * cst1|===|cet1
+ * File2:
+ * 0|+++++++++++++++++++++++++++++++|du2
+ * cst2|++++++++++|cet2
+ * <p>
+ * Engine：
+ * est1 est2
+ * |===||++++++++++|
+ * eet1         eet2
  *
  * @Author: galis
  * @Date: 2022.01.22
@@ -33,22 +54,21 @@ public abstract class AVComponent {
 
     private long engineStartTime;//引擎相关
     private long engineEndTime;//引擎相关
-    private long fileStartTime;//文件相关的
-    private long fileEndTime;//文件相关
+    private long clipStartTime;//文件相关的
+    private long clipEndTime;//文件相关
     private long duration;//组件本身duration,不可改变
-    private long position;
+    private long position;//
     private boolean isOpen;
     private IRender render;
     private AVFrame cache;
     private AVComponentType type;
     private AtomicBoolean lockLock;
 
-    public AVComponent(long engineStartTime, long engineEndTime,
-                       AVComponentType type, IRender render) {
+    public AVComponent(long engineStartTime, AVComponentType type, IRender render) {
         this.engineStartTime = engineStartTime;
-        this.engineEndTime = engineEndTime;
-        this.fileStartTime = -1;
-        this.fileEndTime = -1;
+        this.engineEndTime = -1;
+        this.clipStartTime = -1;
+        this.clipEndTime = -1;
         this.type = type;
         this.position = -1;
         this.isOpen = false;
@@ -60,8 +80,8 @@ public abstract class AVComponent {
     public AVComponent() {
         this.engineStartTime = -1;
         this.engineEndTime = -1;
-        this.fileStartTime = -1;
-        this.fileEndTime = -1;
+        this.clipStartTime = -1;
+        this.clipEndTime = -1;
         this.type = type;
         this.position = -1;
         this.isOpen = false;
@@ -86,20 +106,20 @@ public abstract class AVComponent {
         this.engineEndTime = engineEndTime;
     }
 
-    public long getFileStartTime() {
-        return fileStartTime;
+    public long getClipStartTime() {
+        return clipStartTime;
     }
 
-    public void setFileStartTime(long fileStartTime) {
-        this.fileStartTime = fileStartTime;
+    public void setClipStartTime(long clipStartTime) {
+        this.clipStartTime = clipStartTime;
     }
 
-    public long getFileEndTime() {
-        return fileEndTime;
+    public long getClipEndTime() {
+        return clipEndTime;
     }
 
-    public void setFileEndTime(long fileEndTime) {
-        this.fileEndTime = fileEndTime;
+    public void setClipEndTime(long clipEndTime) {
+        this.clipEndTime = clipEndTime;
     }
 
     public long getEngineDuration() {
@@ -107,7 +127,7 @@ public abstract class AVComponent {
     }
 
     public long getFileDuration() {
-        return fileEndTime - fileStartTime;
+        return clipEndTime - clipStartTime;
     }
 
     public long getDuration() {
@@ -185,8 +205,8 @@ public abstract class AVComponent {
         return "AVComponent{" +
                 "engineStartTime=" + engineStartTime +
                 ", engineEndTime=" + engineEndTime +
-                ", fileStartTime=" + fileStartTime +
-                ", fileEndTime=" + fileEndTime +
+                ", fileStartTime=" + clipStartTime +
+                ", fileEndTime=" + clipEndTime +
                 ", duration=" + duration +
                 ", position=" + position +
                 ", isOpen=" + isOpen +

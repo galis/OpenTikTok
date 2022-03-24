@@ -13,8 +13,8 @@ public class AVTransaction extends AVComponent {
     private AVVideo avVideo1;
     private AVVideo avVideo2;
 
-    public AVTransaction(long srcStartTime, long srcEndTime, int transactionType, AVVideo video1, AVVideo video2, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.TRANSACTION, render);
+    public AVTransaction(long engineStartTime, int transactionType, AVVideo video1, AVVideo video2, IRender render) {
+        super(engineStartTime, AVComponentType.TRANSACTION, render);
         this.avVideo1 = video1;
         this.avVideo2 = video2;
         this.transactionType = transactionType;

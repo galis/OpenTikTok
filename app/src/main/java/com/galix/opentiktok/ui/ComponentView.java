@@ -71,12 +71,12 @@ public class ComponentView extends RelativeLayout {
         for (AVComponent avComponent : mAVComponents) {
             if (avComponent.getType() == AVComponent.AVComponentType.VIDEO) {
                 AVVideo video = (AVVideo) avComponent;
-                long pts = video.getFileStartTime();
-                while (pts < video.getFileEndTime()) {
+                long pts = video.getClipStartTime();
+                while (pts < video.getClipEndTime()) {
                     ThumbInfo img = new ThumbInfo();
                     img.type = DRAG_IMG;
                     img.imgPath = VideoUtil.getThumbJpg(getContext(), video.getPath(), pts);
-                    img.duration = Math.min(video.getFileEndTime() - pts, 1000000 - pts % 1000000);
+                    img.duration = Math.min(video.getClipEndTime() - pts, 1000000 - pts % 1000000);
                     pts = (pts / 1000000 + 1) * 1000000;
                     mThumbsList.add(img);
                 }

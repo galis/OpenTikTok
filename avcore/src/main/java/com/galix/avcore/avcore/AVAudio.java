@@ -26,8 +26,8 @@ public class AVAudio extends AVComponent {
     private MediaFormat mediaFormat;
     private ByteBuffer sampleBuffer;
 
-    public AVAudio(long srcStartTime, long srcEndTime, String path, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.AUDIO, render);
+    public AVAudio(long engineStartTime, String path, IRender render) {
+        super(engineStartTime, AVComponentType.AUDIO, render);
         this.path = path;
     }
 
@@ -44,8 +44,8 @@ public class AVAudio extends AVComponent {
                     mediaFormat = mediaExtractor.getTrackFormat(i);
                     mediaExtractor.selectTrack(i);
                     long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
-                    setFileStartTime(0);
-                    setFileEndTime(duration);
+                    setClipStartTime(0);
+                    setClipEndTime(duration);
                     setDuration(duration);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
                     break;
@@ -58,6 +58,7 @@ public class AVAudio extends AVComponent {
             mediaCodec.start();
             sampleBuffer = ByteBuffer.allocateDirect(mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
             peekFrame().setByteBuffer(ByteBuffer.allocateDirect(4096));//TODO
+            setEngineEndTime(getEngineStartTime() + getDuration());
             markOpen(true);
         } catch (IOException e) {
             e.printStackTrace();
@@ -116,13 +117,13 @@ public class AVAudio extends AVComponent {
                         isOutputEOF = true;
                     }
                     ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
-                    Log.d(TAG, "AVAudio#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset+"#pts#"+bufferInfo.presentationTimeUs);
+                    Log.d(TAG, "AVAudio#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
                     peekFrame().getByteBuffer().position(0);
                     peekFrame().getByteBuffer().put(byteBuffer);
                     peekFrame().getByteBuffer().position(0);
                     peekFrame().setDuration(22320);//TODO
                     byteBuffer.position(0);
-                    avFrame.setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());//换算Engine的时间
+                    avFrame.setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());//换算Engine的时间
                     avFrame.setValid(true);
                     mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                     break;
@@ -148,7 +149,7 @@ public class AVAudio extends AVComponent {
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition + getFileStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+        mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
         mediaCodec.flush();
         return readFrame();
     }

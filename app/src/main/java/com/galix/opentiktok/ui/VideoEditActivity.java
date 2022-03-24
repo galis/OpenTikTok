@@ -170,7 +170,7 @@ public class VideoEditActivity extends BaseActivity {
                     if (index == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (index == R.string.tab_text) {
-                        mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 5000000,
+                        mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(),
                                 new TextRender(mEditTextView)), null);
                     } else if (index == R.string.tab_ratio) {
                         ViewGroup view = findViewById(R.id.view_ratio_tablist);
@@ -286,8 +286,7 @@ public class VideoEditActivity extends BaseActivity {
                     @Override
                     public void onClick(View v) {
                         mStickerView.setVisibility(View.VISIBLE);
-                        mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), mAVEngine.getMainClock() + 2000000,//TODO
-                                getResources().openRawResource(mStickerList.get(position)),
+                        mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
                                 new ImageViewRender(mStickerView)), null);
                         mStickerRecyclerView.setVisibility(View.GONE);
                     }
@@ -312,8 +311,8 @@ public class VideoEditActivity extends BaseActivity {
         View tail = new View(this);
         tail.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
-            AVVideo video = new AVVideo(true, startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null);
-            AVAudio audio = new AVAudio(startTime, startTime + fileEntry.duration, fileEntry.adjustPath, null);
+            AVVideo video = new AVVideo(true, startTime, fileEntry.adjustPath, null);
+            AVAudio audio = new AVAudio(startTime, fileEntry.adjustPath, null);
             LinkedList<AVComponent> components = new LinkedList<>();
             components.add(video);
             components.add(audio);

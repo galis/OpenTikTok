@@ -14,12 +14,14 @@ public class AVWord extends AVComponent {
     private int textColor;
     private Rect roi;
 
-    public AVWord(long srcStartTime, long srcEndTime, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.WORD, render);
+    public AVWord(long srcStartTime, IRender render) {
+        super(srcStartTime, AVComponentType.WORD, render);
     }
 
     @Override
     public int open() {
+        setDuration(50);//TODO
+        setEngineEndTime(getEngineStartTime() + getDuration());
         markOpen(true);
         return RESULT_OK;
     }

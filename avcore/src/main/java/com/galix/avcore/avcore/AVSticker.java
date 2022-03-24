@@ -22,8 +22,8 @@ public class AVSticker extends AVComponent {
     private int frameCount = 0;
     private int frameIdx = -1;
 
-    public AVSticker(long srcStartTime, long srcEndTime, InputStream inputStream, IRender render) {
-        super(srcStartTime, srcEndTime, AVComponentType.STICKER, render);
+    public AVSticker(long srcStartTime, InputStream inputStream, IRender render) {
+        super(srcStartTime, AVComponentType.STICKER, render);
         this.inputStream = inputStream;
     }
 
@@ -40,6 +40,8 @@ public class AVSticker extends AVComponent {
         gifDecoder = new GifDecoder();
         gifDecoder.read(inputStream);
         frameCount = gifDecoder.getFrameCount();
+        setDuration(5000000);
+        setEngineEndTime(getEngineStartTime() + getDuration());
         markOpen(true);
         return RESULT_OK;
     }

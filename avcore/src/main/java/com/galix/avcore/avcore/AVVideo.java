@@ -5,13 +5,11 @@ import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
-import android.opengl.EGL14;
 import android.opengl.GLES30;
 import android.util.Log;
 import android.view.Surface;
 
 import com.galix.avcore.render.IRender;
-import com.galix.avcore.util.EglCore;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,8 +33,8 @@ public class AVVideo extends AVComponent {
     private boolean isTextureType;
 
     //输出到surface
-    public AVVideo(boolean isTextureType, long engineStartTime, long engineEndTime, String path, IRender render) {
-        super(engineStartTime, engineEndTime, AVComponentType.VIDEO, render);
+    public AVVideo(boolean isTextureType, long engineStartTime, String path, IRender render) {
+        super(engineStartTime, AVComponentType.VIDEO, render);
         this.isTextureType = isTextureType;
         this.path = path;
         this.textureId = 0;
@@ -63,8 +61,8 @@ public class AVVideo extends AVComponent {
                     mediaExtractor.selectTrack(i);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
                     long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
-                    setFileStartTime(0);
-                    setFileEndTime(duration);
+                    setClipStartTime(0);
+                    setClipEndTime(duration);
                     setDuration(duration);
                     break;
                 }
@@ -87,6 +85,7 @@ public class AVVideo extends AVComponent {
                 mediaCodec.configure(mediaFormat, null, null, 0);
             }
             mediaCodec.start();
+            setEngineEndTime(getEngineStartTime()+getDuration());
             markOpen(true);
         } catch (IOException e) {
             e.printStackTrace();
@@ -161,7 +160,7 @@ public class AVVideo extends AVComponent {
                         peekFrame().setPts(getDuration() + getEngineStartTime());
                     } else {
                         peekFrame().setEof(false);
-                        peekFrame().setPts(bufferInfo.presentationTimeUs - getFileStartTime() + getEngineStartTime());
+                        peekFrame().setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());
                     }
                     peekFrame().setDuration((long) (1000000.f / 30));//TODO
                     if (!isTextureType) {//no output surface texture
@@ -195,7 +194,7 @@ public class AVVideo extends AVComponent {
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition + getFileStartTime(), MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+        mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_CLOSEST_SYNC);
         mediaCodec.flush();
         readFrame();
         return RESULT_OK;
