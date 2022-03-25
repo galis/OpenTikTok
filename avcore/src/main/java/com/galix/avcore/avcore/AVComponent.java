@@ -1,5 +1,7 @@
 package com.galix.avcore.avcore;
 
+import android.util.Log;
+
 import com.galix.avcore.render.IRender;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class AVComponent {
 
+    private static final String TAG = AVComponent.class.getSimpleName();
     public static final int RESULT_FAILED = -1;
     public static final int RESULT_OK = 0;
 
@@ -126,7 +129,7 @@ public abstract class AVComponent {
         return engineEndTime - engineStartTime;
     }
 
-    public long getFileDuration() {
+    public long getClipDuration() {
         return clipEndTime - clipStartTime;
     }
 

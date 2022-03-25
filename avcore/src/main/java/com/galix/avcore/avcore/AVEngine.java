@@ -517,12 +517,12 @@ public class AVEngine {
                         for (AVComponent component : components) {
                             component.lock();
                             //裁剪操作的是file start/end time
-                            long duration = component.getFileDuration();
+                            long duration = component.getClipDuration();
                             float scale = duration * 1.0f / src.width();
                             component.setClipStartTime(component.getClipStartTime() + (long) ((dst.left - src.left) * scale));
                             component.setClipEndTime(component.getClipEndTime() - (long) ((src.right - dst.right) * scale));
                             //重新设置EngineTime
-                            component.setEngineEndTime(component.getEngineStartTime() + component.getFileDuration());
+                            component.setEngineEndTime(component.getEngineStartTime() + component.getClipDuration());
                             component.peekFrame().setValid(false);
                             component.unlock();
                         }

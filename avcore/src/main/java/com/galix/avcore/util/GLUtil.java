@@ -1,5 +1,6 @@
 package com.galix.avcore.util;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES30;
@@ -7,8 +8,29 @@ import android.opengl.GLES30;
 import android.opengl.GLUtils;
 import android.util.Log;
 
+import com.galix.avcore.R;
+
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+
+import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
+import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
+import static android.opengl.GLES20.GL_LINEAR;
+import static android.opengl.GLES20.GL_TEXTURE0;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.glActiveTexture;
+import static android.opengl.GLES20.glBindTexture;
+import static android.opengl.GLES20.glGetUniformLocation;
+import static android.opengl.GLES20.glTexParameterf;
+import static android.opengl.GLES20.glTexParameteri;
+import static android.opengl.GLES20.glUniform1f;
+import static android.opengl.GLES20.glUniform1i;
 
 public final class GLUtil {
 
@@ -65,6 +87,27 @@ public final class GLUtil {
         }
 
         return programHandle;
+    }
+
+    public static int loadProgram(Context context, int rawVs, int rawFs) {
+        try {
+            return GLUtil.createAndLinkProgram(
+                    GLUtil.loadShader(GLES30.GL_VERTEX_SHADER,
+                            IOUtils.readStr(context.getResources().openRawResource(rawVs))),
+                    GLUtil.loadShader(GL_FRAGMENT_SHADER,
+                            IOUtils.readStr(context.getResources().openRawResource(rawFs))), null);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public static int loadProgram(String vs, String fs) {
+        return GLUtil.createAndLinkProgram(
+                GLUtil.loadShader(GLES30.GL_VERTEX_SHADER,
+                        vs),
+                GLUtil.loadShader(GL_FRAGMENT_SHADER,
+                        fs), null);
     }
 
     /**
@@ -227,4 +270,18 @@ public final class GLUtil {
         }
         return error;
     }
+
+    ///Constants
+    //解码器纹理上下翻转？
+    public static float[] DEFAULT_VERT_ARRAY_CODEC = {
+            -1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 1.0f
+    };
+
+    public static int[] DRAW_ORDER = {
+            0, 1, 2, 1, 2, 3
+    };
+
 }

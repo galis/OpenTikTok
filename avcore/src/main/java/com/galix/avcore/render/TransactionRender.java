@@ -138,6 +138,7 @@ public class TransactionRender implements IRender {
 
     @Override
     public void render(AVFrame avFrame) {
+        if (!isOpen()) return;
         avFrame.getSurfaceTexture().updateTexImage();
         avFrame.getSurfaceTextureExt().updateTexImage();
         resetTexture();
@@ -149,7 +150,7 @@ public class TransactionRender implements IRender {
         bindTexture("video0", avFrame.getTexture(), true);
         bindTexture("video1", avFrame.getTextureExt(), true);
         bindFloat("alpha", avFrame.getDelta());
-        Log.d(TAG,"avFrame.getDelta()#"+avFrame.getDelta());
+        Log.d(TAG, "avFrame.getDelta()#" + avFrame.getDelta());
         glBindVertexArray(mVAO.get(0));
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);

@@ -48,6 +48,8 @@ public class DpComponent extends AVComponent {
         mPlayerTestVideo.open();
         setDuration(mCoachVideo.getDuration());
         setEngineEndTime(mCoachVideo.getEngineStartTime() + getDuration());
+        setClipStartTime(0);
+        setClipEndTime(getDuration());
         markOpen(true);
         return RESULT_OK;
     }

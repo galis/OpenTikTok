@@ -49,7 +49,7 @@ public class Mp4Composite {
     private MediaMuxer mMediaMuxer;
     private AVEngine mEngine;
     private Stream mAudioEncodeStream, mVideoEncodeStream;
-    private AVVideo mLastVideo;
+    private AVComponent mLastVideo;
     private AVAudio mLastAudio;
     private CompositeCallback mCallback;
     private HandlerThread mCompositeThread;
@@ -136,8 +136,12 @@ public class Mp4Composite {
             return null;
         }
         mVideoEncodeStream.isInputEOF = false;
-        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.VIDEO, mVideoEncodeStream.nextPts);
-        AVVideo video = (AVVideo) components.get(0);
+        List<AVComponent> components;
+        components = mEngine.findComponents(AVComponent.AVComponentType.TRANSACTION, mVideoEncodeStream.nextPts);
+        if (components.isEmpty()) {
+            components = mEngine.findComponents(AVComponent.AVComponentType.VIDEO, mVideoEncodeStream.nextPts);
+        }
+        AVComponent video = components.get(0);
         if (mLastVideo != video) {
             video.seekFrame(mVideoEncodeStream.nextPts);
         } else {
@@ -325,7 +329,11 @@ public class Mp4Composite {
                 Log.d(TAG, "check#signalEndOfInputStream");
                 break;
             }
-            oesRender.render(videoFrame);
+            if (mLastVideo.getRender() != null) {
+                mLastVideo.getRender().render(videoFrame);
+            } else {
+                oesRender.render(videoFrame);
+            }
             mEngine.getEglHelper().setPresentationTime(videoFrame.getPts() * 1000);
             mEngine.getEglHelper().swap();
             mCallback.handle((int) (videoFrame.getPts() * 1.0f / mVideoState.durationUS * 100));
