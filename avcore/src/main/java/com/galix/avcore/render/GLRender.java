@@ -11,7 +11,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
-import static android.opengl.GLES20.glUseProgram;
 import static android.opengl.GLES30.GL_ARRAY_BUFFER;
 import static android.opengl.GLES30.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES30.GL_ELEMENT_ARRAY_BUFFER;
@@ -101,9 +100,10 @@ public abstract class GLRender implements IRender {
         if (!isOpen()) return;
         runTasks();
         bindCurrentProgram();
-        onRender(avFrame);
         bindCurrentVAO();
+        onRenderPre(avFrame);
         drawNow();
+        onRenderPost(avFrame);
         bindEmptyVAO();
         flushNow();
     }
@@ -113,7 +113,11 @@ public abstract class GLRender implements IRender {
         onWrite(config);
     }
 
-    public abstract void onRender(AVFrame avFrame);
+    public abstract void onRenderPre(AVFrame avFrame);
+
+    public void onRenderPost(AVFrame avFrame) {
+
+    }
 
     public abstract void onWrite(Object config);
 

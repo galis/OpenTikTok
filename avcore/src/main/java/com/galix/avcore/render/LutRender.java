@@ -26,7 +26,7 @@ public class LutRender extends GLRender {
     }
 
     @Override
-    public void onRender(AVFrame avFrame) {
+    public void onRenderPre(AVFrame avFrame) {
         bindTexture("inputImageTexture", avFrame.getTexture(), false);
         bindTexture("lutTexture", mLutTextureId.get(), false);
         bindFloat("alpha", mLutConfig.alpha);
