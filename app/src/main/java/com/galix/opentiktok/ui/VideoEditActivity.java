@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.opengl.GLES20;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -32,10 +31,10 @@ import com.galix.avcore.avcore.AVSticker;
 import com.galix.avcore.avcore.AVTransaction;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.avcore.AVWord;
+import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.TextRender;
-import com.galix.avcore.render.TransactionRender;
-import com.galix.avcore.util.GLUtil;
+import com.galix.avcore.render.filters.TransactionRender;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.GifDecoder;
 import com.galix.avcore.util.IOUtils;
@@ -288,6 +287,9 @@ public class VideoEditActivity extends BaseActivity {
         mAVEngine.configure(mSurfaceView);
         mAVEngine.create();
         mAVEngine.setCanvasSize(calCanvasSize("原始"));
+        GLManager.getManager().installContext(this);
+
+
         long startTime = 0;
         LinearLayout linearLayout = findViewById(R.id.linear_parent);
         View head = new View(this);
@@ -402,6 +404,7 @@ public class VideoEditActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        GLManager.getManager().unInstallContext();
         mAVEngine.release();
         Log.d(TAG, "onDestroy");
     }
@@ -437,14 +440,14 @@ public class VideoEditActivity extends BaseActivity {
             video1.setEngineStartTime(video1.getEngineStartTime() - 1000000);
             TransactionRender render = new TransactionRender();
             TransactionRender.TransactionConfig config = new TransactionRender.TransactionConfig();
-            config.surfaceSize = mAVEngine.getVideoState().mTargetSize;
-            try {
-                config.vs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_vs));
-                config.fs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_fs));
-                render.write(config);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+//            config.surfaceSize = mAVEngine.getVideoState().mTargetSize;
+//            try {
+//                config.vs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_vs));
+//                config.fs = IOUtils.readStr(getResources().openRawResource(R.raw.alpha_transaction_fs));
+//                render.write(config);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
             mAVEngine.addComponent(new AVTransaction(video1.getEngineStartTime(), 0, video0, video1, render), null);
             freshUI();
         }

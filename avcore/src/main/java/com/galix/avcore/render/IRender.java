@@ -2,6 +2,8 @@ package com.galix.avcore.render;
 
 import com.galix.avcore.avcore.AVFrame;
 
+import java.util.Map;
+
 public interface IRender {
     boolean isOpen();
 
@@ -9,7 +11,7 @@ public interface IRender {
 
     void close();
 
-    void write(Object config);
+    void write(Map<String, Object> config);
 
     void render(AVFrame avFrame);
 }

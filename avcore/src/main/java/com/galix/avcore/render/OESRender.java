@@ -1,6 +1,11 @@
 package com.galix.avcore.render;
 
+import android.util.Size;
+
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.render.IRender;
+
+import java.util.Map;
 
 public class OESRender implements IRender {
     public static class OesRenderConfig {
@@ -40,10 +45,14 @@ public class OESRender implements IRender {
     }
 
     @Override
-    public void write(Object config) {
-        if (config == null) return;
-        nativeWrite(mNativeObj, ((OesRenderConfig) config).width, ((OesRenderConfig) config).height);
+    public void write(Map<String, Object> config) {
+        if (config == null || !config.containsKey("surface_size")) {
+            return;
+        }
+        Size size = (Size) config.get("surface_size");
+        nativeWrite(mNativeObj, size.getWidth(), size.getHeight());
     }
+
 
     @Override
     public void render(AVFrame avFrame) {

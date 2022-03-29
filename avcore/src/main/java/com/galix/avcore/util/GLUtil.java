@@ -9,14 +9,20 @@ import android.opengl.GLUtils;
 import android.util.Log;
 
 import com.galix.avcore.R;
+import com.galix.avcore.render.filters.GLTexture;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
+import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
+import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME;
 import static android.opengl.GLES20.GL_LINEAR;
 import static android.opengl.GLES20.GL_TEXTURE0;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
@@ -24,6 +30,7 @@ import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static android.opengl.GLES20.glActiveTexture;
 import static android.opengl.GLES20.glBindTexture;
 import static android.opengl.GLES20.glGetUniformLocation;
@@ -183,6 +190,22 @@ public final class GLUtil {
         GLUtils.texSubImage2D(GLES30.GL_TEXTURE_2D, 0, 0, 0, bitmap);
 //        bitmap.recycle();TODO
         return textureId;
+    }
+
+    public static Bitmap dumpTexture(GLTexture texture, int width, int height) {
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(width * height * 4);
+        IntBuffer oldTexture = IntBuffer.allocate(0);
+        GLES30.glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, oldTexture);
+        GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                texture.id(), 0);
+        GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
+        bitmap.copyPixelsFromBuffer(byteBuffer);
+        oldTexture.position(0);
+        GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                oldTexture.get(), 0);
+        return bitmap;
     }
 
     public static int loadTexture(Bitmap bitmap) {

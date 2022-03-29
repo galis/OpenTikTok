@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
@@ -12,9 +13,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVEngine;
+import com.galix.avcore.gl.GLManager;
+import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
-import org.opencv.core.Rect;
 
 public class GameActivity extends AppCompatActivity {
 
@@ -22,7 +24,7 @@ public class GameActivity extends AppCompatActivity {
     private AVEngine mAVEngine;
     private Button mToggleButton;
     private Button mResetButton;
-    private DpRender mDpRender;
+    private DPFastRender mDpRender;
 
     public static void start(Context context) {
         context.startActivity(new Intent(context, GameActivity.class));
@@ -36,19 +38,18 @@ public class GameActivity extends AppCompatActivity {
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
-        mDpRender = new DpRender();
-        mDpRender.write(DpRender.buildMap(new Object[]{
-                DpRender.KEY_PLAYER_LUT, BitmapFactory.decodeResource(getResources(), R.drawable.srclut),
-                DpRender.KEY_PLAYER_ROI, new Rect(),
-                DpRender.KEY_PLAYER_MASK_ROI, new Rect(276, 234, 1059, 845),
-        }));
+        mDpRender = new DPFastRender();
+        mDpRender.write(OtherUtils.buildMap(
+                "lut", BitmapFactory.decodeResource(getResources(), R.drawable.srclut)
+        ));
         DpComponent.context = this;
-        DpRender.context = this;
         DpComponent videoCom1 = new DpComponent(0, "/sdcard/coach.mp4",
                 "/sdcard/testplayer.mp4", mDpRender);
         AVAudio audio = new AVAudio(0, "/sdcard/coach.mp4", null);
         mAVEngine.addComponent(videoCom1, null);
         mAVEngine.addComponent(audio, null);
+        GLManager.getManager().installContext(this);
+
         mToggleButton = findViewById(R.id.btn_toggle_play_pause);
         mToggleButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -68,5 +69,6 @@ public class GameActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         mAVEngine.release();
+        GLManager.getManager().unInstallContext();
     }
 }

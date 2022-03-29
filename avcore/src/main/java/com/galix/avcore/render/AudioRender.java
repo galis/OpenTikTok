@@ -6,6 +6,8 @@ import android.media.AudioTrack;
 
 import com.galix.avcore.avcore.AVFrame;
 
+import java.util.Map;
+
 import static android.media.AudioTrack.WRITE_BLOCKING;
 
 public class AudioRender implements IRender {
@@ -42,7 +44,7 @@ public class AudioRender implements IRender {
     }
 
     @Override
-    public void write(Object config) {
+    public void write(Map<String, Object> config) {
 
     }
 

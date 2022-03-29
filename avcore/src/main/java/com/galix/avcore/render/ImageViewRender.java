@@ -4,6 +4,11 @@ import android.widget.ImageView;
 
 import com.galix.avcore.avcore.AVFrame;
 
+import java.util.Map;
+
+/**
+ * 渲染器，目的是ImageView
+ */
 public class ImageViewRender implements IRender {
 
     private ImageView imageView;
@@ -28,7 +33,7 @@ public class ImageViewRender implements IRender {
     }
 
     @Override
-    public void write(Object config) {
+    public void write(Map<String, Object> config) {
 
     }
 

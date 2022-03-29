@@ -18,8 +18,8 @@ uniform sampler2D lutTexture;
 uniform float alpha;
 
 void main(){
-    vec4 src = texture2D(inputImageTexture, textureCoordinate).rgba;
-    vec3 lutColor = texture2D(lutTexture, textureCoordinate).rgb;
+    vec4 src = texture(inputImageTexture, vTextureCoord).rgba;
+    vec3 lutColor = texture(lutTexture, vTextureCoord).rgb;
     highp float blueColor = src.b * 63.0;
     highp vec2 quad1;
     quad1.y = floor(floor(blueColor) / 8.0);
@@ -33,8 +33,8 @@ void main(){
     highp vec2 texPos2;
     texPos2.x = (quad2.x * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * src.r);
     texPos2.y = (quad2.y * 0.125) + 0.5/512.0 + ((0.125 - 1.0/512.0) * src.g);
-    highp vec4 newColor1 = texture2D(lutTexture, texPos1);
-    highp vec4 newColor2 = texture2D(lutTexture, texPos2);
+    highp vec4 newColor1 = texture(lutTexture, texPos1);
+    highp vec4 newColor2 = texture(lutTexture, texPos2);
     highp vec4 newColor = mix(newColor1, newColor2, fract(blueColor));
-    vFragColor = vec4(mix(src.rgb, newColor.rgb, beta), src.a);
+    vFragColor = vec4(mix(src.rgb, newColor.rgb, alpha), src.a);
 }

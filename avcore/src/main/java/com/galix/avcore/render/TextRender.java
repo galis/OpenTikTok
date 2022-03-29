@@ -5,6 +5,8 @@ import android.widget.EditText;
 
 import com.galix.avcore.avcore.AVFrame;
 
+import java.util.Map;
+
 public class TextRender implements IRender {
 
     private EditText editText;
@@ -29,7 +31,7 @@ public class TextRender implements IRender {
     }
 
     @Override
-    public void write(Object config) {
+    public void write(Map<String, Object> config) {
 
     }
 

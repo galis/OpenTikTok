@@ -16,9 +16,12 @@ import com.galix.avcore.render.AudioRender;
 import com.galix.avcore.render.OESRender;
 import com.galix.avcore.util.EglHelper;
 import com.galix.avcore.util.Mp4Composite;
+import com.galix.avcore.util.OtherUtils;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -255,6 +258,7 @@ public class AVEngine {
      * @param size 画布大小
      */
     public void setCanvasSize(Size size) {
+        if (size == null) return;
         mSurfaceView.getLayoutParams().width = size.getWidth();
         mSurfaceView.getLayoutParams().height = size.getHeight();
         mSurfaceView.requestLayout();
@@ -328,7 +332,7 @@ public class AVEngine {
                 if (component.getRender() != null) {
                     if (!component.getRender().isOpen()) {
                         component.getRender().open();
-                        component.getRender().write(mVideoState.mTargetSize);
+//                        component.getRender().write(buildConfig("surface_size", mVideoState.mTargetSize));//TODO
                     }
                     component.getRender().render(avFrame);
                 } else {
@@ -427,7 +431,13 @@ public class AVEngine {
                         }
                         int width = (int) command.args1;
                         int height = (int) command.args2;
-                        mOesRender.write(new OESRender.OesRenderConfig(width, height));
+                        mOesRender.write(OtherUtils.buildMap("surface_size", new Size(width, height)));
+                        List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, -1);
+                        for (AVComponent component : components) {
+                            if (component.getRender() != null) {
+                                component.getRender().write(OtherUtils.buildMap("surface_size", new Size(width, height)));
+                            }
+                        }
                         isSurfaceReady = true;
                     } else if (command.cmd == Command.Cmd.SURFACE_DESTROYED) {
                         Log.d(TAG, "Surface SURFACE_DESTROYED!");
@@ -482,13 +492,13 @@ public class AVEngine {
                             }
                         } else {
                             synchronized (mVideoComponents) {
-                                mVideoComponents.add( component);
+                                mVideoComponents.add(component);
                                 reCalculate();
                             }
                         }
                         if (command.args1 != null) {
                             EngineCallback callback = (EngineCallback) command.args1;
-                            callback.onCallback(null);
+                            callback.onCallback("");
                         }
                     } else if (command.cmd == Command.Cmd.REMOVE_COM) {
                         AVComponent component = (AVComponent) command.args0;
@@ -875,6 +885,18 @@ public class AVEngine {
         if (mUpdateCallback != null) {
             mUpdateCallback.onCallback(null);
         }
+    }
+
+    private Map<String, Object> mConfigs = new HashMap<>();
+
+    private Map<String, Object> buildConfig(Object... args) {
+        if (args.length % 2 != 0) {
+            return null;
+        }
+        for (int i = 0; i < args.length / 2; i++) {
+            mConfigs.put((String) args[2 * i], args[2 * i + 1]);
+        }
+        return mConfigs;
     }
 
 

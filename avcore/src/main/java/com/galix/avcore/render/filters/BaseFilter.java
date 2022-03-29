@@ -1,16 +1,36 @@
-package com.galix.avcore.render;
+package com.galix.avcore.render.filters;
 
+import android.graphics.Rect;
 import android.opengl.GLES30;
+import android.util.Size;
 
-import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.GLUtil;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
+import static android.opengl.GLES20.GL_DEPTH_BUFFER_BIT;
+import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.GL_RGBA;
+import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
+import static android.opengl.GLES20.glBindFramebuffer;
+import static android.opengl.GLES20.glClear;
+import static android.opengl.GLES20.glDeleteFramebuffers;
+import static android.opengl.GLES20.glDeleteTextures;
+import static android.opengl.GLES20.glFramebufferTexture2D;
+import static android.opengl.GLES20.glGenFramebuffers;
+import static android.opengl.GLES20.glGenTextures;
+import static android.opengl.GLES20.glTexImage2D;
+import static android.opengl.GLES20.glUniformMatrix3fv;
+import static android.opengl.GLES20.glViewport;
 import static android.opengl.GLES30.GL_ARRAY_BUFFER;
 import static android.opengl.GLES30.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES30.GL_ELEMENT_ARRAY_BUFFER;
@@ -45,19 +65,34 @@ import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_CODEC;
 import static com.galix.avcore.util.GLUtil.DRAW_ORDER;
 
 /**
- * Opengl Render
+ * BaseFilter
+ * 使用前请注意FBO参数
  */
-public abstract class GLRender implements IRender {
+public abstract class BaseFilter implements IFilter {
 
     private String mVs;
     private String mFs;
-    private int mProgram;
+    private int mProgram = -1;
     private IntBuffer mVAO, mVBO, mEBO;
     private List<Runnable> mTasks = new LinkedList<>();
+    private Rect mViewPort = new Rect(0, 0, 0, 0);
+    private Map<String, Object> mConfig = new HashMap<>();
 
-    public GLRender(String vs, String fs) {
+    //FBO相关
+    private boolean mUseFbo = true;//是否启用FBO
+    private Size mFboSize = new Size(0, 0);
+    private Size mLastFboSize;
+    private GLTexture mColorTexture = new GLTexture(0, false);
+    private IntBuffer mFbo = IntBuffer.allocate(1);
+
+    public BaseFilter(String vs, String fs) {
         mVs = vs;
         mFs = fs;
+    }
+
+    public BaseFilter(int vs, int fs) {
+        mVs = GLManager.getManager().loadGLSL(vs);
+        mFs = GLManager.getManager().loadGLSL(fs);
     }
 
     @Override
@@ -96,30 +131,71 @@ public abstract class GLRender implements IRender {
     }
 
     @Override
-    public void render(AVFrame avFrame) {
+    public void render() {
         if (!isOpen()) return;
         runTasks();
         bindCurrentProgram();
         bindCurrentVAO();
-        onRenderPre(avFrame);
+        onRenderPre();
+        bindFBO();
         drawNow();
-        onRenderPost(avFrame);
+        onRenderPost();
         bindEmptyVAO();
         flushNow();
     }
 
+    private void bindFBO() {
+        if (mUseFbo) {
+            mFbo.position(0);
+            if (mLastFboSize != mFboSize) {
+                if (mFbo.get() != 0) {
+                    glDeleteFramebuffers(1, mFbo);
+                }
+                if (mColorTexture.id() != 0) {
+                    glDeleteTextures(1, mColorTexture.idAsBuf());
+                }
+                mFbo.position(0);
+                mColorTexture.idAsBuf().position(0);
+                glGenFramebuffers(1, mFbo);
+                glGenTextures(1, mColorTexture.idAsBuf());
+                glBindFramebuffer(GL_FRAMEBUFFER, mFbo.get());
+                glBindTexture(GL_TEXTURE_2D, mColorTexture.id());
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mFboSize.getWidth(), mFboSize.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mColorTexture.id(), 0);
+                mLastFboSize = mFboSize;
+            } else {
+                glBindFramebuffer(GL_FRAMEBUFFER, mFbo.get());
+            }
+            glViewport(0, 0, mFboSize.getWidth(), mFboSize.getHeight());
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);//这里可以扩展
+        }
+    }
+
     @Override
-    public void write(Object config) {
+    public void write(Map<String, Object> config) {
+        if (config.containsKey("use_fbo")) {
+            mUseFbo = (boolean) config.get("use_fbo");
+        }
+        if (config.containsKey("fbo_size")) {
+            mFboSize = (Size) config.get("fbo_size");
+        }
         onWrite(config);
     }
 
-    public abstract void onRenderPre(AVFrame avFrame);
+    /**
+     * 主要做绑定参数
+     */
+    public abstract void onRenderPre();
 
-    public void onRenderPost(AVFrame avFrame) {
+    public void onRenderPost() {
 
     }
 
-    public abstract void onWrite(Object config);
+    public abstract void onWrite(Map<String, Object> config);
 
     public void setTask(Runnable runnable) {
         if (runnable != null) {
@@ -145,6 +221,10 @@ public abstract class GLRender implements IRender {
         mActiveTexture = GL_TEXTURE0;
     }
 
+    public void bindMat3(String str, FloatBuffer buffer) {
+        glUniformMatrix3fv(glGetUniformLocation(mProgram, str), 1, false, buffer);
+    }
+
     public void bindTexture(String str, int textureId, boolean oes) {
         glActiveTexture(mActiveTexture);
         int type = oes ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D;
@@ -155,6 +235,14 @@ public abstract class GLRender implements IRender {
         glTexParameteri(type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glUniform1i(glGetUniformLocation(mProgram, str), mActiveTexture - GL_TEXTURE0);
         mActiveTexture++;
+    }
+
+    public void bindTexture(String str, GLTexture texture) {
+        if (texture == null) {
+            bindTexture(str, 0, false);
+            return;
+        }
+        bindTexture(str, texture.id(), texture.isOes());
     }
 
     public void bindFloat(String str, float alpha) {
@@ -182,12 +270,15 @@ public abstract class GLRender implements IRender {
         glBindVertexArray(0);
     }
 
+    public GLTexture getOutputTexture() {
+        return mColorTexture;
+    }
+
     public void runTasks() {
         for (Runnable task : mTasks) {
             task.run();
         }
         mTasks.clear();
     }
-
 
 }

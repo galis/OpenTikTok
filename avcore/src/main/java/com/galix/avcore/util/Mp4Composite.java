@@ -17,7 +17,6 @@ import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
-import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.OESRender;
 
 import java.io.File;
@@ -320,7 +319,7 @@ public class Mp4Composite {
         mEngine.getEglHelper().makeCurrent();
         OESRender oesRender = new OESRender();
         oesRender.open();
-        oesRender.write(new OESRender.OesRenderConfig(mVideoState.mTargetSize.getWidth(), mVideoState.mTargetSize.getHeight()));
+        oesRender.write(OtherUtils.buildMap("surface_size", mVideoState.mTargetSize));
 
         while (!mVideoEncodeStream.isInputEOF) {
             AVFrame videoFrame = readVideoFrame();

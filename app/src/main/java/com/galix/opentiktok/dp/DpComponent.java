@@ -1,19 +1,25 @@
 package com.galix.opentiktok.dp;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Rect;
+import android.graphics.SurfaceTexture;
+import android.util.Size;
 
 import com.galix.avcore.avcore.AVComponent;
-import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.IRender;
-import com.galix.avcore.util.FileUtils;
+import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.util.IOUtils;
 import com.galix.opentiktok.R;
 
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+
+import static org.opencv.core.CvType.CV_32F;
 
 public class DpComponent extends AVComponent {
 
@@ -21,10 +27,44 @@ public class DpComponent extends AVComponent {
     private AVVideo mPlayerTestVideo;
     private String mCoachPath;
     private String mPlayerTestPath;
-    private AVFrame mFrame;
-    private Bitmap mTestPlayerMaskBitmap;//这里写死
     private ByteBuffer mTestPlayerByteBuffer;
+    private DpInfo mDpInfo;
     public static Context context;
+
+    public static class DpInfo {
+        //必须设置
+        public SurfaceTexture coachSurfaceTexture;
+        public SurfaceTexture playerSurfaceTexture;
+        public GLTexture coachTexture = new GLTexture(0, true);
+        public GLTexture playerTexture = new GLTexture(0, true);
+        public Size videoSize = new Size(1920, 1080);
+        //mask相关
+        public ByteBuffer playerMaskBuffer;
+        public Size playerMaskSize = new Size(256, 204);
+        public Rect playerMaskRoi = new Rect(276, 234, 1059, 845);
+
+        //以下是手动计算
+        public Point[] srcPoints;
+        public Point[] dstPoints;
+        public GLTexture playerMaskTexture = new GLTexture(0, false);
+        public Mat playerMaskMat = Mat.eye(3, 3, CV_32F);
+        public FloatBuffer playerMaskMatBuffer = FloatBuffer.allocate(3 * 3);
+
+        public DpInfo() {
+            if (srcPoints == null) {
+                srcPoints = new Point[3];
+                for (int i = 0; i < 3; i++) {
+                    srcPoints[i] = new Point();
+                }
+            }
+            if (dstPoints == null) {
+                dstPoints = new Point[3];
+                for (int i = 0; i < 3; i++) {
+                    dstPoints[i] = new Point();
+                }
+            }
+        }
+    }
 
     public DpComponent(long engineStartTime, String coachPath, String playerTestVideoPath, IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
@@ -35,7 +75,7 @@ public class DpComponent extends AVComponent {
     @Override
     public int open() {
         if (isOpen()) return RESULT_OK;
-        mTestPlayerMaskBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.playmask);
+        mDpInfo = new DpInfo();
         try {
             mTestPlayerByteBuffer = IOUtils.read(context.getResources().openRawResource(R.raw.playmask), 52224);
         } catch (IOException e) {
@@ -57,6 +97,7 @@ public class DpComponent extends AVComponent {
     @Override
     public int close() {
         if (!isOpen()) return RESULT_FAILED;
+        mDpInfo = null;
         mCoachVideo.close();
         mPlayerTestVideo.close();
         return RESULT_OK;
@@ -79,17 +120,27 @@ public class DpComponent extends AVComponent {
     }
 
     private void freshFrame() {
+
+        //教练
+        mDpInfo.coachTexture.idAsBuf().position(0);
+        mDpInfo.coachTexture.idAsBuf().put(mCoachVideo.peekFrame().getTexture());
+        mDpInfo.coachTexture.idAsBuf().position(0);
+        mDpInfo.coachSurfaceTexture = mCoachVideo.peekFrame().getSurfaceTexture();
+
+        //玩家
+        mDpInfo.playerTexture.idAsBuf().position(0);
+        mDpInfo.playerTexture.idAsBuf().put(mPlayerTestVideo.peekFrame().getTexture());
+        mDpInfo.playerTexture.idAsBuf().position(0);
+        mDpInfo.playerSurfaceTexture = mPlayerTestVideo.peekFrame().getSurfaceTexture();
+        mDpInfo.playerMaskBuffer = mTestPlayerByteBuffer;//要改
+//        mDpInfo.playerMaskRoi =xxxx;//要改
+//        mDpInfo.playerMaskSize = xxxx;//要改
+
+        //作为私有数据
+        peekFrame().setExt(mDpInfo);
         peekFrame().setPts(mCoachVideo.peekFrame().getPts());
-        peekFrame().setRoi(mCoachVideo.peekFrame().getRoi());
         peekFrame().setEof(mCoachVideo.peekFrame().isEof());
-        peekFrame().setSurfaceTexture(mCoachVideo.peekFrame().getSurfaceTexture());
         peekFrame().setDuration(mCoachVideo.peekFrame().getDuration());
-        peekFrame().setTexture(mCoachVideo.peekFrame().getTexture());
-        peekFrame().setTextureExt(mPlayerTestVideo.peekFrame().getTexture());
-        peekFrame().setSurfaceTextureExt(mPlayerTestVideo.peekFrame().getSurfaceTexture());
-        peekFrame().setByteBuffer(mTestPlayerByteBuffer);
-//        peekFrame().setBitmap(mTestPlayerMaskBitmap);
-//        peekFrame().setByteBuffer(mPlayerTestVideo.peekFrame().getByteBuffer());
         peekFrame().setValid(true);
     }
 }

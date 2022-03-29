@@ -1,16 +1,18 @@
-package com.galix.avcore.render;
+package com.galix.avcore.render.filters;
 
 import android.opengl.GLES30;
 import android.util.Log;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.GLUtil;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
 import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
@@ -128,7 +130,7 @@ public class TransactionRender implements IRender {
     }
 
     @Override
-    public void write(Object config) {
+    public void write(Map<String, Object> config) {
         if (!(config instanceof TransactionConfig)) {
             Log.d(TAG, "无法识别的配置");
             return;

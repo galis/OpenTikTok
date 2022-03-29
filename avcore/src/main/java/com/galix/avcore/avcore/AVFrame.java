@@ -22,6 +22,7 @@ public class AVFrame {
     private ByteBuffer byteBuffer;
     private SurfaceTexture surfaceTexture;
     private SurfaceTexture surfaceTextureExt;
+    private Object ext;//额外的数据
 
     public long getPts() {
         return pts;
@@ -145,6 +146,14 @@ public class AVFrame {
 
     public void markRead() {
         isValid = false;
+    }
+
+    public Object getExt() {
+        return ext;
+    }
+
+    public void setExt(Object ext) {
+        this.ext = ext;
     }
 
     @Override
