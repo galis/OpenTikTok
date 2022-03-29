@@ -303,6 +303,13 @@ public final class GLUtil {
             1.0f, -1.0f, 0.0f, 1.0f, 1.0f
     };
 
+    public static float[] DEFAULT_VERT_ARRAY_CODEC_0 = {
+            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f
+    };
+
     public static int[] DRAW_ORDER = {
             0, 1, 2, 1, 2, 3
     };

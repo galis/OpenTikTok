@@ -122,17 +122,17 @@ public class DPFastRender implements IRender {
         mPlayerFilter.write(mConfig);
         mPlayerFilter.render();
 
-        mConfig.clear();
-        mConfig.put("lut_src", mLut);
-        mConfig.put("lut_input", mPlayerFilter.getOutputTexture());
-        mConfig.put("lut_alpha", 100.f);
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-        mLutFilter.write(mConfig);
-        mLutFilter.render();
+//        mConfig.clear();
+//        mConfig.put("lut_src", mLut);
+//        mConfig.put("lut_input", mPlayerFilter.getOutputTexture());
+//        mConfig.put("lut_alpha", 100.f);
+//        mConfig.put("use_fbo", true);
+//        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
+//        mLutFilter.write(mConfig);
+//        mLutFilter.render();
 
         mConfig.clear();
-        mConfig.put("screen_input", mLutFilter.getOutputTexture());
+        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
         mConfig.put("use_fbo", false);
         mScreenFilter.write(mConfig);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -151,7 +151,6 @@ public class DPFastRender implements IRender {
             if (dpInfo.playerMaskTexture.id() != 0) {
                 glDeleteTextures(1, dpInfo.playerMaskTexture.idAsBuf());
             }
-            dpInfo.playerMaskTexture.idAsBuf().position(0);
             GLES30.glGenTextures(1, dpInfo.playerMaskTexture.idAsBuf());
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -163,7 +162,6 @@ public class DPFastRender implements IRender {
                     0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
                     dpInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
         } else {
-            dpInfo.playerMaskTexture.idAsBuf().position(0);
             dpInfo.playerMaskTexture.idAsBuf().put(0);
         }
         dpInfo.playerMaskTexture.idAsBuf().position(0);
