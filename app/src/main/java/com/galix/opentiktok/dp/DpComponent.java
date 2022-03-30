@@ -41,7 +41,7 @@ public class DpComponent extends AVComponent {
         //mask相关
         public ByteBuffer playerMaskBuffer;
         public Size playerMaskSize = new Size(256, 204);
-        public Rect playerMaskRoi = new Rect(276, 234, 1059, 845);
+        public Rect playerMaskRoi = new Rect(276, 234, 276 + 1059, 234 + 845);
 
         //以下是手动计算
         public Point[] srcPoints;
@@ -138,6 +138,7 @@ public class DpComponent extends AVComponent {
 
         //作为私有数据
         peekFrame().setExt(mDpInfo);
+        peekFrame().setRoi(mCoachVideo.peekFrame().getRoi());
         peekFrame().setPts(mCoachVideo.peekFrame().getPts());
         peekFrame().setEof(mCoachVideo.peekFrame().isEof());
         peekFrame().setDuration(mCoachVideo.peekFrame().getDuration());

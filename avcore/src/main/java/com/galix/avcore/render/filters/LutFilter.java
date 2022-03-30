@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * LUT Filter
- *
+ * <p>
  * 接收参数:
  * lut_input:GLTexture
  * lut_src:GLTexture
@@ -34,9 +34,10 @@ public class LutFilter extends BaseFilter {
 
     @Override
     public void onRenderPre() {
-        bindTexture("inputImageTexture", mLutConfig.inputImage);
-        bindTexture("lutTexture", mLutConfig.lutTexture);
+        bindBool("isOes", mLutConfig.inputImage.isOes());
         bindFloat("alpha", mLutConfig.alpha);
+        bindTexture("lutTexture", mLutConfig.lutTexture);
+        bindTexture(mLutConfig.inputImage.isOes() ? "inputImageOesTexture" : "inputImageTexture", mLutConfig.inputImage);
     }
 
     @Override

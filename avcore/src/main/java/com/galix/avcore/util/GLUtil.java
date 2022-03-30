@@ -23,6 +23,7 @@ import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
 import static android.opengl.GLES20.GL_FRAMEBUFFER;
 import static android.opengl.GLES20.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME;
+import static android.opengl.GLES20.GL_FRAMEBUFFER_BINDING;
 import static android.opengl.GLES20.GL_LINEAR;
 import static android.opengl.GLES20.GL_TEXTURE0;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
@@ -193,18 +194,20 @@ public final class GLUtil {
     }
 
     public static Bitmap dumpTexture(GLTexture texture, int width, int height) {
+        IntBuffer lastBuf = IntBuffer.allocate(1);
+        IntBuffer newFboBuf = IntBuffer.allocate(1);
+        GLES30.glGetIntegerv(GL_FRAMEBUFFER_BINDING, lastBuf);
+        GLES30.glGenFramebuffers(1, newFboBuf);
+        GLES30.glBindFramebuffer(1, newFboBuf.get());
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(width * height * 4);
-        IntBuffer oldTexture = IntBuffer.allocate(0);
-        GLES30.glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, oldTexture);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(width * height * 4);
         GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                 texture.id(), 0);
         GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
         bitmap.copyPixelsFromBuffer(byteBuffer);
-        oldTexture.position(0);
-        GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                oldTexture.get(), 0);
+        GLES30.glBindFramebuffer(1, lastBuf.get());
+        newFboBuf.position(0);
+        GLES30.glDeleteFramebuffers(1, newFboBuf);
         return bitmap;
     }
 
@@ -296,14 +299,14 @@ public final class GLUtil {
 
     ///Constants
     //解码器纹理上下翻转？
-    public static float[] DEFAULT_VERT_ARRAY_CODEC = {
+    public static float[] DEFAULT_VERT_ARRAY_90 = {
             -1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
             1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
             -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
             1.0f, -1.0f, 0.0f, 1.0f, 1.0f
     };
 
-    public static float[] DEFAULT_VERT_ARRAY_CODEC_0 = {
+    public static float[] DEFAULT_VERT_ARRAY_0 = {
             -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
             1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
             -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,

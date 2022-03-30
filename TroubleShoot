@@ -29,3 +29,5 @@ System.nanoTime() ns
 22.多线程绑定同一个context，必须要其他线程先解绑，然后才能绑定。
 23.多线程共享纹理，可以在创建context的时候传入sharecontext，这样子就能使用纹理。
 24.SurfaceTexture和context一对一绑定。
+25.glPixelStorei影响glReadPixels glTexImage2D and glTexSubImage2D.
+26.snapfile预览纹理貌似上下翻转，只有屏幕预览才正常.

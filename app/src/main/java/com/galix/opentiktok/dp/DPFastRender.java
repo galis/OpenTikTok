@@ -29,6 +29,7 @@ import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.GL_UNPACK_ALIGNMENT;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static android.opengl.GLES20.glBindFramebuffer;
 import static android.opengl.GLES20.glBindTexture;
@@ -97,26 +98,9 @@ public class DPFastRender implements IRender {
     @Override
     public void render(AVFrame avFrame) {
         renderReady(avFrame);
-//        Bitmap coacheTexture = GLUtil.dumpTexture(mCacheDpInfo.coachTexture, 1920, 1080);
-//        Bitmap playerTexture = GLUtil.dumpTexture(mCacheDpInfo.playerTexture, 1920, 1080);
+//       fastTest();
 
-//        mConfig.clear();
-//        mConfig.put("use_fbo", true);
-//        mConfig.put("fbo_size", mSurfaceSize);
-//        mConfig.put("oes_input", mCacheDpInfo.coachTexture);
-//        mOesFilter.write(mConfig);
-//        mOesFilter.render();
-//
-//        mConfig.clear();
-//        mConfig.put("screen_input", mOesFilter.getOutputTexture());
-//        mConfig.put("use_fbo", false);
-//        mScreenFilter.write(mConfig);
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        mScreenFilter.render();
-
-
+        mConfig.clear();
         mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheDpInfo.videoSize);
         mPlayerFilter.write(mConfig);
@@ -132,14 +116,54 @@ public class DPFastRender implements IRender {
 //        mLutFilter.render();
 
         mConfig.clear();
-        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
         mConfig.put("use_fbo", false);
+        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
+        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
         mScreenFilter.write(mConfig);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         mScreenFilter.render();
 
+
+//        mConfig.clear();
+//        mConfig.put("lut_src", mLut);
+//        mConfig.put("lut_input", mCacheDpInfo.playerTexture);
+//        mConfig.put("lut_alpha", 100.f);
+//        mConfig.put("use_fbo", true);
+//        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
+//        mLutFilter.write(mConfig);
+//        mLutFilter.render();
+//
+//        mConfig.clear();
+//        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
+//        mConfig.put("use_fbo", false);
+//        mScreenFilter.write(mConfig);
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
+//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//        mScreenFilter.render();
+
+    }
+
+    private void fastTest() {
+//        Bitmap coacheTexture = GLUtil.dumpTexture(mCacheDpInfo.coachTexture, 1920, 1080);
+//        Bitmap playerTexture = GLUtil.dumpTexture(mCacheDpInfo.playerTexture, 1920, 1080);
+        mConfig.clear();
+        mConfig.put("use_fbo", true);
+        mConfig.put("fbo_size", mSurfaceSize);
+        mConfig.put("oes_input", mCacheDpInfo.coachTexture);
+        mOesFilter.write(mConfig);
+        mOesFilter.render();
+
+        mConfig.clear();
+        mConfig.put("screen_input", mOesFilter.getOutputTexture());
+        mConfig.put("use_fbo", false);
+        mScreenFilter.write(mConfig);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        mScreenFilter.render();
     }
 
     private void renderReady(AVFrame avFrame) {
@@ -157,10 +181,12 @@ public class DPFastRender implements IRender {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glBindTexture(GL_TEXTURE_2D, dpInfo.playerMaskTexture.id());
+            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE,
                     dpInfo.playerMaskSize.getWidth(), dpInfo.playerMaskSize.getHeight(),
                     0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
                     dpInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
+            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
         } else {
             dpInfo.playerMaskTexture.idAsBuf().put(0);
         }

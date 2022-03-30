@@ -40,7 +40,7 @@ public class GameActivity extends AppCompatActivity {
         mAVEngine.create();
         mDpRender = new DPFastRender();
         mDpRender.write(OtherUtils.buildMap(
-                "lut", BitmapFactory.decodeResource(getResources(), R.drawable.srclut)
+                "lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.standard_lut))
         ));
         DpComponent.context = this;
         DpComponent videoCom1 = new DpComponent(0, "/sdcard/coach.mp4",

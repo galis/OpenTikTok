@@ -18,8 +18,10 @@ import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
 import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
 import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
 import static android.opengl.GLES20.GL_DEPTH_BUFFER_BIT;
+import static android.opengl.GLES20.GL_FALSE;
 import static android.opengl.GLES20.GL_FRAMEBUFFER;
 import static android.opengl.GLES20.GL_RGBA;
+import static android.opengl.GLES20.GL_TRUE;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static android.opengl.GLES20.glBindFramebuffer;
 import static android.opengl.GLES20.glClear;
@@ -61,7 +63,8 @@ import static android.opengl.GLES30.glTexParameteri;
 import static android.opengl.GLES30.glUniform1f;
 import static android.opengl.GLES30.glUniform1i;
 import static android.opengl.GLES30.glVertexAttribPointer;
-import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_CODEC;
+import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_0;
+import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_90;
 import static com.galix.avcore.util.GLUtil.DRAW_ORDER;
 
 /**
@@ -112,7 +115,7 @@ public abstract class BaseFilter implements IFilter {
         glGenBuffers(1, mEBO);
         glBindVertexArray(mVAO.get(0));
         glBindBuffer(GL_ARRAY_BUFFER, mVBO.get(0));
-        glBufferData(GL_ARRAY_BUFFER, 4 * 20, FloatBuffer.wrap(DEFAULT_VERT_ARRAY_CODEC), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, 4 * 20, FloatBuffer.wrap(DEFAULT_VERT_ARRAY_0), GL_STATIC_DRAW);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO.get(0));
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24, IntBuffer.wrap(DRAW_ORDER), GL_STATIC_DRAW);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 5 * 4, 0);
@@ -155,8 +158,8 @@ public abstract class BaseFilter implements IFilter {
                     glDeleteTextures(1, mColorTexture.idAsBuf());
                 }
                 mFbo.position(0);
-                mColorTexture.idAsBuf().position(0);
                 glGenFramebuffers(1, mFbo);
+                mFbo.position(0);
                 glGenTextures(1, mColorTexture.idAsBuf());
                 glBindFramebuffer(GL_FRAMEBUFFER, mFbo.get());
                 glBindTexture(GL_TEXTURE_2D, mColorTexture.id());
@@ -249,8 +252,13 @@ public abstract class BaseFilter implements IFilter {
         glUniform1f(glGetUniformLocation(mProgram, str), alpha);
     }
 
+    public void bindBool(String str, boolean bb) {
+        GLES30.glUniform1i(glGetUniformLocation(mProgram, str), bb ? GL_TRUE : GL_FALSE);
+    }
+
     public void bindCurrentVAO() {
-        glBindVertexArray(mVAO.get(0));
+        mVAO.position(0);
+        glBindVertexArray(mVAO.get());
     }
 
     public void drawNow() {
