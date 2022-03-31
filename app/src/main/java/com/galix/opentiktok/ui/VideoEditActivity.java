@@ -293,10 +293,10 @@ public class VideoEditActivity extends BaseActivity {
         long startTime = 0;
         LinearLayout linearLayout = findViewById(R.id.linear_parent);
         View head = new View(this);
-        head.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
+        head.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDisplayMetrics().widthPixels / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         linearLayout.addView(head);
         View tail = new View(this);
-        tail.setLayoutParams(new LinearLayout.LayoutParams(getWindowManager().getCurrentWindowMetrics().getBounds().width() / 2, ViewGroup.LayoutParams.MATCH_PARENT));
+        tail.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDisplayMetrics().widthPixels / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
             AVVideo video = new AVVideo(true, startTime, fileEntry.adjustPath, null);
             AVAudio audio = new AVAudio(startTime, fileEntry.adjustPath, null);
