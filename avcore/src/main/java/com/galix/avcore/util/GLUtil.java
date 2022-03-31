@@ -42,6 +42,8 @@ import static android.opengl.GLES20.glUniform1i;
 
 public final class GLUtil {
 
+    public static final GLTexture DEFAULT_OES_TEXTURE = new GLTexture(0, true);
+    public static final GLTexture DEFAULT_TEXTURE = new GLTexture(0, false);
     private static final String TAG = "GLUtil";
 
     private GLUtil() {

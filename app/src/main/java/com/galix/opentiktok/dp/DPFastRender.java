@@ -7,14 +7,15 @@ import android.util.Size;
 import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.BaseFilter;
+import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
 import com.galix.avcore.render.filters.ScreenFilter;
-import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.MathUtils;
 import com.galix.opentiktok.R;
 
 
+import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,8 +46,7 @@ import static android.opengl.GLES20.glViewport;
 public class DPFastRender implements IRender {
 
     private LutFilter mLutFilter;
-    private PlayerFilter mPlayerFilter;
-    private ScreenFilter mScreenFilter;
+    private GameFilter mGameFilter;
     private OesFilter mOesFilter;
     private boolean mIsOpen = false;
     private Size mSurfaceSize = new Size(1920, 1080);
@@ -64,10 +64,8 @@ public class DPFastRender implements IRender {
         if (mIsOpen) return;
         mLutFilter = new LutFilter();
         mLutFilter.open();
-        mPlayerFilter = new PlayerFilter();
-        mPlayerFilter.open();
-        mScreenFilter = new ScreenFilter();
-        mScreenFilter.open();
+        mGameFilter = new GameFilter();
+        mGameFilter.open();
         mOesFilter = new OesFilter();
         mOesFilter.open();
         mIsOpen = true;
@@ -76,11 +74,9 @@ public class DPFastRender implements IRender {
     @Override
     public void close() {
         mLutFilter.close();
-        mPlayerFilter.close();
-        mScreenFilter.close();
+        mGameFilter.close();
         mLutFilter = null;
-        mPlayerFilter = null;
-        mScreenFilter = null;
+        mGameFilter = null;
         mIsOpen = false;
     }
 
@@ -98,72 +94,35 @@ public class DPFastRender implements IRender {
     @Override
     public void render(AVFrame avFrame) {
         renderReady(avFrame);
-//       fastTest();
 
         mConfig.clear();
-        mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-        mPlayerFilter.write(mConfig);
-        mPlayerFilter.render();
-
-//        mConfig.clear();
-//        mConfig.put("lut_src", mLut);
-//        mConfig.put("lut_input", mPlayerFilter.getOutputTexture());
-//        mConfig.put("lut_alpha", 100.f);
-//        mConfig.put("use_fbo", true);
-//        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-//        mLutFilter.write(mConfig);
-//        mLutFilter.render();
-
-        mConfig.clear();
-        mConfig.put("use_fbo", false);
-        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
-        mScreenFilter.write(mConfig);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        mScreenFilter.render();
-
-
-//        mConfig.clear();
-//        mConfig.put("lut_src", mLut);
-//        mConfig.put("lut_input", mCacheDpInfo.playerTexture);
-//        mConfig.put("lut_alpha", 100.f);
-//        mConfig.put("use_fbo", true);
-//        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-//        mLutFilter.write(mConfig);
-//        mLutFilter.render();
-//
-//        mConfig.clear();
-//        mConfig.put("screen_input", mPlayerFilter.getOutputTexture());
-//        mConfig.put("use_fbo", false);
-//        mScreenFilter.write(mConfig);
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        mScreenFilter.render();
-
-    }
-
-    private void fastTest() {
-//        Bitmap coacheTexture = GLUtil.dumpTexture(mCacheDpInfo.coachTexture, 1920, 1080);
-//        Bitmap playerTexture = GLUtil.dumpTexture(mCacheDpInfo.playerTexture, 1920, 1080);
-        mConfig.clear();
         mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mSurfaceSize);
-        mConfig.put("oes_input", mCacheDpInfo.coachTexture);
+        mConfig.put("oes_input", mCacheDpInfo.playerTexture);
         mOesFilter.write(mConfig);
         mOesFilter.render();
 
         mConfig.clear();
-        mConfig.put("screen_input", mOesFilter.getOutputTexture());
+        mConfig.put("use_fbo", true);
+        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
+        mConfig.put("lut_src", mLut);
+        mConfig.put("lut_input", mOesFilter.getOutputTexture());
+        mConfig.put("lut_alpha", 1.0f);
+        mLutFilter.write(mConfig);
+        mLutFilter.render();
+
+        mConfig.clear();
         mConfig.put("use_fbo", false);
-        mScreenFilter.write(mConfig);
+        mConfig.put("coachTexture", mCacheDpInfo.coachTexture);
+        mConfig.put("playerTexture", mLutFilter.getOutputTexture());
+        mConfig.put("playerMaskTexture", mCacheDpInfo.playerMaskTexture);
+        mConfig.put("playerMaskMatBuffer", mCacheDpInfo.playerMaskMatBuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        mScreenFilter.render();
+        mGameFilter.write(mConfig);
+        mGameFilter.render();
+
     }
 
     private void renderReady(AVFrame avFrame) {
@@ -219,22 +178,39 @@ public class DPFastRender implements IRender {
         mCacheDpInfo = dpInfo;
     }
 
-    public class PlayerFilter extends BaseFilter {
+    public static class GameFilter extends BaseFilter {
 
-        public PlayerFilter() {
-            super(R.raw.dbrendervs, R.raw.dbrenderfs);
+        private GLTexture coachTexture;
+        private GLTexture playerTexture;
+        private GLTexture playerMaskTexture;
+        private FloatBuffer playerMaskMatBuffer;
+
+        public GameFilter() {
+            super(R.raw.gamevs, R.raw.gamefs);
         }
 
         @Override
         public void onRenderPre() {
-            bindTexture("coachTexture", mCacheDpInfo.coachTexture);
-            bindTexture("playerTexture", mCacheDpInfo.playerTexture);
-            bindTexture("playerMaskTexture", mCacheDpInfo.playerMaskTexture);
-            bindMat3("playerMaskMat", mCacheDpInfo.playerMaskMatBuffer);
+            bindTexture("coachTexture", coachTexture);
+            bindTexture("playerTexture", playerTexture);
+            bindTexture("playerMaskTexture", playerMaskTexture);
+            bindMat3("playerMaskMat", playerMaskMatBuffer);
         }
 
         @Override
         public void onWrite(Map<String, Object> config) {
+            if (config.containsKey("coachTexture")) {
+                coachTexture = (GLTexture) config.get("coachTexture");
+            }
+            if (config.containsKey("playerTexture")) {
+                playerTexture = (GLTexture) config.get("playerTexture");
+            }
+            if (config.containsKey("playerMaskTexture")) {
+                playerMaskTexture = (GLTexture) config.get("playerMaskTexture");
+            }
+            if (config.containsKey("playerMaskMatBuffer")) {
+                playerMaskMatBuffer = (FloatBuffer) config.get("playerMaskMatBuffer");
+            }
         }
     }
 

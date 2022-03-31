@@ -304,10 +304,13 @@ public class AVEngine {
 
         for (AVComponent component : components) {
             component.lock();
+            long time1 = System.currentTimeMillis();
             if (!component.peekFrame().isValid()) {
                 component.readFrame();
             }
             component.unlock();
+            long time2 = System.currentTimeMillis();
+            Log.d(TAG, "Render#delta#"+(time2-time1));
             AVFrame avFrame = component.peekFrame();
             if (!avFrame.isValid()) {
                 Log.d(TAG, "VIDEO#WTF???Something I don't understand!");

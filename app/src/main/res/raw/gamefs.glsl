@@ -3,7 +3,7 @@
 precision mediump float;
 in vec2 vTextureCoord;
 out vec4 vFragColor;
-uniform samplerExternalOES playerTexture;
+uniform sampler2D playerTexture;
 uniform samplerExternalOES coachTexture;//教练视频
 uniform sampler2D playerMaskTexture;
 uniform mat3 playerMaskMat;

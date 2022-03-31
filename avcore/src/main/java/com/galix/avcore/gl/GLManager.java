@@ -1,7 +1,10 @@
 package com.galix.avcore.gl;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.opengl.GLES30;
+import android.opengl.GLUtils;
 import android.util.Size;
 
 import com.galix.avcore.util.IOUtils;
@@ -12,6 +15,7 @@ import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+import static android.opengl.GLES20.GL_TEXTURE;
 import static android.opengl.GLES30.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES30.GL_COLOR_ATTACHMENT0;
 import static android.opengl.GLES30.GL_FRAMEBUFFER;
@@ -111,6 +115,18 @@ public class GLManager {
             return mTextures.get(tag).get();
         }
         return 0;
+    }
+
+    public int loadTexture(int drawable) {
+        IntBuffer textureBuf = IntBuffer.allocate(1);
+        glGenTextures(textureBuf.limit(), textureBuf);
+        glBindTexture(GL_TEXTURE_2D, textureBuf.get());
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        GLUtils.texImage2D(GL_TEXTURE_2D, 0, BitmapFactory.decodeResource(mContext.get().getResources(), drawable), 0);
+        return textureBuf.get(0);
     }
 
     public void release() {

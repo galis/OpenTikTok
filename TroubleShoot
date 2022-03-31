@@ -31,3 +31,7 @@ System.nanoTime() ns
 24.SurfaceTexture和context一对一绑定。
 25.glPixelStorei影响glReadPixels glTexImage2D and glTexSubImage2D.
 26.snapfile预览纹理貌似上下翻转，只有屏幕预览才正常.
+27.uniform sampler2D inputImageTexture;
+   uniform samplerExternalOES inputImageOesTexture;
+   Oh,两个都要有值...
+28.lut 黑色变红色。。。？白色变蓝色。。?只有oes读出的纹理颜色才有这个问题

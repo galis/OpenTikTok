@@ -5,9 +5,19 @@ import android.opengl.GLES30;
 import android.opengl.GLUtils;
 
 import com.galix.avcore.R;
+import com.galix.avcore.util.GLUtil;
 
 import java.nio.IntBuffer;
 import java.util.Map;
+
+import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
+import static android.opengl.GLES20.GL_LINEAR;
+import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.glTexParameterf;
+import static android.opengl.GLES20.glTexParameteri;
 
 /**
  * LUT Filter
@@ -37,7 +47,13 @@ public class LutFilter extends BaseFilter {
         bindBool("isOes", mLutConfig.inputImage.isOes());
         bindFloat("alpha", mLutConfig.alpha);
         bindTexture("lutTexture", mLutConfig.lutTexture);
-        bindTexture(mLutConfig.inputImage.isOes() ? "inputImageOesTexture" : "inputImageTexture", mLutConfig.inputImage);
+        if (mLutConfig.inputImage.isOes()) {
+            bindTexture("inputImageOesTexture", mLutConfig.inputImage);
+            bindTexture("inputImageTexture", GLUtil.DEFAULT_TEXTURE);
+        } else {
+            bindTexture("inputImageOesTexture", GLUtil.DEFAULT_OES_TEXTURE);
+            bindTexture("inputImageTexture", mLutConfig.inputImage);
+        }
     }
 
     @Override
@@ -52,9 +68,17 @@ public class LutFilter extends BaseFilter {
                         GLES30.glGenTextures(lutTextureIntBuf.limit(), lutTextureIntBuf);
                         mLutConfig.lutTexture = new GLTexture(lutTextureIntBuf.get(), false);
                         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutConfig.lutTexture.id());
+                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                         GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, mLutConfig.lut, 0);
                     } else {
                         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutConfig.lutTexture.id());
+                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                         GLUtils.texSubImage2D(GLES30.GL_TEXTURE_2D, 0, 0, 0, mLutConfig.lut);
                     }
                 }
