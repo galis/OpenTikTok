@@ -10,6 +10,7 @@ import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.BaseFilter;
 import com.galix.avcore.render.filters.BeautyFilter;
 import com.galix.avcore.render.filters.GLTexture;
+import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
 import com.galix.avcore.render.filters.ScreenFilter;
@@ -60,6 +61,7 @@ public class DPFastRender implements IRender {
     private Bitmap mPlayerLut, mBeautyLut;
     private Map<String, Object> mConfig = new HashMap<>();
     private DpComponent.DpInfo mCacheDpInfo;
+    private boolean mIsBeauty = true;
 
     @Override
     public boolean isOpen() {
@@ -101,6 +103,9 @@ public class DPFastRender implements IRender {
         if (config.containsKey("beauty_lut")) {
             mBeautyLut = (Bitmap) config.get("beauty_lut");
         }
+        if (config.containsKey("use_beauty")) {
+            mIsBeauty = (boolean) config.get("use_beauty");
+        }
     }
 
     @Override
@@ -116,22 +121,27 @@ public class DPFastRender implements IRender {
         mOesFilter.write(mConfig);
         mOesFilter.render();
 
-        //美颜
-        mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mOesFilter.getOutputTexture().size());
-        mConfig.put("beauty_input", mOesFilter.getOutputTexture());
-        mConfig.put("beauty_lut", mBeautyLut);
-        mConfig.put("beauty_alpha", 1.0f);
-        mBeautyFilter.write(mConfig);
-        mBeautyFilter.render();
+        IFilter lastFilter = mOesFilter;
+        if (mIsBeauty) {
+            //美颜
+            mConfig.clear();
+            mConfig.put("use_fbo", true);
+            mConfig.put("fbo_size", mOesFilter.getOutputTexture().size());
+            mConfig.put("beauty_input", mOesFilter.getOutputTexture());
+            mConfig.put("beauty_lut", mBeautyLut);
+            mConfig.put("beauty_alpha", 1.0f);
+            mBeautyFilter.write(mConfig);
+            mBeautyFilter.render();
+            lastFilter = mBeautyFilter;
+        }
+
 
         //用户lut变换.
         mConfig.clear();
         mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheDpInfo.videoSize);
         mConfig.put("lut_src", mPlayerLut);
-        mConfig.put("lut_input", mBeautyFilter.getOutputTexture());
+        mConfig.put("lut_input", lastFilter.getOutputTexture());
         mConfig.put("lut_alpha", 1.0f);
         mLutFilter.write(mConfig);
         mLutFilter.render();

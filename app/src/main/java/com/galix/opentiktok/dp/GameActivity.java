@@ -41,8 +41,9 @@ public class GameActivity extends AppCompatActivity {
         mDpRender = new DPFastRender();
         mDpRender.write(OtherUtils.buildMap(
                 "player_lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.std_lut)),
-                "beauty_lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.beauty_lut))
-        ));
+                "beauty_lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.beauty_lut)),
+                "use_beauty", false)
+        );
         DpComponent.context = this;
         DpComponent videoCom1 = new DpComponent(0, "/sdcard/coach.mp4",
                 "/sdcard/testplayer.mp4", mDpRender);
