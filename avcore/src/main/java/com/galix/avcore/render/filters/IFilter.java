@@ -14,4 +14,6 @@ public interface IFilter {
 
     void render();
 
+    GLTexture getOutputTexture();
+
 }

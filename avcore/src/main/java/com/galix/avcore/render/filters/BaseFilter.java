@@ -144,7 +144,7 @@ public abstract class BaseFilter implements IFilter {
         drawNow();
         onRenderPost();
         bindEmptyVAO();
-        flushNow();
+//        flushNow();
     }
 
     private void bindFBO() {
@@ -170,6 +170,7 @@ public abstract class BaseFilter implements IFilter {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mFboSize.getWidth(), mFboSize.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mColorTexture.id(), 0);
                 mLastFboSize = mFboSize;
+                mColorTexture.setSize(mLastFboSize.getWidth(), mLastFboSize.getHeight());
             } else {
                 glBindFramebuffer(GL_FRAMEBUFFER, mFbo.get());
             }
@@ -180,12 +181,15 @@ public abstract class BaseFilter implements IFilter {
 
     @Override
     public void write(Map<String, Object> config) {
+        if (config == null) return;
         if (config.containsKey("use_fbo")) {
             mUseFbo = (boolean) config.get("use_fbo");
         }
         if (config.containsKey("fbo_size")) {
             mFboSize = (Size) config.get("fbo_size");
         }
+        mConfig.clear();
+        mConfig.putAll(config);
         onWrite(config);
     }
 
@@ -248,8 +252,32 @@ public abstract class BaseFilter implements IFilter {
         bindTexture(str, texture.id(), texture.isOes());
     }
 
+    public void bindTexture(String str) {
+        if (mConfig.containsKey(str) && mConfig.get(str) instanceof GLTexture) {
+            bindTexture(str, (GLTexture) mConfig.get(str));
+        } else {
+            bindTexture(str, GLUtil.DEFAULT_TEXTURE);
+        }
+    }
+
+    public void bindFloat(String str) {
+        if (mConfig.containsKey(str)) {
+            bindFloat(str, (Float) mConfig.get(str));
+        } else {
+            bindFloat(str, 0);
+        }
+    }
+
     public void bindFloat(String str, float alpha) {
         glUniform1f(glGetUniformLocation(mProgram, str), alpha);
+    }
+
+    public void bindBool(String str) {
+        if (mConfig.containsKey(str)) {
+            bindBool(str, (boolean) mConfig.get(str));
+        } else {
+            bindBool(str, false);
+        }
     }
 
     public void bindBool(String str, boolean bb) {
@@ -278,15 +306,16 @@ public abstract class BaseFilter implements IFilter {
         glBindVertexArray(0);
     }
 
-    public GLTexture getOutputTexture() {
-        return mColorTexture;
-    }
-
     public void runTasks() {
         for (Runnable task : mTasks) {
             task.run();
         }
         mTasks.clear();
+    }
+
+    @Override
+    public GLTexture getOutputTexture() {
+        return mColorTexture;
     }
 
 }

@@ -1,12 +1,14 @@
 package com.galix.avcore.render.filters;
 
 import android.graphics.Bitmap;
+import android.util.Size;
 
 import java.nio.IntBuffer;
 
 public class GLTexture {
     private IntBuffer textureIdBuf;
     private boolean oes = false;
+    private Size mSize = new Size(0, 0);
     private String path;
     private Bitmap bitmap;
     private Object dirty;
@@ -37,4 +39,13 @@ public class GLTexture {
     public boolean isOes() {
         return oes;
     }
+
+    public Size size() {
+        return mSize;
+    }
+
+    public void setSize(int w, int h) {
+        mSize = new Size(w, h);
+    }
+
 }

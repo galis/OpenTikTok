@@ -2,11 +2,13 @@ package com.galix.opentiktok.dp;
 
 import android.graphics.Bitmap;
 import android.opengl.GLES30;
+import android.util.Log;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.BaseFilter;
+import com.galix.avcore.render.filters.BeautyFilter;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
@@ -45,12 +47,17 @@ import static android.opengl.GLES20.glViewport;
  */
 public class DPFastRender implements IRender {
 
+    private static final String TAG = DPFastRender.class.getSimpleName();
+    //滤镜
     private LutFilter mLutFilter;
     private GameFilter mGameFilter;
     private OesFilter mOesFilter;
+    private BeautyFilter mBeautyFilter;
+
+    //参数
     private boolean mIsOpen = false;
     private Size mSurfaceSize = new Size(1920, 1080);
-    private Bitmap mLut;
+    private Bitmap mPlayerLut, mBeautyLut;
     private Map<String, Object> mConfig = new HashMap<>();
     private DpComponent.DpInfo mCacheDpInfo;
 
@@ -68,6 +75,8 @@ public class DPFastRender implements IRender {
         mGameFilter.open();
         mOesFilter = new OesFilter();
         mOesFilter.open();
+        mBeautyFilter = new BeautyFilter();
+        mBeautyFilter.open();
         mIsOpen = true;
     }
 
@@ -75,6 +84,7 @@ public class DPFastRender implements IRender {
     public void close() {
         mLutFilter.close();
         mGameFilter.close();
+        mBeautyFilter.close();
         mLutFilter = null;
         mGameFilter = null;
         mIsOpen = false;
@@ -85,32 +95,48 @@ public class DPFastRender implements IRender {
         if (config.containsKey("surface_size")) {
             mSurfaceSize = (Size) config.get("surface_size");
         }
-        if (config.containsKey("lut")) {
-            mLut = (Bitmap) config.get("lut");
+        if (config.containsKey("player_lut")) {
+            mPlayerLut = (Bitmap) config.get("player_lut");
         }
-        return;
+        if (config.containsKey("beauty_lut")) {
+            mBeautyLut = (Bitmap) config.get("beauty_lut");
+        }
     }
 
     @Override
     public void render(AVFrame avFrame) {
+        long nowTime1 = System.currentTimeMillis();
         renderReady(avFrame);
 
+        //先用OesFilter把EglImage内容复制一份。。为了让Lut滤镜不有坑.
         mConfig.clear();
-        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
         mConfig.put("use_fbo", true);
+        mConfig.put("fbo_size", mCacheDpInfo.videoSize);
         mConfig.put("oes_input", mCacheDpInfo.playerTexture);
         mOesFilter.write(mConfig);
         mOesFilter.render();
 
+        //美颜
+        mConfig.clear();
+        mConfig.put("use_fbo", true);
+        mConfig.put("fbo_size", mOesFilter.getOutputTexture().size());
+        mConfig.put("beauty_input", mOesFilter.getOutputTexture());
+        mConfig.put("beauty_lut", mBeautyLut);
+        mConfig.put("beauty_alpha", 1.0f);
+        mBeautyFilter.write(mConfig);
+        mBeautyFilter.render();
+
+        //用户lut变换.
         mConfig.clear();
         mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheDpInfo.videoSize);
-        mConfig.put("lut_src", mLut);
-        mConfig.put("lut_input", mOesFilter.getOutputTexture());
+        mConfig.put("lut_src", mPlayerLut);
+        mConfig.put("lut_input", mBeautyFilter.getOutputTexture());
         mConfig.put("lut_alpha", 1.0f);
         mLutFilter.write(mConfig);
         mLutFilter.render();
 
+        //游戏画面合成.
         mConfig.clear();
         mConfig.put("use_fbo", false);
         mConfig.put("coachTexture", mCacheDpInfo.coachTexture);
@@ -122,6 +148,9 @@ public class DPFastRender implements IRender {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         mGameFilter.write(mConfig);
         mGameFilter.render();
+
+        long nowTime2 = System.currentTimeMillis();
+        Log.d(TAG, "render time#" + (nowTime2 - nowTime1));
 
     }
 
@@ -146,8 +175,10 @@ public class DPFastRender implements IRender {
                     0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
                     dpInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
             GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            dpInfo.playerTexture.setSize(dpInfo.playerMaskSize.getWidth(), dpInfo.playerMaskSize.getHeight());
         } else {
             dpInfo.playerMaskTexture.idAsBuf().put(0);
+            dpInfo.playerTexture.setSize(0, 0);
         }
         dpInfo.playerMaskTexture.idAsBuf().position(0);
 

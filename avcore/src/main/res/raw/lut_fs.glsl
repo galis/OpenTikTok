@@ -20,13 +20,6 @@ uniform sampler2D lutTexture;
 uniform float alpha;
 uniform bool isOes;
 
-vec4 filterTexture2D(sampler2D texture, vec2 coord){
-    if (coord.x < 0.0||coord.x>1.0||coord.y<0.0||coord.y>1.0) {
-        return vec4(0.0);
-    }
-    return texture(texture, coord);
-}
-
 void main(){
     highp vec3 srcNoOes = texture(inputImageTexture, vTextureCoord).rgb;
     highp vec3 srcOes = texture(inputImageOesTexture, vTextureCoord).rgb;

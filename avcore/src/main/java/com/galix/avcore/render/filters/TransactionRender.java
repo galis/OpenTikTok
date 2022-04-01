@@ -156,7 +156,6 @@ public class TransactionRender implements IRender {
         glBindVertexArray(mVAO.get(0));
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        glFlush();
     }
 
     private int mActiveTexture = GL_TEXTURE0;

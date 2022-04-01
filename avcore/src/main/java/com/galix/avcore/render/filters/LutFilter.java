@@ -23,8 +23,8 @@ import static android.opengl.GLES20.glTexParameteri;
  * LUT Filter
  * <p>
  * 接收参数:
- * lut_input:GLTexture
  * lut_src:GLTexture
+ * lut_input:GLTexture
  * lut_alpha:float
  */
 public class LutFilter extends BaseFilter {

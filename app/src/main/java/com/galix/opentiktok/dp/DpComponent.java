@@ -125,11 +125,13 @@ public class DpComponent extends AVComponent {
         mDpInfo.coachTexture.idAsBuf().position(0);
         mDpInfo.coachTexture.idAsBuf().put(mCoachVideo.peekFrame().getTexture());
         mDpInfo.coachTexture.idAsBuf().position(0);
+        mDpInfo.coachTexture.setSize(mCoachVideo.peekFrame().getRoi().width(), mCoachVideo.peekFrame().getRoi().height());
         mDpInfo.coachSurfaceTexture = mCoachVideo.peekFrame().getSurfaceTexture();
 
         //玩家
         mDpInfo.playerTexture.idAsBuf().position(0);
         mDpInfo.playerTexture.idAsBuf().put(mPlayerTestVideo.peekFrame().getTexture());
+        mDpInfo.playerTexture.setSize(mPlayerTestVideo.peekFrame().getRoi().width(), mPlayerTestVideo.peekFrame().getRoi().height());
         mDpInfo.playerTexture.idAsBuf().position(0);
         mDpInfo.playerSurfaceTexture = mPlayerTestVideo.peekFrame().getSurfaceTexture();
         mDpInfo.playerMaskBuffer = mTestPlayerByteBuffer;//要改

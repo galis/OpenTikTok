@@ -310,7 +310,7 @@ public class AVEngine {
             }
             component.unlock();
             long time2 = System.currentTimeMillis();
-            Log.d(TAG, "Render#delta#"+(time2-time1));
+            Log.d(TAG, "Render#delta#" + (time2 - time1));
             AVFrame avFrame = component.peekFrame();
             if (!avFrame.isValid()) {
                 Log.d(TAG, "VIDEO#WTF???Something I don't understand!");
@@ -521,7 +521,7 @@ public class AVEngine {
                         }
                         if (command.args1 != null) {
                             EngineCallback callback = (EngineCallback) command.args1;
-                            callback.onCallback(null);
+                            callback.onCallback("");
                         }
                     } else if (command.cmd == Command.Cmd.CHANGE_COM) {
                         LinkedList<AVComponent> components = (LinkedList<AVComponent>) command.args0;
@@ -542,7 +542,7 @@ public class AVEngine {
                         reCalculate();
                         if (command.args3 != null) {
                             EngineCallback callback = (EngineCallback) command.args3;
-                            callback.onCallback(null);
+                            callback.onCallback("");
                         }
                     } else if (command.cmd == Command.Cmd.COMPOSITE) {
                         EngineCallback callback = (EngineCallback) command.args1;
@@ -886,7 +886,7 @@ public class AVEngine {
 
     private void onFrameUpdate() {
         if (mUpdateCallback != null) {
-            mUpdateCallback.onCallback(null);
+            mUpdateCallback.onCallback("");
         }
     }
 
