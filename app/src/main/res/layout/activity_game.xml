@@ -14,16 +14,24 @@
 
     <Button
         android:id="@+id/btn_toggle_play_pause"
-        android:layout_width="100dp"
-        android:layout_height="50dp"
+        android:layout_width="70dp"
+        android:layout_height="30dp"
         android:text="start" />
 
     <Button
         android:id="@+id/btn_toggle_reset"
-        android:layout_width="100dp"
-        android:layout_height="50dp"
+        android:layout_width="70dp"
+        android:layout_height="30dp"
         android:layout_below="@id/btn_toggle_play_pause"
         android:text="reset" />
+
+    <Switch
+        android:id="@+id/btn_beauty"
+        android:layout_width="70dp"
+        android:layout_height="30dp"
+        android:layout_below="@id/btn_toggle_reset"
+        android:checked="true"
+        android:text="美颜" />
 
 </RelativeLayout>
 
