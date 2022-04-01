@@ -17,10 +17,12 @@ vec4 filterTexture2D(sampler2D targetTexture, vec2 coord){
 }
 
 void main(){
-    vec3 tranCoord = playerMaskMat*vec3(vTextureCoord, 1.0);
+    float playerShiftX = -0.25;//玩家在画面的偏移
+    vec2 playerCoord = vec2(vTextureCoord.x+playerShiftX, vTextureCoord.y);
+    vec3 tranCoord = playerMaskMat*vec3(playerCoord, 1.0);
     tranCoord.y = 1.0-tranCoord.y;
     float alpha = filterTexture2D(playerMaskTexture, tranCoord.xy).r;
-    vec4 playerColor = texture(playerTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//用户画面
+    vec4 playerColor = texture(playerTexture, vec2(playerCoord.x, 1.0-playerCoord.y));//玩家画面
     vec4 coachColor = texture(coachTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//教练画面
     vec3 dstColor = mix(coachColor.rgb, playerColor.rgb, alpha);//合并
     vFragColor = vec4(dstColor, 1.0);

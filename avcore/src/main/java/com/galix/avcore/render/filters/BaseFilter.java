@@ -152,6 +152,7 @@ public abstract class BaseFilter implements IFilter {
             mFbo.position(0);
             if (mLastFboSize != mFboSize) {
                 if (mFbo.get() != 0) {
+                    mFbo.position(0);
                     glDeleteFramebuffers(1, mFbo);
                 }
                 if (mColorTexture.id() != 0) {

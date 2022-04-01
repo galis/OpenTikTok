@@ -58,6 +58,7 @@ public class DPFastRender implements IRender {
     //参数
     private boolean mIsOpen = false;
     private Size mSurfaceSize = new Size(1920, 1080);
+    private Size mBeautySize = new Size(1920 / 4, 1080 / 4);
     private Bitmap mPlayerLut, mBeautyLut;
     private Map<String, Object> mConfig = new HashMap<>();
     private DpComponent.DpInfo mCacheDpInfo;
@@ -126,7 +127,7 @@ public class DPFastRender implements IRender {
             //美颜
             mConfig.clear();
             mConfig.put("use_fbo", true);
-            mConfig.put("fbo_size", mOesFilter.getOutputTexture().size());
+            mConfig.put("fbo_size", mBeautySize);
             mConfig.put("beauty_input", mOesFilter.getOutputTexture());
             mConfig.put("beauty_lut", mBeautyLut);
             mConfig.put("beauty_alpha", 1.0f);
@@ -134,7 +135,6 @@ public class DPFastRender implements IRender {
             mBeautyFilter.render();
             lastFilter = mBeautyFilter;
         }
-
 
         //用户lut变换.
         mConfig.clear();
