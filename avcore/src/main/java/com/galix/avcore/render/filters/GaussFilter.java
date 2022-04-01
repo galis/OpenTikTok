@@ -51,14 +51,12 @@ public class GaussFilter extends BaseFilterGroup {
             mFboSize = mGaussInput.size();
         }
         if (mOffset1 == null) {
-            mOffset1 = new SizeF(SKIN_RADIUS / mFboSize.getWidth(), 0);
-            mOffset2 = new SizeF(0, SKIN_RADIUS / mFboSize.getHeight());
+            mOffset1 = new SizeF(SKIN_RADIUS * (mFboSize.getWidth() / 1920.f) / mFboSize.getWidth(), 0);
+            mOffset2 = new SizeF(0, SKIN_RADIUS * (mFboSize.getHeight() / 1080.f) / mFboSize.getHeight());
         }
 
         //x方向滤波
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mFboSize);
         mConfig.put("inputImageTexture", mGaussInput);
         mConfig.put("texelWidthOffset", mOffset1.getWidth());
         mConfig.put("texelHeightOffset", mOffset1.getHeight());
@@ -67,8 +65,6 @@ public class GaussFilter extends BaseFilterGroup {
 
         //y方向滤波
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mFboSize);
         mConfig.put("inputImageTexture", mChildFilterX.getOutputTexture());
         mConfig.put("texelWidthOffset", mOffset2.getWidth());
         mConfig.put("texelHeightOffset", mOffset2.getHeight());

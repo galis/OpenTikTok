@@ -58,7 +58,7 @@ public class DPFastRender implements IRender {
     //参数
     private boolean mIsOpen = false;
     private Size mSurfaceSize = new Size(1920, 1080);
-    private Size mBeautySize = new Size(1920 / 4, 1080 / 4);
+    private Size mBeautySize = new Size(1920 / 2, 1080 / 2);
     private Bitmap mPlayerLut, mBeautyLut;
     private Map<String, Object> mConfig = new HashMap<>();
     private DpComponent.DpInfo mCacheDpInfo;

@@ -48,8 +48,6 @@ public class BeautyFilter extends BaseFilterGroup {
 
         //磨皮
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mBeautyInput.size());
         mConfig.put("skin_input", mBeautyInput);
         mConfig.put("skin_alpha", mBeautyAlpha);
         mSkinFilter.write(mConfig);
