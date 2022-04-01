@@ -50,6 +50,7 @@ public abstract class AVComponent {
         AUDIO,          //音频
         WORD,           //文字
         STICKER,         //贴纸
+        PAG,         //PAG
         TRANSACTION,    //转场
         PIP,             //画中画
         ALL

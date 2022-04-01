@@ -9,16 +9,12 @@ import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.BaseFilter;
 import com.galix.avcore.render.filters.BeautyFilter;
-import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
-import com.galix.avcore.render.filters.ScreenFilter;
 import com.galix.avcore.util.MathUtils;
 import com.galix.opentiktok.R;
 
-
-import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -152,7 +148,8 @@ public class DPFastRender implements IRender {
         mConfig.put("coachTexture", mCacheDpInfo.coachTexture);
         mConfig.put("playerTexture", mLutFilter.getOutputTexture());
         mConfig.put("playerMaskTexture", mCacheDpInfo.playerMaskTexture);
-        mConfig.put("playerMaskMatBuffer", mCacheDpInfo.playerMaskMatBuffer);
+        mConfig.put("playerMaskMat", mCacheDpInfo.playerMaskMatBuffer);
+        mConfig.put("effectTexture", mCacheDpInfo.effectTexture);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -168,6 +165,7 @@ public class DPFastRender implements IRender {
         DpComponent.DpInfo dpInfo = (DpComponent.DpInfo) avFrame.getExt();
         dpInfo.playerSurfaceTexture.updateTexImage();
         dpInfo.coachSurfaceTexture.updateTexImage();
+//        dpInfo.effectSurfaceTexture.updateTexImage();
 
         if (dpInfo.playerMaskBuffer != null) {
             if (dpInfo.playerMaskTexture.id() != 0) {
@@ -221,37 +219,21 @@ public class DPFastRender implements IRender {
 
     public static class GameFilter extends BaseFilter {
 
-        private GLTexture coachTexture;
-        private GLTexture playerTexture;
-        private GLTexture playerMaskTexture;
-        private FloatBuffer playerMaskMatBuffer;
-
         public GameFilter() {
             super(R.raw.gamevs, R.raw.gamefs);
         }
 
         @Override
         public void onRenderPre() {
-            bindTexture("coachTexture", coachTexture);
-            bindTexture("playerTexture", playerTexture);
-            bindTexture("playerMaskTexture", playerMaskTexture);
-            bindMat3("playerMaskMat", playerMaskMatBuffer);
+            bindTexture("coachTexture");
+            bindTexture("playerTexture");
+            bindTexture("playerMaskTexture");
+            bindTexture("effectTexture");
+            bindMat3("playerMaskMat");
         }
 
         @Override
         public void onWrite(Map<String, Object> config) {
-            if (config.containsKey("coachTexture")) {
-                coachTexture = (GLTexture) config.get("coachTexture");
-            }
-            if (config.containsKey("playerTexture")) {
-                playerTexture = (GLTexture) config.get("playerTexture");
-            }
-            if (config.containsKey("playerMaskTexture")) {
-                playerMaskTexture = (GLTexture) config.get("playerMaskTexture");
-            }
-            if (config.containsKey("playerMaskMatBuffer")) {
-                playerMaskMatBuffer = (FloatBuffer) config.get("playerMaskMatBuffer");
-            }
         }
     }
 

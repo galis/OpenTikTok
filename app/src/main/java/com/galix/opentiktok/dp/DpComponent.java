@@ -6,6 +6,7 @@ import android.graphics.SurfaceTexture;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -25,6 +26,7 @@ public class DpComponent extends AVComponent {
 
     private AVVideo mCoachVideo;
     private AVVideo mPlayerTestVideo;
+    private AVPag mPagEffect;
     private String mCoachPath;
     private String mPlayerTestPath;
     private ByteBuffer mTestPlayerByteBuffer;
@@ -35,9 +37,13 @@ public class DpComponent extends AVComponent {
         //必须设置
         public SurfaceTexture coachSurfaceTexture;
         public SurfaceTexture playerSurfaceTexture;
+        //        public SurfaceTexture effectSurfaceTexture;
         public GLTexture coachTexture = new GLTexture(0, true);
         public GLTexture playerTexture = new GLTexture(0, true);
+        public GLTexture effectTexture = new GLTexture(0, false);
         public Size videoSize = new Size(1920, 1080);
+
+
         //mask相关
         public ByteBuffer playerMaskBuffer;
         public Size playerMaskSize = new Size(256, 204);
@@ -84,8 +90,10 @@ public class DpComponent extends AVComponent {
         mTestPlayerByteBuffer.position(0);
         mCoachVideo = new AVVideo(true, getEngineStartTime(), mCoachPath, null);
         mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), mPlayerTestPath, null);
+        mPagEffect = new AVPag("/data/data/com.galix.opentiktok/cache/test.pag", getEngineStartTime(), null);
         mCoachVideo.open();
         mPlayerTestVideo.open();
+        mPagEffect.open();
         setDuration(mCoachVideo.getDuration());
         setEngineEndTime(mCoachVideo.getEngineStartTime() + getDuration());
         setClipStartTime(0);
@@ -100,6 +108,7 @@ public class DpComponent extends AVComponent {
         mDpInfo = null;
         mCoachVideo.close();
         mPlayerTestVideo.close();
+        mPagEffect.close();
         return RESULT_OK;
     }
 
@@ -107,6 +116,7 @@ public class DpComponent extends AVComponent {
     public int readFrame() {
         mCoachVideo.readFrame();
         mPlayerTestVideo.readFrame();
+        mPagEffect.readFrame();
         freshFrame();
         return RESULT_OK;
     }
@@ -115,6 +125,7 @@ public class DpComponent extends AVComponent {
     public int seekFrame(long position) {
         mCoachVideo.seekFrame(position);
         mPlayerTestVideo.seekFrame(position);
+        mPagEffect.seekFrame(position);
         freshFrame();
         return RESULT_OK;
     }
@@ -122,21 +133,22 @@ public class DpComponent extends AVComponent {
     private void freshFrame() {
 
         //教练
-        mDpInfo.coachTexture.idAsBuf().position(0);
         mDpInfo.coachTexture.idAsBuf().put(mCoachVideo.peekFrame().getTexture());
-        mDpInfo.coachTexture.idAsBuf().position(0);
         mDpInfo.coachTexture.setSize(mCoachVideo.peekFrame().getRoi().width(), mCoachVideo.peekFrame().getRoi().height());
         mDpInfo.coachSurfaceTexture = mCoachVideo.peekFrame().getSurfaceTexture();
 
         //玩家
-        mDpInfo.playerTexture.idAsBuf().position(0);
         mDpInfo.playerTexture.idAsBuf().put(mPlayerTestVideo.peekFrame().getTexture());
         mDpInfo.playerTexture.setSize(mPlayerTestVideo.peekFrame().getRoi().width(), mPlayerTestVideo.peekFrame().getRoi().height());
-        mDpInfo.playerTexture.idAsBuf().position(0);
         mDpInfo.playerSurfaceTexture = mPlayerTestVideo.peekFrame().getSurfaceTexture();
         mDpInfo.playerMaskBuffer = mTestPlayerByteBuffer;//要改
 //        mDpInfo.playerMaskRoi =xxxx;//要改
 //        mDpInfo.playerMaskSize = xxxx;//要改
+
+        //特效
+//        mDpInfo.effectSurfaceTexture = mPagEffect.peekFrame().getSurfaceTexture();
+        mDpInfo.effectTexture.idAsBuf().put(mPagEffect.peekFrame().getTexture());
+        mDpInfo.effectTexture.setSize(mPagEffect.peekFrame().getRoi().width(), mPagEffect.peekFrame().getRoi().height());
 
         //作为私有数据
         peekFrame().setExt(mDpInfo);

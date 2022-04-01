@@ -233,6 +233,14 @@ public abstract class BaseFilter implements IFilter {
         glUniformMatrix3fv(glGetUniformLocation(mProgram, str), 1, false, buffer);
     }
 
+    public void bindMat3(String str) {
+        if (mConfig.containsKey(str) && mConfig.get(str) instanceof FloatBuffer) {
+            bindMat3(str, (FloatBuffer) mConfig.get(str));
+        } else {
+            bindMat3(str, FloatBuffer.allocate(9));
+        }
+    }
+
     public void bindTexture(String str, int textureId, boolean oes) {
         glActiveTexture(mActiveTexture);
         int type = oes ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D;
