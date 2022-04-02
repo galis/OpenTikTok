@@ -1,11 +1,8 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
-import android.util.Size;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -18,7 +15,6 @@ import java.nio.IntBuffer;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_LINEAR;
-import static android.opengl.GLES20.GL_TEXTURE;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
@@ -86,13 +82,19 @@ public class AVPag extends AVComponent {
 
     @Override
     public int readFrame() {
+        if (mCurrentFramePts - getEngineStartTime() > mDuration) {
+            peekFrame().setTexture(0);
+            peekFrame().setValid(false);
+            return RESULT_FAILED;
+        }
         pagPlayer.setProgress(mCurrentFramePts * 1.0f / mDuration);
         pagPlayer.flush();
         peekFrame().setTexture(cacheTexture.id());
         peekFrame().setPts(mCurrentFramePts + getEngineStartTime());
         peekFrame().setValid(true);
         peekFrame().setRoi(mFrameRoi);
-        mCurrentFramePts = (mCurrentFramePts + 33000) % mDuration;
+        peekFrame().setDuration(33000);
+        mCurrentFramePts += peekFrame().getDuration();
         return RESULT_OK;
     }
 

@@ -28,5 +28,5 @@ void main(){
     vec4 effectColor = texture(effectTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//特效画面
     vec3 dstColor = mix(coachColor.rgb, playerColor.rgb, alpha);//合并
     dstColor = mix(dstColor.rgb, effectColor.rgb, effectColor.a);
-    vFragColor = vec4(dstColor, 1.0);
+    vFragColor = vec4(dstColor.rgb,1.0);
 }

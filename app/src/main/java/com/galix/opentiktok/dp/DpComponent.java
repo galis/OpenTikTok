@@ -43,7 +43,6 @@ public class DpComponent extends AVComponent {
         public GLTexture effectTexture = new GLTexture(0, false);
         public Size videoSize = new Size(1920, 1080);
 
-
         //mask相关
         public ByteBuffer playerMaskBuffer;
         public Size playerMaskSize = new Size(256, 204);

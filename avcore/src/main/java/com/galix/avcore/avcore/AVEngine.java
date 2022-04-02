@@ -1,7 +1,7 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
-import android.opengl.EGLContext;
+import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
@@ -25,6 +25,9 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static android.opengl.GLES20.GL_RGBA;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.INIT;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.PAUSE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.RELEASE;
@@ -40,11 +43,8 @@ public class AVEngine {
         System.loadLibrary("arcore");
     }
 
-    private static final String TAG_VIDEO_STATE = "AVEngine_video_state";
-    private static final String TAG_COMPONENT = "AVEngine_component";
     private static final String TAG = "AVEngine_normal";
     private static final int PLAY_GAP = 10;//MS
-    private static final int MAX_TEXTURE = 30;
     private static AVEngine gAVEngine = null;
     private VideoState mVideoState;
     private HandlerThread mAudioThread;
@@ -60,9 +60,6 @@ public class AVEngine {
     private AVComponent mLastAudioComponent;
     private AudioRender mAudioRender;
     private OESRender mOesRender;
-    private EGLContext mEglContext;
-    private int[] mTextures;
-    private int mValidTexture = 1;//下一个有效纹理ID
     private BlockingQueue<Command> mCmdQueue;
 
     public interface EngineCallback {
@@ -412,6 +409,8 @@ public class AVEngine {
             mEglHelper = new EglHelper();
             mEglHelper.create(null, EglHelper.GL_VERSION_3);
             mEglHelper.makeCurrent();
+            GLES30.glBindTexture(GL_TEXTURE_2D, 0);
+            GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
             mVideoState.reset();
             boolean isSurfaceReady = false;
             while (mVideoState.status != RELEASE) {
@@ -866,19 +865,6 @@ public class AVEngine {
 
     public EglHelper getEglHelper() {
         return mEglHelper;
-    }
-
-    public int nextValidTexture() {
-        int targetTexture = -1;
-        if (mValidTexture < MAX_TEXTURE) {
-            targetTexture = mValidTexture;
-            mValidTexture++;
-        }
-        return targetTexture;
-    }
-
-    public EGLContext getGLContext() {
-        return mEglContext;
     }
 
     private void onFrameUpdate() {
