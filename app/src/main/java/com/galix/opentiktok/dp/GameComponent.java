@@ -13,10 +13,8 @@ import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.util.IOUtils;
-import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
-import org.opencv.core.Mat;
 import org.opencv.core.Point;
 
 import java.io.IOException;
@@ -25,12 +23,10 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.Map;
 
-import static org.opencv.core.CvType.CV_32F;
-
 public class GameComponent extends AVComponent {
 
     private AVVideo mCoachVideo;
-    private AVVideo mPlayerTestVideo;
+    private AVComponent mPlayerComponent;
     private AVPag mScreenEffect;
     private AVPag mPlayerEffect;
     private String mCoachPath;
@@ -39,9 +35,14 @@ public class GameComponent extends AVComponent {
     private String mPlayerEffectPath;
     private String mBeautyLutPath;
     private String mPlayerLutPath;
-    private ByteBuffer mTestPlayerByteBuffer;
     private GameInfo mGameInfo;
     public WeakReference<Context> mContext;
+
+    public static class PlayerMaskInfo {
+        public ByteBuffer playerMaskBuffer;//用户Mask
+        public Size playerMaskSize;//用户Mask大小
+        public Rect playerMaskRoi;//用户MASK ROI
+    }
 
     public static class GameInfo {
         //必须设置
@@ -58,9 +59,7 @@ public class GameComponent extends AVComponent {
         public boolean usePlayerEffect;//启用用户特效
         public Bitmap beautyLut;//美颜Lut
         public Bitmap playerLut;//用户Lut
-        public ByteBuffer playerMaskBuffer;//用户Mask
-        public Size playerMaskSize = new Size(256, 204);//用户Mask大小
-        public Rect playerMaskRoi = new Rect(276, 234, 276 + 1059, 234 + 845);//用户MASK ROI
+        public PlayerMaskInfo playerMaskInfo;
 
         //以下是手动计算
         public Point[] srcPoints;
@@ -97,6 +96,7 @@ public class GameComponent extends AVComponent {
                          IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
         mGameInfo = new GameInfo();
+        mGameInfo.useBeauty = useBeauty;
         this.mContext = new WeakReference<>(context);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
@@ -104,20 +104,47 @@ public class GameComponent extends AVComponent {
         this.mPlayerEffectPath = playerEffectPath;
         this.mBeautyLutPath = beautyLutPath;
         this.mPlayerLutPath = playerLutPath;
+    }
+
+    public GameComponent(Context context,
+                         long engineStartTime,
+                         String coachPath,
+                         AVComponent dpComponent,
+                         String screenEffectPath,
+                         String playerEffectPath,
+                         String beautyLutPath,
+                         String playerLutPath,
+                         boolean useBeauty,
+                         IRender render) {
+        super(engineStartTime, AVComponentType.VIDEO, render);
+        mGameInfo = new GameInfo();
         mGameInfo.useBeauty = useBeauty;
+        this.mContext = new WeakReference<>(context);
+        this.mCoachPath = coachPath;
+        this.mPlayerComponent = dpComponent;
+        this.mScreenEffectPath = screenEffectPath;
+        this.mPlayerEffectPath = playerEffectPath;
+        this.mBeautyLutPath = beautyLutPath;
+        this.mPlayerLutPath = playerLutPath;
     }
 
     @Override
     public int open() {
         if (isOpen()) return RESULT_OK;
-        try {
-            mTestPlayerByteBuffer = IOUtils.read(mContext.get().getResources().openRawResource(R.raw.playmask), 52224);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        mTestPlayerByteBuffer.position(0);
         mCoachVideo = new AVVideo(true, getEngineStartTime(), mCoachPath, null);
-        mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), mPlayerTestPath, null);
+        if (!mPlayerTestPath.isEmpty()) {
+            mPlayerComponent = new AVVideo(true, getEngineStartTime(), mPlayerTestPath, null);
+            PlayerMaskInfo playerMaskInfo = new PlayerMaskInfo();
+            playerMaskInfo.playerMaskSize = new Size(256, 204);//用户Mask大小
+            playerMaskInfo.playerMaskRoi = new Rect(276, 234, 276 + 1059, 234 + 845);//用户MASK ROI
+            try {
+                playerMaskInfo.playerMaskBuffer = IOUtils.read(mContext.get().getResources().openRawResource(R.raw.playmask), 52224);
+                playerMaskInfo.playerMaskBuffer.position(0);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mPlayerComponent.peekFrame().setExt(playerMaskInfo);
+        }
         mScreenEffect = new AVPag(mContext.get().getAssets(), mScreenEffectPath, Long.MAX_VALUE, null);
         mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
         try {
@@ -129,7 +156,7 @@ public class GameComponent extends AVComponent {
 
         //打开各个组件
         mCoachVideo.open();
-        mPlayerTestVideo.open();
+        mPlayerComponent.open();
         mScreenEffect.open();
         mPlayerEffect.open();
         setDuration(mCoachVideo.getDuration());
@@ -145,7 +172,7 @@ public class GameComponent extends AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         mGameInfo = null;
         mCoachVideo.close();
-        mPlayerTestVideo.close();
+        mPlayerComponent.close();
         mScreenEffect.close();
         mPlayerEffect.close();
         return RESULT_OK;
@@ -194,7 +221,7 @@ public class GameComponent extends AVComponent {
     @Override
     public int readFrame() {
         mCoachVideo.readFrame();
-        mPlayerTestVideo.readFrame();
+        mPlayerComponent.readFrame();
         if (peekFrame().getPts() >= mScreenEffect.getEngineStartTime()) {
             mScreenEffect.readFrame();
         }
@@ -208,7 +235,7 @@ public class GameComponent extends AVComponent {
     @Override
     public int seekFrame(long position) {
         mCoachVideo.seekFrame(position);
-        mPlayerTestVideo.seekFrame(position);
+        mPlayerComponent.seekFrame(position);
         mScreenEffect.seekFrame(position);
         mPlayerEffect.seekFrame(position);
         freshFrame();
@@ -223,12 +250,10 @@ public class GameComponent extends AVComponent {
         mGameInfo.coachSurfaceTexture = mCoachVideo.peekFrame().getSurfaceTexture();
 
         //玩家
-        mGameInfo.playerTexture.idAsBuf().put(mPlayerTestVideo.peekFrame().getTexture());
-        mGameInfo.playerTexture.setSize(mPlayerTestVideo.peekFrame().getRoi().width(), mPlayerTestVideo.peekFrame().getRoi().height());
-        mGameInfo.playerSurfaceTexture = mPlayerTestVideo.peekFrame().getSurfaceTexture();
-        mGameInfo.playerMaskBuffer = mTestPlayerByteBuffer;//要改
-//        mDpInfo.playerMaskRoi =xxxx;//要改
-//        mDpInfo.playerMaskSize = xxxx;//要改
+        mGameInfo.playerTexture.idAsBuf().put(mPlayerComponent.peekFrame().getTexture());
+        mGameInfo.playerTexture.setSize(mPlayerComponent.peekFrame().getRoi().width(), mPlayerComponent.peekFrame().getRoi().height());
+        mGameInfo.playerSurfaceTexture = mPlayerComponent.peekFrame().getSurfaceTexture();
+        mGameInfo.playerMaskInfo = (PlayerMaskInfo) mPlayerComponent.peekFrame().getExt();
 
         //全屏特效
         if (mScreenEffect.peekFrame().isValid()) {

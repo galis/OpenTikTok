@@ -161,7 +161,7 @@ public class GameRender implements IRender {
         gameInfo.coachSurfaceTexture.updateTexImage();
 //        dpInfo.effectSurfaceTexture.updateTexImage();
 
-        if (gameInfo.playerMaskBuffer != null) {
+        if (gameInfo.playerMaskInfo.playerMaskBuffer != null) {
             if (gameInfo.playerMaskTexture.id() != 0) {
                 glDeleteTextures(1, gameInfo.playerMaskTexture.idAsBuf());
             }
@@ -173,17 +173,18 @@ public class GameRender implements IRender {
             glBindTexture(GL_TEXTURE_2D, gameInfo.playerMaskTexture.id());
             GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE,
-                    gameInfo.playerMaskSize.getWidth(), gameInfo.playerMaskSize.getHeight(),
+                    gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
+                    gameInfo.playerMaskInfo.playerMaskSize.getHeight(),
                     0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
-                    gameInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
+                    gameInfo.playerMaskInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
             GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            gameInfo.playerTexture.setSize(gameInfo.playerMaskSize.getWidth(), gameInfo.playerMaskSize.getHeight());
+            gameInfo.playerTexture.setSize(gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
+                    gameInfo.playerMaskInfo.playerMaskSize.getHeight());
         } else {
             gameInfo.playerMaskTexture.idAsBuf().put(0);
             gameInfo.playerTexture.setSize(0, 0);
         }
         gameInfo.playerMaskTexture.idAsBuf().position(0);
-
 
         //根据roi计算 mask mat
         gameInfo.srcPoints[0].x = 0;
@@ -193,12 +194,12 @@ public class GameRender implements IRender {
         gameInfo.srcPoints[2].x = 0;
         gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
 
-        gameInfo.dstPoints[0].x = gameInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[0].y = gameInfo.playerMaskRoi.top;
-        gameInfo.dstPoints[1].x = gameInfo.playerMaskRoi.left + gameInfo.playerMaskRoi.width();
+        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top;
+        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
         gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
-        gameInfo.dstPoints[2].x = gameInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + gameInfo.playerMaskRoi.height();
+        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + gameInfo.playerMaskInfo.playerMaskRoi.height();
         Mat resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
                 gameInfo.dstPoints, gameInfo.videoSize);
         gameInfo.playerMaskMat.clear();
@@ -210,7 +211,7 @@ public class GameRender implements IRender {
         gameInfo.playerMaskMat.position(0);
 
         //根据roi计算 玩家特效 mat
-        int targetHeight = (int) (gameInfo.playerMaskRoi.width() *
+        int targetHeight = (int) (gameInfo.playerMaskInfo.playerMaskRoi.width() *
                 (gameInfo.playerEffectTexture.size().getHeight() * 1.0f /
                         gameInfo.playerEffectTexture.size().getWidth()));
         gameInfo.srcPoints[0].x = 0;
@@ -220,11 +221,11 @@ public class GameRender implements IRender {
         gameInfo.srcPoints[2].x = 0;
         gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
 
-        gameInfo.dstPoints[0].x = gameInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[0].y = gameInfo.playerMaskRoi.top + (gameInfo.playerMaskRoi.height() - targetHeight) / 2.f;
-        gameInfo.dstPoints[1].x = gameInfo.playerMaskRoi.left + gameInfo.playerMaskRoi.width();
+        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top + (gameInfo.playerMaskInfo.playerMaskRoi.height() - targetHeight) / 2.f;
+        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
         gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
-        gameInfo.dstPoints[2].x = gameInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
         gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + targetHeight;
         resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
                 gameInfo.dstPoints, gameInfo.videoSize);
