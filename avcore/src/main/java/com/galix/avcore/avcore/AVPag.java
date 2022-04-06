@@ -37,7 +37,6 @@ public class AVPag extends AVComponent {
     private PAGFile pagFile;
     private String pagPath;
     private long mCurrentFramePts = 0;
-    private long mDuration = 0;
     private Rect mFrameRoi;
     private boolean mUseAsset = false;
     private AssetManager mAssetManager;
@@ -78,7 +77,10 @@ public class AVPag extends AVComponent {
         cacheTexture.setSize(pagFile.width(), pagFile.height());
         pagPlayer.setSurface(PAGSurface.FromTexture(intBuffer.get(0), pagFile.width(), pagFile.height()));
         pagPlayer.setComposition(pagFile);
-        mDuration = pagFile.duration();
+        setDuration(pagFile.duration());
+        setClipStartTime(0);
+        setClipEndTime(getDuration());
+        setEngineEndTime(getEngineStartTime() + getDuration());
         return 0;
     }
 
@@ -92,17 +94,18 @@ public class AVPag extends AVComponent {
         pagPlayer.release();
         pagPlayer = null;
         pagFile = null;
-        return 0;
+        return RESULT_OK;
     }
 
     @Override
     public int readFrame() {
-        if (mCurrentFramePts - getEngineStartTime() > mDuration) {
+        if (mCurrentFramePts < 0 || mCurrentFramePts >= getEngineDuration()) {
             peekFrame().setTexture(0);
+            peekFrame().setRoi(new Rect(0, 0, 16, 16));
             peekFrame().setValid(false);
             return RESULT_FAILED;
         }
-        pagPlayer.setProgress(mCurrentFramePts * 1.0f / mDuration);
+        pagPlayer.setProgress(mCurrentFramePts * 1.0f / getClipDuration());
         pagPlayer.flush();
         peekFrame().setTexture(cacheTexture.id());
         peekFrame().setPts(mCurrentFramePts + getEngineStartTime());
@@ -111,14 +114,19 @@ public class AVPag extends AVComponent {
         peekFrame().setDuration(33000);
         mCurrentFramePts += peekFrame().getDuration();
         if (isLoop()) {
-            mCurrentFramePts %= mDuration;
+            mCurrentFramePts %= getClipDuration();
         }
         return RESULT_OK;
     }
 
     @Override
     public int seekFrame(long position) {
-        mCurrentFramePts = 0;
+        if (!isOpen()) return RESULT_FAILED;
+        long correctPosition = position - getEngineStartTime();//engine position => file position
+        if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getEngineDuration()) {
+            return RESULT_FAILED;
+        }
+        mCurrentFramePts = position - getEngineStartTime();
         return readFrame();
     }
 }

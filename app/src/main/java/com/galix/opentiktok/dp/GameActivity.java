@@ -80,6 +80,16 @@ public class GameActivity extends AppCompatActivity {
                 Log.d(TAG, "check#" + isChecked);
             }
         });
+
+        mBeautyButton.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mGameComponent.write(OtherUtils.buildMap(
+                        "screen_effect_duration", 3000000L, //持续3秒
+                        "player_effect_duration", -1L  //无限循环
+                ));
+            }
+        }, 3000);
     }
 
     @Override

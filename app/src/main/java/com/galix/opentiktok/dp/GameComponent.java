@@ -13,6 +13,7 @@ import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.util.IOUtils;
+import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
 import org.opencv.core.Mat;
@@ -51,6 +52,8 @@ public class GameComponent extends AVComponent {
         public GLTexture screenEffectTexture = new GLTexture(0, false);//全屏特效
         public GLTexture playerEffectTexture = new GLTexture(0, false);//用户身上特效
         public Size videoSize = new Size(1920, 1080);//画面大小
+        public long screenEffectDuration = 0;
+        public long playerEffectDuration = 0;
         public boolean useBeauty;//启用美颜
         public boolean usePlayerEffect;//启用用户特效
         public Bitmap beautyLut;//美颜Lut
@@ -115,10 +118,8 @@ public class GameComponent extends AVComponent {
         mTestPlayerByteBuffer.position(0);
         mCoachVideo = new AVVideo(true, getEngineStartTime(), mCoachPath, null);
         mPlayerTestVideo = new AVVideo(true, getEngineStartTime(), mPlayerTestPath, null);
-        mScreenEffect = new AVPag(mContext.get().getAssets(), mScreenEffectPath, getEngineStartTime(), null);
-        mScreenEffect.setLoop(true);
-        mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, getEngineStartTime(), null);
-        mPlayerEffect.setLoop(true);
+        mScreenEffect = new AVPag(mContext.get().getAssets(), mScreenEffectPath, Long.MAX_VALUE, null);
+        mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
         try {
             mGameInfo.beautyLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mBeautyLutPath));
             mGameInfo.playerLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mPlayerLutPath));
@@ -171,6 +172,22 @@ public class GameComponent extends AVComponent {
         if (configs.containsKey("use_beauty")) {
             mGameInfo.useBeauty = (boolean) configs.get("use_beauty");
         }
+        if (configs.containsKey("screen_effect_duration")) {
+            long playTime = peekFrame().getPts() + 60000;
+            mGameInfo.screenEffectDuration = (long) configs.get("screen_effect_duration");
+            mScreenEffect.setLoop(mGameInfo.screenEffectDuration == -1);
+            mScreenEffect.setEngineStartTime(playTime);//延迟一点播放
+            mScreenEffect.setEngineEndTime(mScreenEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.screenEffectDuration);
+            mScreenEffect.seekFrame(playTime);
+        }
+        if (configs.containsKey("player_effect_duration")) {
+            long playTime = peekFrame().getPts() + 60000;
+            mGameInfo.playerEffectDuration = (long) configs.get("player_effect_duration");
+            mPlayerEffect.setLoop(mGameInfo.playerEffectDuration == -1);
+            mPlayerEffect.setEngineStartTime(playTime);
+            mPlayerEffect.setEngineEndTime(mPlayerEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.playerEffectDuration);
+            mPlayerEffect.seekFrame(playTime);
+        }
         return super.write(configs);
     }
 
@@ -178,8 +195,12 @@ public class GameComponent extends AVComponent {
     public int readFrame() {
         mCoachVideo.readFrame();
         mPlayerTestVideo.readFrame();
-        mScreenEffect.readFrame();
-        mPlayerEffect.readFrame();
+        if (peekFrame().getPts() >= mScreenEffect.getEngineStartTime()) {
+            mScreenEffect.readFrame();
+        }
+        if (peekFrame().getPts() >= mPlayerEffect.getEngineStartTime()) {
+            mPlayerEffect.readFrame();
+        }
         freshFrame();
         return RESULT_OK;
     }
@@ -210,14 +231,24 @@ public class GameComponent extends AVComponent {
 //        mDpInfo.playerMaskSize = xxxx;//要改
 
         //全屏特效
-        mGameInfo.screenEffectTexture.idAsBuf().put(mScreenEffect.peekFrame().getTexture());
-        mGameInfo.screenEffectTexture.setSize(mScreenEffect.peekFrame().getRoi().width(),
-                mScreenEffect.peekFrame().getRoi().height());
+        if (mScreenEffect.peekFrame().isValid()) {
+            mGameInfo.screenEffectTexture.idAsBuf().put(mScreenEffect.peekFrame().getTexture());
+            mGameInfo.screenEffectTexture.setSize(mScreenEffect.peekFrame().getRoi().width(),
+                    mScreenEffect.peekFrame().getRoi().height());
+        } else {
+            mGameInfo.screenEffectTexture.idAsBuf().put(0);
+            mGameInfo.screenEffectTexture.setSize(16, 16);
+        }
 
         //用户特效
-        mGameInfo.playerEffectTexture.idAsBuf().put(mPlayerEffect.peekFrame().getTexture());
-        mGameInfo.playerEffectTexture.setSize(mPlayerEffect.peekFrame().getRoi().width(),
-                mPlayerEffect.peekFrame().getRoi().height());
+        if (mPlayerEffect.peekFrame().isValid()) {
+            mGameInfo.playerEffectTexture.idAsBuf().put(mPlayerEffect.peekFrame().getTexture());
+            mGameInfo.playerEffectTexture.setSize(mPlayerEffect.peekFrame().getRoi().width(),
+                    mPlayerEffect.peekFrame().getRoi().height());
+        } else {
+            mGameInfo.playerEffectTexture.idAsBuf().put(0);
+            mGameInfo.playerEffectTexture.setSize(16, 16);
+        }
 
         //作为私有数据
         peekFrame().setExt(mGameInfo);
