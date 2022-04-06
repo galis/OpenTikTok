@@ -55,6 +55,9 @@ public class MathUtils {
     static MatOfPoint2f mSrcPoints = new MatOfPoint2f();
     static MatOfPoint2f mDstPoints = new MatOfPoint2f();
     static Mat mHolderMat = new Mat();
+    static Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
+    static Mat mMatA = new Mat();
+    static Mat mMatB = new Mat();
 
     public static Mat getTransform(Point[] srcPoints, Size srcSize, Point[] dstPoints, Size dstSize) {
 
@@ -74,25 +77,25 @@ public class MathUtils {
 //        -0.26062322, -0.0011834319, 1]
 
         /*求出MA*/
-        Mat matA = Mat.eye(3, 3, CV_32F);
+        mIdentityMat.copyTo(mMatA);
         mSrcPoints.fromArray(srcPoints);
         mDstPoints.fromArray(dstPoints);
         Mat doubleMat = getAffineTransform(mSrcPoints, mDstPoints);
         doubleMat.convertTo(doubleMat, CV_32F);
-        doubleMat.copyTo(matA.submat(sRect));
+        doubleMat.copyTo(mMatA.submat(sRect));
 
         /**
          * MB => [ W,0,0        [ 1,0,0     => [  W,0,0
          *         0,H,0    *     0,-1,1          0,-H,H
          *         0,0,1]         0,0,1]          0,0,1]
          */
-        Mat matB = Mat.eye(3, 3, CV_32F);
-        matB.put(0, 0, dstSize.getWidth());
-        matB.put(1, 1, -dstSize.getHeight());
-        matB.put(1, 2, dstSize.getHeight());
+        mIdentityMat.copyTo(mMatB);
+        mMatB.put(0, 0, dstSize.getWidth());
+        mMatB.put(1, 1, -dstSize.getHeight());
+        mMatB.put(1, 2, dstSize.getHeight());
         Mat dstMat = new Mat();
-        Core.gemm(matA, matB, 1, mHolderMat, 0, dstMat);
-        Core.gemm(dstMat.inv(), matB, 1, mHolderMat, 0, dstMat);
+        Core.gemm(mMatA, mMatB, 1, mHolderMat, 0, dstMat);
+        Core.gemm(dstMat.inv(), mMatB, 1, mHolderMat, 0, dstMat);
 
         return dstMat.t();
     }

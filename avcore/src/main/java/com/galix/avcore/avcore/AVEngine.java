@@ -18,6 +18,8 @@ import com.galix.avcore.util.EglHelper;
 import com.galix.avcore.util.Mp4Composite;
 import com.galix.avcore.util.OtherUtils;
 
+import org.libpag.PAGComposition;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -409,6 +411,7 @@ public class AVEngine {
             mEglHelper = new EglHelper();
             mEglHelper.create(null, EglHelper.GL_VERSION_3);
             mEglHelper.makeCurrent();
+            //提前设置默认textureId 0默认值0x0
             GLES30.glBindTexture(GL_TEXTURE_2D, 0);
             GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
             mVideoState.reset();

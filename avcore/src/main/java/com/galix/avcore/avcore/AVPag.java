@@ -1,5 +1,6 @@
 package com.galix.avcore.avcore;
 
+import android.content.res.AssetManager;
 import android.graphics.Rect;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
@@ -38,17 +39,31 @@ public class AVPag extends AVComponent {
     private long mCurrentFramePts = 0;
     private long mDuration = 0;
     private Rect mFrameRoi;
+    private boolean mUseAsset = false;
+    private AssetManager mAssetManager;
 
     public AVPag(String path, long engineStartTime, IRender render) {
         super(engineStartTime, AVComponentType.PAG, render);
         pagPath = path;
+        mUseAsset = false;
+    }
+
+    public AVPag(AssetManager manager, String path, long engineStartTime, IRender render) {
+        super(engineStartTime, AVComponentType.PAG, render);
+        mAssetManager = manager;
+        pagPath = path;
+        mUseAsset = true;
     }
 
 
     @Override
     public int open() {
         if (isOpen()) return RESULT_OK;
-        pagFile = PAGFile.Load(pagPath);
+        if (mUseAsset) {
+            pagFile = PAGFile.Load(mAssetManager, pagPath);
+        } else {
+            pagFile = PAGFile.Load(pagPath);
+        }
         IntBuffer intBuffer = IntBuffer.allocate(1);
         GLES30.glGenTextures(1, intBuffer);
         GLES30.glBindTexture(GL_TEXTURE_2D, intBuffer.get(0));
@@ -95,6 +110,9 @@ public class AVPag extends AVComponent {
         peekFrame().setRoi(mFrameRoi);
         peekFrame().setDuration(33000);
         mCurrentFramePts += peekFrame().getDuration();
+        if (isLoop()) {
+            mCurrentFramePts %= mDuration;
+        }
         return RESULT_OK;
     }
 

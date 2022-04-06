@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.galix.avcore.render.IRender;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -63,6 +64,7 @@ public abstract class AVComponent {
     private long duration;//组件本身duration,不可改变
     private long position;//
     private boolean isOpen;
+    private boolean isLoop;
     private IRender render;
     private AVFrame cache;
     private AVComponentType type;
@@ -79,6 +81,7 @@ public abstract class AVComponent {
         this.cache = new AVFrame();
         this.render = render;
         this.lockLock = new AtomicBoolean(false);
+        this.isLoop = false;
     }
 
     public AVComponent() {
@@ -92,6 +95,7 @@ public abstract class AVComponent {
         this.cache = new AVFrame();
         this.render = null;
         this.lockLock = new AtomicBoolean(false);
+        this.isLoop = false;
     }
 
     public long getEngineStartTime() {
@@ -170,6 +174,14 @@ public abstract class AVComponent {
         return position >= engineStartTime && position <= engineEndTime;
     }
 
+    public boolean isLoop() {
+        return isLoop;
+    }
+
+    public void setLoop(boolean loop) {
+        isLoop = loop;
+    }
+
     public abstract int open();
 
     public abstract int close();
@@ -188,6 +200,15 @@ public abstract class AVComponent {
      * @return RESULT_SUCCESS/RESULT_FAILED
      */
     public abstract int seekFrame(long position);////block模式 定位到特定位置，然后读一帧数据
+
+    /**
+     * 默认空操作
+     *
+     * @return RESULT_SUCCESS/RESULT_FAILED
+     */
+    public int write(Map<String, Object> configs) {
+        return RESULT_OK;
+    }
 
     /**
      * 获取一帧数据

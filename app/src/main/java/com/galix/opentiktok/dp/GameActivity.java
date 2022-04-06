@@ -2,10 +2,8 @@ package com.galix.opentiktok.dp;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
@@ -27,9 +25,9 @@ public class GameActivity extends AppCompatActivity {
     private SurfaceView mGLSurfaceView;
     private AVEngine mAVEngine;
     private Button mToggleButton;
-    private Button mResetButton;
     private Switch mBeautyButton;
-    private DPFastRender mDpRender;
+    private GameRender mGameRender;
+    private GameComponent mGameComponent;
     private boolean mIsBeauty = true;
 
     public static void start(Context context) {
@@ -44,17 +42,19 @@ public class GameActivity extends AppCompatActivity {
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
-        mDpRender = new DPFastRender();
-        mDpRender.write(OtherUtils.buildMap(
-                "player_lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.std_lut)),
-                "beauty_lut", BitmapFactory.decodeStream(getResources().openRawResource(R.raw.beauty_lut)),
-                "use_beauty", mIsBeauty)
-        );
-        DpComponent.context = this;
-        DpComponent videoCom1 = new DpComponent(0, "/sdcard/coach.mp4",
-                "/sdcard/testplayer.mp4", mDpRender);
+        mGameRender = new GameRender();
+        mGameComponent = new GameComponent(this,
+                0,
+                "/sdcard/coach.mp4",
+                "/sdcard/testplayer.mp4",
+                "pag/screen_effect.pag",
+                "pag/player_effect.pag",
+                "lut/beauty_lut.png",
+                "lut/std_lut.png",
+                false,
+                mGameRender);
         AVAudio audio = new AVAudio(0, "/sdcard/coach.mp4", null);
-        mAVEngine.addComponent(videoCom1, null);
+        mAVEngine.addComponent(mGameComponent, null);
         mAVEngine.addComponent(audio, null);
         GLManager.getManager().installContext(this);
 
@@ -76,7 +76,7 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 mIsBeauty = isChecked;
-                mDpRender.write(OtherUtils.buildMap("use_beauty", mIsBeauty));
+                mGameComponent.write(OtherUtils.buildMap("use_beauty", mIsBeauty));
                 Log.d(TAG, "check#" + isChecked);
             }
         });
