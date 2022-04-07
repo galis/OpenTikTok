@@ -2,6 +2,7 @@ package com.galix.opentiktok.dp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
@@ -17,6 +18,8 @@ import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
+
+import java.io.IOException;
 
 
 public class GameActivity extends AppCompatActivity {
@@ -43,16 +46,20 @@ public class GameActivity extends AppCompatActivity {
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
         mGameRender = new GameRender();
-        mGameComponent = new GameComponent(this,
-                0,
-                "/sdcard/coach.mp4",
-                "/sdcard/testplayer.mp4",
-                "pag/screen_effect.pag",
-                "pag/player_effect.pag",
-                "lut/beauty_lut.png",
-                "lut/std_lut.png",
-                false,
-                mGameRender);
+        try {
+            mGameComponent = new GameComponent(this,
+                    0,
+                    "/sdcard/coach.mp4",
+                    "/sdcard/testplayer.mp4",
+                    "pag/screen_effect.pag",
+                    "pag/player_effect.pag",
+                    BitmapFactory.decodeStream(getAssets().open("lut/beauty_lut.png")),
+                    BitmapFactory.decodeStream(getAssets().open("lut/std_lut.png")),
+                    false,
+                    mGameRender);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         AVAudio audio = new AVAudio(0, "/sdcard/coach.mp4", null);
         mAVEngine.addComponent(mGameComponent, null);
         mAVEngine.addComponent(audio, null);

@@ -33,8 +33,8 @@ public class GameComponent extends AVComponent {
     private String mPlayerTestPath;
     private String mScreenEffectPath;
     private String mPlayerEffectPath;
-    private String mBeautyLutPath;
-    private String mPlayerLutPath;
+    //    private String mBeautyLutPath;
+//    private String mPlayerLutPath;
     private GameInfo mGameInfo;
     public WeakReference<Context> mContext;
 
@@ -90,20 +90,20 @@ public class GameComponent extends AVComponent {
                          String playerTestVideoPath,
                          String screenEffectPath,
                          String playerEffectPath,
-                         String beautyLutPath,
-                         String playerLutPath,
+                         Bitmap beautyLut,
+                         Bitmap playerLut,
                          boolean useBeauty,
                          IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
         mGameInfo = new GameInfo();
         mGameInfo.useBeauty = useBeauty;
+        mGameInfo.beautyLut = beautyLut;
+        mGameInfo.playerLut = playerLut;
         this.mContext = new WeakReference<>(context);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
         this.mScreenEffectPath = screenEffectPath;
         this.mPlayerEffectPath = playerEffectPath;
-        this.mBeautyLutPath = beautyLutPath;
-        this.mPlayerLutPath = playerLutPath;
     }
 
     public GameComponent(Context context,
@@ -112,20 +112,22 @@ public class GameComponent extends AVComponent {
                          AVComponent dpComponent,
                          String screenEffectPath,
                          String playerEffectPath,
-                         String beautyLutPath,
-                         String playerLutPath,
+                         Bitmap beautyLut,
+                         Bitmap playerLut,
                          boolean useBeauty,
                          IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
         mGameInfo = new GameInfo();
         mGameInfo.useBeauty = useBeauty;
+        mGameInfo.beautyLut = beautyLut;
+        mGameInfo.playerLut = playerLut;
         this.mContext = new WeakReference<>(context);
         this.mCoachPath = coachPath;
         this.mPlayerComponent = dpComponent;
         this.mScreenEffectPath = screenEffectPath;
         this.mPlayerEffectPath = playerEffectPath;
-        this.mBeautyLutPath = beautyLutPath;
-        this.mPlayerLutPath = playerLutPath;
+//        this.mBeautyLutPath = beautyLutPath;
+//        this.mPlayerLutPath = playerLutPath;
     }
 
     @Override
@@ -147,12 +149,6 @@ public class GameComponent extends AVComponent {
         }
         mScreenEffect = new AVPag(mContext.get().getAssets(), mScreenEffectPath, Long.MAX_VALUE, null);
         mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
-        try {
-            mGameInfo.beautyLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mBeautyLutPath));
-            mGameInfo.playerLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mPlayerLutPath));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         //打开各个组件
         mCoachVideo.open();
@@ -181,20 +177,10 @@ public class GameComponent extends AVComponent {
     @Override
     public int write(Map<String, Object> configs) {
         if (configs.containsKey("player_lut")) {
-            mPlayerLutPath = (String) configs.get("player_lut");
-            try {
-                mGameInfo.playerLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mPlayerLutPath));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            mGameInfo.playerLut = (Bitmap) configs.get("player_lut");
         }
         if (configs.containsKey("beauty_lut")) {
-            mPlayerLutPath = (String) configs.get("beauty_lut");
-            try {
-                mGameInfo.beautyLut = BitmapFactory.decodeStream(mContext.get().getAssets().open(mBeautyLutPath));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            mGameInfo.beautyLut = (Bitmap) configs.get("beauty_lut");
         }
         if (configs.containsKey("use_beauty")) {
             mGameInfo.useBeauty = (boolean) configs.get("use_beauty");
