@@ -1,6 +1,6 @@
 #version 300 es
 #extension GL_OES_EGL_image_external_essl3 : require
-precision mediump float;
+precision highp float;
 in vec2 vTextureCoord;
 out vec4 vFragColor;
 uniform sampler2D playerTexture;
@@ -24,19 +24,19 @@ void main(){
     float playerShiftX = -0.25;//玩家在画面的偏移
     vec3 playerShiftCoord = vec3(vTextureCoord.x+playerShiftX, vTextureCoord.y, 1.0);
     vec3 playerCoord = playerMaskMat*playerShiftCoord;
-    playerCoord.y = 1.0-playerCoord.y;
     vec3 playerEffectCoord = playerEffectMat* playerShiftCoord;
-    playerEffectCoord.y = 1.0-playerEffectCoord.y;
-    vec2 normalCoord = vec2(vTextureCoord.x, 1.0-vTextureCoord.y);
+
     //读取信息
-    float alpha = filterTexture2D(playerMaskTexture, playerCoord.xy).r;
+    float alpha = filterTexture2D(playerMaskTexture, vec2(playerCoord.x, 1.0-playerCoord.y)).r;//玩家MASK
     vec4 playerColor = texture(playerTexture, vec2(playerShiftCoord.x, 1.0-playerShiftCoord.y));//玩家画面
-    vec4 coachColor = texture(coachTexture, normalCoord);//教练画面
-    vec4 screenEffectColor = texture(screenEffectTexture, normalCoord);//特效画面
-    vec4 playerEffectColor = texture(playerEffectTexture, playerEffectCoord.xy);//用户特效
+    vec4 coachColor = texture(coachTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//教练Color
+    vec4 screenEffectColor = texture(screenEffectTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//全屏特效
+    vec4 playerEffectColor = texture(playerEffectTexture, vec2(playerEffectCoord.x, 1.0-playerEffectCoord.y));//用户特效
+    if (screenEffectColor.a!=0.0){
+        screenEffectColor.rgb = screenEffectColor.rgb/screenEffectColor.a;//半透明纹理有坑
+    }
     //开始合并
-    vec3 dstColor = mix(coachColor.rgb, playerColor.rgb, alpha);//合并教练画面
-    dstColor = mix(dstColor.rgb, dstColor.rgb+ playerEffectColor.rgb, alpha);//合并教练画面
-    dstColor = mix(dstColor.rgb, screenEffectColor.rgb, screenEffectColor.a);//合并全屏动效
-    vFragColor = vec4(dstColor.rgb, 1.0);
+    vec3 dstColor = mix(coachColor.rgb, playerColor.rgb+ playerEffectColor.rgb, alpha);//合并教练画面
+    dstColor = mix(dstColor, screenEffectColor.rgb, screenEffectColor.a);//合并全屏动效
+    vFragColor = vec4(dstColor, 1.0);
 }

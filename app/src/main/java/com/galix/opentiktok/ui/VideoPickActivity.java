@@ -204,7 +204,7 @@ public class VideoPickActivity extends BaseActivity {
         if (!mProgressBar.isShown()) {
             mProgressBar.show();
         }
-        VideoUtil.processVideo(VideoPickActivity.this, mPickList, 3, 10000000, msg -> {
+        VideoUtil.processVideo(VideoPickActivity.this, mPickList, msg -> {
             VideoEditActivity.start(VideoPickActivity.this);
             finish();
             return true;

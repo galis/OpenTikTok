@@ -92,7 +92,7 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void run() {
                 mGameComponent.write(OtherUtils.buildMap(
-                        "screen_effect_duration", 3000000L, //持续3秒
+                        "screen_effect_duration", -1L, //持续3秒
                         "player_effect_duration", -1L  //无限循环
                 ));
             }

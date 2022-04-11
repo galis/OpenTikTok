@@ -298,7 +298,7 @@ public class VideoEditActivity extends BaseActivity {
         View tail = new View(this);
         tail.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDisplayMetrics().widthPixels / 2, ViewGroup.LayoutParams.MATCH_PARENT));
         for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
-            AVVideo video = new AVVideo(true, startTime, fileEntry.adjustPath, null);
+            AVVideo video = new AVVideo(true, startTime, fileEntry.path, null);
             AVAudio audio = new AVAudio(startTime, fileEntry.adjustPath, null);
             LinkedList<AVComponent> components = new LinkedList<>();
             components.add(video);

@@ -1,5 +1,6 @@
 package com.galix.opentiktok.dp;
 
+import android.graphics.Rect;
 import android.opengl.GLES30;
 import android.util.Log;
 import android.util.Size;
@@ -140,10 +141,10 @@ public class GameRender implements IRender {
         mConfig.put("coachTexture", mCacheGameInfo.coachTexture);
         mConfig.put("playerTexture", lastFilter.getOutputTexture());
         mConfig.put("playerMaskTexture", mCacheGameInfo.playerMaskTexture);
-        mConfig.put("playerMaskMat", mCacheGameInfo.playerMaskMat);
         mConfig.put("playerEffectTexture", mCacheGameInfo.playerEffectTexture);
-        mConfig.put("playerEffectMat", mCacheGameInfo.playerEffectMat);
         mConfig.put("screenEffectTexture", mCacheGameInfo.screenEffectTexture);
+        mConfig.put("playerMaskMat", mCacheGameInfo.playerMaskMat);
+        mConfig.put("playerEffectMat", mCacheGameInfo.playerEffectMat);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -222,7 +223,7 @@ public class GameRender implements IRender {
         gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
 
         gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top + (gameInfo.playerMaskInfo.playerMaskRoi.height() - targetHeight) / 2.f;
+        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top + (gameInfo.playerMaskInfo.playerMaskRoi.height() - targetHeight);
         gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
         gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
         gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;

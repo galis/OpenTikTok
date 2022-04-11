@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static android.opengl.GLES20.GL_RGBA;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
@@ -56,8 +58,6 @@ public class AVEngine {
     private EglHelper mEglHelper;
     private SurfaceView mSurfaceView;
     private EngineCallback mUpdateCallback, mCompositeCallback;
-    private final LinkedList<AVComponent> mVideoComponents;//非音频类
-    private final LinkedList<AVComponent> mAudioComponents;//音频 Audio
     private AVComponent mLastVideoComponent;
     private AVComponent mLastAudioComponent;
     private AudioRender mAudioRender;
@@ -71,8 +71,6 @@ public class AVEngine {
     private AVEngine() {
         mCmdQueue = new LinkedBlockingQueue<>();
         mVideoState = new VideoState();
-        mVideoComponents = new LinkedList<>();
-        mAudioComponents = new LinkedList<>();
     }
 
     private static class Command {
@@ -148,6 +146,9 @@ public class AVEngine {
         public Clock extClock;
         public Clock audioClock;
         public VideoStatus status;//播放状态
+        public final ReentrantLock stateLock = new ReentrantLock();
+        public LinkedList<AVComponent> mVideoComponents = new LinkedList<>();//非音频类
+        public LinkedList<AVComponent> mAudioComponents = new LinkedList<>();//音频 Audio
 
         public VideoState() {
             reset();
@@ -163,6 +164,39 @@ public class AVEngine {
             isLastVideoDisplay = false;
             seekPositionUS = Long.MAX_VALUE;
             status = VideoStatus.INIT;
+        }
+
+        public void lock() {
+            stateLock.lock();
+        }
+
+        public void unlock() {
+            stateLock.unlock();
+        }
+
+        public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
+            List<AVComponent> mTargetComponents = new LinkedList<>();
+            mTargetComponents.clear();
+            if (type == AVComponent.AVComponentType.AUDIO) {
+                lock();
+                for (AVComponent component : mAudioComponents) {
+                    if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
+                            (position == -1 || component.isValid(position)))) {
+                        mTargetComponents.add(component);
+                    }
+                }
+                unlock();
+            } else {
+                lock();
+                for (AVComponent component : mVideoComponents) {
+                    if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
+                            (position == -1 || component.isValid(position)))) {
+                        mTargetComponents.add(component);
+                    }
+                }
+                unlock();
+            }
+            return mTargetComponents;
         }
 
         @Override
@@ -282,7 +316,7 @@ public class AVEngine {
         }
 
         //处理视频片段
-        if (mVideoComponents.isEmpty()) {
+        if (mVideoState.mVideoComponents.isEmpty()) {
             return delay;
         }
         long extClk = getMainClock();
@@ -488,15 +522,15 @@ public class AVEngine {
                         component.open();
                         component.unlock();
                         if (component.getType() == AVComponent.AVComponentType.AUDIO) {
-                            synchronized (mAudioComponents) {
-                                mAudioComponents.add(component);
-                                reCalculate();
-                            }
+                            mVideoState.lock();
+                            mVideoState.mAudioComponents.add(component);
+                            reCalculate();
+                            mVideoState.unlock();
                         } else {
-                            synchronized (mVideoComponents) {
-                                mVideoComponents.add(component);
-                                reCalculate();
-                            }
+                            mVideoState.lock();
+                            mVideoState.mVideoComponents.add(component);
+                            reCalculate();
+                            mVideoState.unlock();
                         }
                         if (command.args1 != null) {
                             EngineCallback callback = (EngineCallback) command.args1;
@@ -508,15 +542,15 @@ public class AVEngine {
                         component.close();
                         component.unlock();
                         if (component.getType() == AVComponent.AVComponentType.AUDIO) {
-                            synchronized (mAudioComponents) {
-                                mAudioComponents.remove(component);
-                                reCalculate();
-                            }
+                            mVideoState.lock();
+                            mVideoState.mAudioComponents.remove(component);
+                            reCalculate();
+                            mVideoState.unlock();
                         } else {
-                            synchronized (mVideoComponents) {
-                                mVideoComponents.remove(component);
-                                reCalculate();
-                            }
+                            mVideoState.lock();
+                            mVideoState.mVideoComponents.remove(component);
+                            reCalculate();
+                            mVideoState.unlock();
                         }
                         if (command.args1 != null) {
                             EngineCallback callback = (EngineCallback) command.args1;
@@ -655,28 +689,27 @@ public class AVEngine {
      * @param position -1默认通过
      * @return 目标组件
      */
-
     public List<AVComponent> findComponents(AVComponent.AVComponentType type, long position) {
         List<AVComponent> mTargetComponents = new LinkedList<>();
         mTargetComponents.clear();
         if (type == AVComponent.AVComponentType.AUDIO) {
-            synchronized (mAudioComponents) {
-                for (AVComponent component : mAudioComponents) {
-                    if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
-                            (position == -1 || component.isValid(position)))) {
-                        mTargetComponents.add(component);
-                    }
+            mVideoState.lock();
+            for (AVComponent component : mVideoState.mAudioComponents) {
+                if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
+                        (position == -1 || component.isValid(position)))) {
+                    mTargetComponents.add(component);
                 }
             }
+            mVideoState.unlock();
         } else {
-            synchronized (mVideoComponents) {
-                for (AVComponent component : mVideoComponents) {
-                    if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
-                            (position == -1 || component.isValid(position)))) {
-                        mTargetComponents.add(component);
-                    }
+            mVideoState.lock();
+            for (AVComponent component : mVideoState.mVideoComponents) {
+                if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
+                        (position == -1 || component.isValid(position)))) {
+                    mTargetComponents.add(component);
                 }
             }
+            mVideoState.unlock();
         }
         return mTargetComponents;
     }
@@ -729,10 +762,10 @@ public class AVEngine {
      */
     private void reCalculate() {
         mVideoState.durationUS = 0;
-        for (AVComponent component : mVideoComponents) {
+        for (AVComponent component : mVideoState.mVideoComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
         }
-        for (AVComponent component : mAudioComponents) {
+        for (AVComponent component : mVideoState.mAudioComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
         }
     }
@@ -847,19 +880,17 @@ public class AVEngine {
 
     private void destroyInternal() {
         mVideoState.status = RELEASE;
-        synchronized (mAudioComponents) {
-            for (AVComponent avComponent : mAudioComponents) {
-                avComponent.close();
-            }
-            mAudioComponents.clear();
+        mVideoState.lock();
+        for (AVComponent avComponent : mVideoState.mAudioComponents) {
+            avComponent.close();
         }
+        mVideoState.mAudioComponents.clear();
 
-        synchronized (mVideoComponents) {
-            for (AVComponent avComponent : mVideoComponents) {
-                avComponent.close();
-            }
-            mVideoComponents.clear();
+        for (AVComponent avComponent : mVideoState.mVideoComponents) {
+            avComponent.close();
         }
+        mVideoState.mVideoComponents.clear();
+        mVideoState.unlock();
     }
 
     public VideoState getVideoState() {

@@ -35,7 +35,7 @@ public class GameComponent extends AVComponent {
     private String mPlayerEffectPath;
     //    private String mBeautyLutPath;
 //    private String mPlayerLutPath;
-    private GameInfo mGameInfo;
+    private GameInfo mGameInfo = new GameInfo();
     public WeakReference<Context> mContext;
 
     public static class PlayerMaskInfo {
@@ -95,7 +95,6 @@ public class GameComponent extends AVComponent {
                          boolean useBeauty,
                          IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
-        mGameInfo = new GameInfo();
         mGameInfo.useBeauty = useBeauty;
         mGameInfo.beautyLut = beautyLut;
         mGameInfo.playerLut = playerLut;
@@ -117,7 +116,6 @@ public class GameComponent extends AVComponent {
                          boolean useBeauty,
                          IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
-        mGameInfo = new GameInfo();
         mGameInfo.useBeauty = useBeauty;
         mGameInfo.beautyLut = beautyLut;
         mGameInfo.playerLut = playerLut;
@@ -126,8 +124,6 @@ public class GameComponent extends AVComponent {
         this.mPlayerComponent = dpComponent;
         this.mScreenEffectPath = screenEffectPath;
         this.mPlayerEffectPath = playerEffectPath;
-//        this.mBeautyLutPath = beautyLutPath;
-//        this.mPlayerLutPath = playerLutPath;
     }
 
     @Override
@@ -166,7 +162,6 @@ public class GameComponent extends AVComponent {
     @Override
     public int close() {
         if (!isOpen()) return RESULT_FAILED;
-        mGameInfo = null;
         mCoachVideo.close();
         mPlayerComponent.close();
         mScreenEffect.close();

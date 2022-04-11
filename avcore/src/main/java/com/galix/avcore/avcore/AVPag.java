@@ -1,9 +1,11 @@
 package com.galix.avcore.avcore;
 
 import android.content.res.AssetManager;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
+import android.opengl.GLUtils;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -12,10 +14,12 @@ import org.libpag.PAGFile;
 import org.libpag.PAGPlayer;
 import org.libpag.PAGSurface;
 
+import java.io.IOException;
 import java.nio.IntBuffer;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_LINEAR;
+import static android.opengl.GLES20.GL_NEAREST;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
@@ -81,6 +85,7 @@ public class AVPag extends AVComponent {
         setClipStartTime(0);
         setClipEndTime(getDuration());
         setEngineEndTime(getEngineStartTime() + getDuration());
+        markOpen(true);
         return 0;
     }
 
@@ -92,13 +97,15 @@ public class AVPag extends AVComponent {
             cacheTexture = null;
         }
         pagPlayer.release();
-        pagPlayer = null;
-        pagFile = null;
         return RESULT_OK;
     }
 
     @Override
     public int readFrame() {
+        if (!isOpen()) return RESULT_FAILED;
+        if (isLoop()) {
+            mCurrentFramePts %= getClipDuration();
+        }
         if (mCurrentFramePts < 0 || mCurrentFramePts >= getEngineDuration()) {
             peekFrame().setTexture(0);
             peekFrame().setRoi(new Rect(0, 0, 16, 16));
@@ -113,9 +120,6 @@ public class AVPag extends AVComponent {
         peekFrame().setRoi(mFrameRoi);
         peekFrame().setDuration(33000);
         mCurrentFramePts += peekFrame().getDuration();
-        if (isLoop()) {
-            mCurrentFramePts %= getClipDuration();
-        }
         return RESULT_OK;
     }
 

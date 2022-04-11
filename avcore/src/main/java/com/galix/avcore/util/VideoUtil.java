@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.media.MediaMetadataRetriever;
 import android.opengl.EGLExt;
 import android.opengl.GLES30;
 import android.os.Handler;
@@ -12,13 +13,23 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
 
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +37,8 @@ import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
+
+import static android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC;
 
 
 /**
@@ -35,6 +48,10 @@ import javax.microedition.khronos.egl.EGLDisplay;
  * @Date:2022.01.16
  */
 public class VideoUtil {
+
+    static {
+        System.loadLibrary("opencv_java3");
+    }
 
     private static final String TAG = VideoUtil.class.getSimpleName();
     private static ThreadPoolExecutor mThreadPool;
@@ -53,7 +70,8 @@ public class VideoUtil {
     static {
         mThreadPool = new ThreadPoolExecutor(2, 2,
                 10, TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<Runnable>(10));
+                new LinkedBlockingQueue<>(1000)
+        );
     }
 
     private VideoUtil() {
@@ -149,50 +167,87 @@ public class VideoUtil {
         return FileUtils.getCacheDir(context) + File.separator + md5(videoPath + "_gop_" + modifyTime) + ".mp4";
     }
 
+    public static void saveBitmapFile(Bitmap bitmap, String path) {
+        try {
+            File file = new File(path);//将要保存图片的路径
+            if (file.exists()) {
+                file.delete();
+            }
+            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+            bos.flush();
+            bos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static class ThumbTask implements Runnable {
+        public String path;
+        public long start;
+        public long end;
+        public Handler.Callback callback;
+        public Context context;
+
+        public ThumbTask(Context context, String path, long start, long end, Handler.Callback callback) {
+            this.context = context;
+            this.path = path;
+            this.start = start;
+            this.end = end;
+            this.callback = callback;
+        }
+
+        @Override
+        public void run() {
+            long nowPts = start;
+            MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
+            mediaMetadataRetriever.setDataSource(path);
+            while (nowPts < end) {
+                String dstJpg = VideoUtil.getThumbJpg(context, path, nowPts);
+                Bitmap thumb = mediaMetadataRetriever.getScaledFrameAtTime(nowPts, OPTION_CLOSEST_SYNC, 640, 480);
+                nowPts += 1000000L;
+                saveBitmapFile(thumb, dstJpg);
+            }
+            mediaMetadataRetriever.close();
+            if (callback != null) {
+                callback.handleMessage(null);
+            }
+        }
+    }
+
     /**
      * 获取视频每一秒的缩略图和调整关键帧GOP
      * 新的视频文件保存在context.getCacheDir()缓存目录下
      *
      * @param context  context
      * @param videos   视频集合
-     * @param gop      gop大小
-     * @param bitrate  比特率
      * @param callback 回调
      */
-    public static void processVideo(Context context, final LinkedList<FileEntry> videos, int gop, int bitrate, Handler.Callback callback) {
-        execute(() -> {
-            try {
-                for (FileEntry video : videos) {
-                    File adjustFile = new File(video.adjustPath);
-                    if (adjustFile.exists()) continue;
-                    Mp4Adjust mp4Adjust = new Mp4Adjust(5, (int) (2.5 * 1024 * 1024), 44100, video.path, video.adjustPath, context.getCacheDir().getAbsolutePath());
-                    mp4Adjust.process(new Mp4Adjust.BufferCallback() {
-                        @Override
-                        public void handle(Mp4Adjust.Stream stream, ByteBuffer buffer, MediaCodec.BufferInfo bufferInfo) {
-                            if (stream.format.getString(MediaFormat.KEY_MIME).contains("video")) {
-                                //获取每一秒图片缩略图
-                                if (bufferInfo.size > 0 && bufferInfo.presentationTimeUs > stream.thumbPos) {
-                                    long now = System.currentTimeMillis();
-                                    int srcW = stream.format.getInteger(MediaFormat.KEY_WIDTH);
-                                    int srcH = stream.format.getInteger(MediaFormat.KEY_HEIGHT);
-                                    int colorFormat = stream.mediaCodec.getOutputFormat().getInteger(MediaFormat.KEY_COLOR_FORMAT);
-                                    String dstJpg = VideoUtil.getThumbJpg(context, video.adjustPath, bufferInfo.presentationTimeUs);
-                                    YuvUtils.scaleAndSaveYuvAsJPEG(buffer, colorFormat, srcW, srcH, srcW / 5, srcH / 5, dstJpg);
-                                    long now2 = System.currentTimeMillis();
-                                    Log.d(TAG, "scaleAndSaveYuvAsJPEG#" + (now2 - now) + "#dst#" + dstJpg);
-                                    stream.thumbPos += 1000000;
-                                }
-                            }
-                        }
-                    });
+    public static void processVideo(Context context, final LinkedList<FileEntry> videos, Handler.Callback callback) {
+        if (videos.isEmpty()) return;
+        List<ThumbTask> tasks = new LinkedList<>();
+        for (FileEntry video : videos) {
+            MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
+            mediaMetadataRetriever.setDataSource(video.path);
+            long duration = Integer.parseInt(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
+            long curPts = 0;
+            while (curPts < duration) {
+                tasks.add(new ThumbTask(context, video.path, curPts, Math.min(curPts + 6000000, duration), null));
+                curPts += 6000000;
+            }
+            mediaMetadataRetriever.close();
+        }
+        tasks.get(0).callback = callback;
+        VideoUtil.mTargetFiles = videos;
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (ThumbTask thumbTask : tasks) {
+                    thumbTask.run();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                callback.handleMessage(null);
-                mTargetFiles = videos;
             }
         });
+        thread.start();
     }
 
 }
