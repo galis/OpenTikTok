@@ -81,36 +81,11 @@
 
     </RelativeLayout>
 
-    <RelativeLayout
-        android:id="@+id/rl_video_drag"
+    <com.galix.opentiktok.ui.VideoPreviewPanel
+        android:id="@+id/rl_video_preview_panel"
         android:layout_width="match_parent"
         android:layout_height="120dp"
-        android:layout_below="@id/rl_video_info">
-
-        <com.galix.opentiktok.ui.CustomHorizontalScrollView
-            android:id="@+id/recyclerview_drag_thumb"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:layout_centerVertical="true"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/linear_parent"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:scrollbars="none" />
-
-        </com.galix.opentiktok.ui.CustomHorizontalScrollView>
-
-        <ImageView
-            android:layout_width="2dp"
-            android:layout_height="match_parent"
-            android:layout_centerInParent="true"
-            android:scaleType="fitXY"
-            android:src="@drawable/drawable_video_split" />
-
-    </RelativeLayout>
+        android:layout_below="@id/rl_video_info" />
 
     <!--底部操作栏-->
     <androidx.recyclerview.widget.RecyclerView

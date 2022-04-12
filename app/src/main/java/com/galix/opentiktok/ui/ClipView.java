@@ -8,15 +8,16 @@ import android.graphics.Rect;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.LinearLayout;
 
 /**
  * 裁剪View
  */
 public class ClipView extends View {
     private static final String TAG = ClipView.class.getSimpleName();
-    private static final int mPaintSize = 16;
-    private static final int DRAG_BTN_WIDTH = 50;
-    private static final int LINE_WIDTH = 5;
+    public static final int mPaintSize = 16;
+    public static final int DRAG_BTN_WIDTH = 50;
+    public static final int LINE_WIDTH = 5;
     private boolean mIsDrag = false;
     private boolean mDragLeft = false;
     private boolean mDragRight = false;
@@ -53,6 +54,8 @@ public class ClipView extends View {
                         mIsDrag = mDragLeft || mDragRight;
                         if (mIsDrag) {
                             getParent().requestDisallowInterceptTouchEvent(true);
+                        } else {
+                            return false;
                         }
                         Log.d(TAG, "ACTION_DOWN" + event.toString());
                     case MotionEvent.ACTION_MOVE:
@@ -88,37 +91,36 @@ public class ClipView extends View {
                         }
                         break;
                 }
-                post(new Runnable() {
-                    @Override
-                    public void run() {
-                        invalidate();
-                    }
-                });
+                post(() -> invalidate());
                 return true;
             }
         });
     }
 
     public void freshRoi() {
-        mRect[0].left = 0;
+
+        int width = getLayoutParams().width;
+        int height = getLayoutParams().height;
+
+        mRect[0].left = DRAG_BTN_WIDTH;
         mRect[0].top = 0;
-        mRect[0].right = getMeasuredWidth();
+        mRect[0].right = width - DRAG_BTN_WIDTH;
         mRect[0].bottom = mRect[0].top + LINE_WIDTH;
 
         mRect[1].left = 0;
-        mRect[1].top = getMeasuredHeight() - LINE_WIDTH;
-        mRect[1].right = getMeasuredWidth();
+        mRect[1].top = height - LINE_WIDTH;
+        mRect[1].right = width - DRAG_BTN_WIDTH;
         mRect[1].bottom = mRect[1].top + LINE_WIDTH;
 
         mRect[2].left = 0;
         mRect[2].top = 0;
-        mRect[2].right = mRect[2].left + DRAG_BTN_WIDTH;
-        mRect[2].bottom = getMeasuredHeight();
+        mRect[2].right = DRAG_BTN_WIDTH;
+        mRect[2].bottom = height;
 
-        mRect[3].left = getMeasuredWidth() - DRAG_BTN_WIDTH;
+        mRect[3].left = width - DRAG_BTN_WIDTH;
         mRect[3].top = 0;
-        mRect[3].right = mRect[3].left + DRAG_BTN_WIDTH;
-        mRect[3].bottom = getMeasuredHeight();
+        mRect[3].right = width;
+        mRect[3].bottom = height;
     }
 
     public interface ClipCallback {
@@ -128,7 +130,7 @@ public class ClipView extends View {
     private void callbackIfNeed() {
         if (mClipCallback != null) {
             mRect[4].left = 0;
-            mRect[4].right = getMeasuredWidth();
+            mRect[4].right = getLayoutParams().width;
             mRect[5].left = mRect[2].left;
             mRect[5].right = mRect[3].right;
             mClipCallback.onClip(mRect[4], mRect[5]);

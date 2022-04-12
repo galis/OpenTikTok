@@ -146,6 +146,8 @@ public class AVEngine {
         public Clock extClock;
         public Clock audioClock;
         public VideoStatus status;//播放状态
+        public boolean isEdit = false;//编辑组件状态
+        public AVComponent editComponent;
         public final ReentrantLock stateLock = new ReentrantLock();
         public LinkedList<AVComponent> mVideoComponents = new LinkedList<>();//非音频类
         public LinkedList<AVComponent> mAudioComponents = new LinkedList<>();//音频 Audio
@@ -162,6 +164,7 @@ public class AVEngine {
             isInputEOF = false;
             isOutputEOF = false;
             isLastVideoDisplay = false;
+            isEdit = false;
             seekPositionUS = Long.MAX_VALUE;
             status = VideoStatus.INIT;
         }
@@ -765,9 +768,9 @@ public class AVEngine {
         for (AVComponent component : mVideoState.mVideoComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
         }
-        for (AVComponent component : mVideoState.mAudioComponents) {
-            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
-        }
+//        for (AVComponent component : mVideoState.mAudioComponents) {
+//            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
+//        }
     }
 
     private void surfaceCreated(Surface surface) {

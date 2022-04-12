@@ -1,6 +1,7 @@
 package com.galix.opentiktok.ui;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.util.Size;
@@ -16,13 +17,20 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
+import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.util.VideoUtil;
+import com.galix.opentiktok.R;
 
 import java.util.LinkedList;
 import java.util.List;
+
+import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING;
+import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE;
+
 
 /**
  * 视频预览面板
@@ -33,43 +41,78 @@ import java.util.List;
 public class VideoPreviewPanel extends RelativeLayout {
 
     private RecyclerView mThumbPreview;//缩略图预览
-    private View mClipView;//裁剪
+    private ClipView mClipView;
     private View mEffectPreview;//特效提示
+    private ImageView mSplitView;
     private Button mTrans;//转场按钮
     private Button mAddBtn;//添加视频按钮
     private Size mCurrentViewSize = new Size(0, 0);
+    private int mCacheScrollX = 0;
+    private boolean mIsDrag = false;
 
     //数据
     private AVEngine.VideoState mVideoState;
     private List<ViewType> mInfoList = new LinkedList<>();
-    private int mThumbSize = 50;
+    private int mThumbSize = 60;
 
     public VideoPreviewPanel(Context context, AttributeSet attrs) {
         super(context, attrs);
         initChildes();
-        bindViewTreeCallback();
         initOther();
+        bindViewTreeCallback();
     }
 
     private void initOther() {
-        mThumbSize = (int) (getContext().getResources().getDisplayMetrics().density * mThumbSize);
     }
 
     private void initChildes() {
+        mThumbSize = compatSize(mThumbSize);
         mThumbPreview = new RecyclerView(getContext());
-        mThumbPreview.setLayoutManager(new LinearLayoutManager(getContext()));
+        mThumbPreview.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.HORIZONTAL, false));
         mThumbPreview.setAdapter(new ThumbAdapter());
         mClipView = new ClipView(getContext());
-        mEffectPreview = new ClipView(getContext());
+        mSplitView = new ImageView(getContext());
+        mSplitView.setScaleType(ImageView.ScaleType.FIT_XY);
+        mSplitView.setImageResource(R.drawable.drawable_video_split);
         mTrans = new Button(getContext());
         mAddBtn = new Button(getContext());
 
-        addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        addView(mTrans, new RelativeLayout.LayoutParams(30, 30));
-        addView(mAddBtn, new RelativeLayout.LayoutParams(30, 30));
+        addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mThumbSize));
+//        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, mThumbSize + 2 * ClipView.LINE_WIDTH));
+//        addView(mTrans, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
+//        addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
+        addView(mSplitView, new RelativeLayout.LayoutParams(
+                compatSize(2),
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
+        ((LayoutParams) mClipView.getLayoutParams()).addRule(CENTER_VERTICAL);
+        ((LayoutParams) mSplitView.getLayoutParams()).addRule(CENTER_IN_PARENT);
+        ((LayoutParams) mThumbPreview.getLayoutParams()).addRule(CENTER_IN_PARENT);
+        mThumbPreview.setOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                if (newState == SCROLL_STATE_IDLE) {
+                    mIsDrag = false;
+                } else if (newState == SCROLL_STATE_DRAGGING) {
+                    mIsDrag = true;
+                }
+                if (mOnScrollListener != null) {
+                    mOnScrollListener.onScrollStateChanged(recyclerView, newState);
+                }
+            }
+
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if (mOnScrollListener != null) {
+                    mOnScrollListener.onScrolled(recyclerView, dx, dy);
+                }
+                mCacheScrollX += dx;
+                freshClip();
+            }
+        });
     }
 
     private void bindViewTreeCallback() {
@@ -87,28 +130,81 @@ public class VideoPreviewPanel extends RelativeLayout {
         super.onDraw(canvas);
     }
 
-    public void freshData(AVEngine.VideoState videoState) {
+    private int compatSize(int size) {
+        return (int) (size * getContext().getResources().getDisplayMetrics().density);
+    }
+
+    public void updateData(AVEngine.VideoState videoState) {
+        mVideoState = videoState;
+        freshClip();
+        //处理预览缩略等相关数据
         mInfoList.clear();
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         long currentPts = 0;
         while (currentPts < videoState.durationUS) {
-            AVVideo avVideo = (AVVideo) mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts);
+            AVVideo avVideo = (AVVideo) mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts).get(0);
             if (avVideo == null) break;
             mInfoList.add(new ViewType(TYPE_THUMB));
+            mInfoList.get(mInfoList.size() - 1).component = avVideo;
             mInfoList.get(mInfoList.size() - 1).imgPath = VideoUtil.getThumbJpg(getContext(),
                     avVideo.getPath(),
                     currentPts - avVideo.getEngineStartTime() + avVideo.getClipStartTime());
-            currentPts += 1000000;
+            if (currentPts + 1000000 > avVideo.getEngineEndTime()) {//处理component最后一帧不满1s
+                mInfoList.get(mInfoList.size() - 1).duration = avVideo.getEngineEndTime() - currentPts;
+                currentPts = avVideo.getEngineEndTime();
+            } else {
+                mInfoList.get(mInfoList.size() - 1).duration = 1000000;
+                currentPts += 1000000;
+            }
         }
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
-
         mThumbPreview.getAdapter().notifyDataSetChanged();
+    }
+
+    public void updateScroll() {
+        if (mVideoState.status == AVEngine.VideoState.VideoStatus.START) {
+            int correctScrollX = (int) (mThumbSize / 1000000.f * AVEngine.getVideoEngine().getClock(mVideoState.extClock));
+            mThumbPreview.smoothScrollBy(correctScrollX - mCacheScrollX, 0);
+        }
+    }
+
+
+    private void freshClip() {
+        if (mVideoState.isEdit) {
+            RelativeLayout.LayoutParams layoutParams = (LayoutParams) mClipView.getLayoutParams();
+            layoutParams.width = (int) (mVideoState.editComponent.getEngineDuration() / 1000000.f * mThumbSize) + 2 * ClipView.DRAG_BTN_WIDTH;
+            layoutParams.height = mThumbSize + 2 * ClipView.LINE_WIDTH;
+            layoutParams.leftMargin = (int) (mVideoState.editComponent.getEngineStartTime() / 1000000.f * mThumbSize) + mCurrentViewSize.getWidth() / 2 -
+                    ClipView.DRAG_BTN_WIDTH - mCacheScrollX;
+            mClipView.requestLayout();
+        }
+        mClipView.setVisibility(mVideoState.isEdit ? VISIBLE : GONE);
+    }
+
+    private ClipView.ClipCallback mClipCallback;
+    private RecyclerView.OnScrollListener mOnScrollListener;
+
+    public void setDragCallback(RecyclerView.OnScrollListener onScrollChangeListener) {
+        mOnScrollListener = onScrollChangeListener;
+    }
+
+    public void setClipCallback(ClipView.ClipCallback clipCallback) {
+        mClipCallback = clipCallback;
+    }
+
+    public void setBtnAddCallback(OnClickListener onClickListener) {
+        mAddBtn.setOnClickListener(onClickListener);
+    }
+
+    public void setBtnTranCallback(OnClickListener onClickListener) {
+        mTrans.setOnClickListener(onClickListener);
     }
 
     private static class ViewType {
         public int type;
         public String imgPath;
-        public Object arg1;
+        public AVComponent component;
+        public long duration;
         public Object arg2;
 
         public ViewType(int type) {
@@ -132,6 +228,7 @@ public class VideoPreviewPanel extends RelativeLayout {
         @Override
         public ThumbViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             ImageView view = new ImageView(parent.getContext());
+            view.setScaleType(ImageView.ScaleType.FIT_XY);
             view.setLayoutParams(new RecyclerView.LayoutParams(viewType == TYPE_HEAD_FOOT ?
                     mCurrentViewSize.getWidth() / 2 : mThumbSize, mThumbSize));
             return new ThumbViewHolder(view);
@@ -141,8 +238,45 @@ public class VideoPreviewPanel extends RelativeLayout {
         public void onBindViewHolder(@NonNull ThumbViewHolder holder, int position) {
             ViewType viewType = mInfoList.get(position);
             if (viewType.type == TYPE_THUMB) {
+                holder.itemView.getLayoutParams().width = (int) (viewType.duration / 1000000.f * mThumbSize);
+                if (viewType.duration < 1000000.f) {
+                    Glide.with(getContext())
+                            .load(viewType.imgPath)
+                            .asBitmap()
+                            .transform(new BitmapTransformation(getContext()) {
+                                @Override
+                                protected Bitmap transform(BitmapPool pool, Bitmap toTransform, int outWidth, int outHeight) {
+                                    if (toTransform.getWidth() == holder.itemView.getLayoutParams().width) {
+                                        return toTransform;
+                                    }
+                                    return Bitmap.createBitmap(toTransform, 0, 0,
+                                            (int) (toTransform.getWidth() * viewType.duration / 1000000.f), toTransform.getHeight());
+                                }
+
+                                @Override
+                                public String getId() {
+                                    return viewType.imgPath + "_clip";
+                                }
+                            }).into((ImageView) holder.itemView);
+                } else {
+                    Glide.with(getContext())
+                            .load(viewType.imgPath)
+                            .into((ImageView) holder.itemView);
+                }
+                holder.itemView.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        mVideoState.lock();
+                        mVideoState.isEdit = !mVideoState.isEdit;
+                        mVideoState.editComponent = mInfoList.get(position).component;
+                        mVideoState.unlock();
+                        freshClip();
+                    }
+                });
+            } else {
+                holder.itemView.getLayoutParams().width = mCurrentViewSize.getWidth() / 2;
                 Glide.with(getContext())
-                        .load(viewType.imgPath)
+                        .load("")
                         .into((ImageView) holder.itemView);
             }
         }

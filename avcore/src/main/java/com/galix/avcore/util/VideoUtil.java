@@ -68,9 +68,9 @@ public class VideoUtil {
     }
 
     static {
-        mThreadPool = new ThreadPoolExecutor(2, 2,
+        mThreadPool = new ThreadPoolExecutor(3, 3,
                 10, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(1000)
+                new LinkedBlockingQueue<>(10000)
         );
     }
 
@@ -204,7 +204,8 @@ public class VideoUtil {
             mediaMetadataRetriever.setDataSource(path);
             while (nowPts < end) {
                 String dstJpg = VideoUtil.getThumbJpg(context, path, nowPts);
-                Bitmap thumb = mediaMetadataRetriever.getScaledFrameAtTime(nowPts, OPTION_CLOSEST_SYNC, 640, 480);
+                Bitmap thumb = mediaMetadataRetriever.getFrameAtTime(nowPts, OPTION_CLOSEST_SYNC);
+                thumb = Bitmap.createScaledBitmap(thumb, 160, 160, true);
                 nowPts += 1000000L;
                 saveBitmapFile(thumb, dstJpg);
             }
@@ -239,15 +240,18 @@ public class VideoUtil {
         }
         tasks.get(0).callback = callback;
         VideoUtil.mTargetFiles = videos;
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                for (ThumbTask thumbTask : tasks) {
-                    thumbTask.run();
-                }
-            }
-        });
-        thread.start();
+        for (ThumbTask thumbTask : tasks) {
+            execute(thumbTask);
+        }
+//        Thread thread = new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                for (ThumbTask thumbTask : tasks) {
+//                    thumbTask.run();
+//                }
+//            }
+//        });
+//        thread.start();
     }
 
 }
