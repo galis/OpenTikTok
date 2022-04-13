@@ -309,6 +309,31 @@ public class VideoEditActivity extends BaseActivity {
                 }
             }
         });
+        mVideoPreViewPanel.setClipCallback(new ClipView.ClipCallback() {
+            @Override
+            public void onClip(Rect src, Rect dst) {
+                LinkedList<AVComponent> componentList = new LinkedList<>();
+                componentList.add(mAVEngine.getVideoState().editComponent);
+                mAVEngine.changeComponent(componentList, src, dst, new AVEngine.EngineCallback() {
+                    @Override
+                    public void onCallback(Object[] args1) {
+                        long currentPts = mAVEngine.getClock(mAVEngine.getVideoState().extClock);
+                        long correctSeek = Math.max(currentPts, mAVEngine.getVideoState().editComponent.getEngineStartTime());
+                        correctSeek = Math.min(correctSeek, mAVEngine.getVideoState().editComponent.getEngineEndTime());
+                        mAVEngine.fastSeek(correctSeek);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
+                                mVideoPreViewPanel.updateScroll();
+                                mVideoPreViewPanel.updateClip();
+                            }
+                        });
+                    }
+                });
+
+            }
+        });
 
     }
 
@@ -340,6 +365,12 @@ public class VideoEditActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
+//            }
+//        });
     }
 
     @Override

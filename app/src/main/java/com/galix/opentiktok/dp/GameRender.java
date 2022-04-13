@@ -12,6 +12,7 @@ import com.galix.avcore.render.filters.BeautyFilter;
 import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.MathUtils;
 import com.galix.opentiktok.R;
 
@@ -98,8 +99,8 @@ public class GameRender implements IRender {
 
     @Override
     public void render(AVFrame avFrame) {
-        long nowTime1 = System.currentTimeMillis();
-        renderReady(avFrame);
+        //bind
+        mCacheGameInfo = (GameComponent.GameInfo) avFrame.getExt();
         IFilter lastFilter;
 
         //先用OesFilter把EglImage内容复制一份。。为了让Lut滤镜不有坑.
@@ -150,97 +151,8 @@ public class GameRender implements IRender {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         mGameFilter.write(mConfig);
         mGameFilter.render();
-
-        long nowTime2 = System.currentTimeMillis();
-        Log.d(TAG, "render time#" + (nowTime2 - nowTime1));
-
     }
 
-    private void renderReady(AVFrame avFrame) {
-        GameComponent.GameInfo gameInfo = (GameComponent.GameInfo) avFrame.getExt();
-        gameInfo.playerSurfaceTexture.updateTexImage();
-        gameInfo.coachSurfaceTexture.updateTexImage();
-//        dpInfo.effectSurfaceTexture.updateTexImage();
-
-        if (gameInfo.playerMaskInfo.playerMaskBuffer != null) {
-            if (gameInfo.playerMaskTexture.id() != 0) {
-                glDeleteTextures(1, gameInfo.playerMaskTexture.idAsBuf());
-            }
-            GLES30.glGenTextures(1, gameInfo.playerMaskTexture.idAsBuf());
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glBindTexture(GL_TEXTURE_2D, gameInfo.playerMaskTexture.id());
-            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE,
-                    gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
-                    gameInfo.playerMaskInfo.playerMaskSize.getHeight(),
-                    0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
-                    gameInfo.playerMaskInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
-            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            gameInfo.playerTexture.setSize(gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
-                    gameInfo.playerMaskInfo.playerMaskSize.getHeight());
-        } else {
-            gameInfo.playerMaskTexture.idAsBuf().put(0);
-            gameInfo.playerTexture.setSize(0, 0);
-        }
-        gameInfo.playerMaskTexture.idAsBuf().position(0);
-
-        //根据roi计算 mask mat
-        gameInfo.srcPoints[0].x = 0;
-        gameInfo.srcPoints[0].y = 0;
-        gameInfo.srcPoints[1].x = gameInfo.videoSize.getWidth();
-        gameInfo.srcPoints[1].y = 0;
-        gameInfo.srcPoints[2].x = 0;
-        gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
-
-        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top;
-        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
-        gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
-        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + gameInfo.playerMaskInfo.playerMaskRoi.height();
-        Mat resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
-                gameInfo.dstPoints, gameInfo.videoSize);
-        gameInfo.playerMaskMat.clear();
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                gameInfo.playerMaskMat.put((float) resultMat.get(i, j)[0]);
-            }
-        }
-        gameInfo.playerMaskMat.position(0);
-
-        //根据roi计算 玩家特效 mat
-        int targetHeight = (int) (gameInfo.playerMaskInfo.playerMaskRoi.width() *
-                (gameInfo.playerEffectTexture.size().getHeight() * 1.0f /
-                        gameInfo.playerEffectTexture.size().getWidth()));
-        gameInfo.srcPoints[0].x = 0;
-        gameInfo.srcPoints[0].y = 0;
-        gameInfo.srcPoints[1].x = gameInfo.videoSize.getWidth();
-        gameInfo.srcPoints[1].y = 0;
-        gameInfo.srcPoints[2].x = 0;
-        gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
-
-        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top + (gameInfo.playerMaskInfo.playerMaskRoi.height() - targetHeight);
-        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
-        gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
-        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
-        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + targetHeight;
-        resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
-                gameInfo.dstPoints, gameInfo.videoSize);
-        gameInfo.playerEffectMat.clear();
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                gameInfo.playerEffectMat.put((float) resultMat.get(i, j)[0]);
-            }
-        }
-        gameInfo.playerEffectMat.position(0);
-
-        //bind
-        mCacheGameInfo = gameInfo;
-    }
 
     public static class GameFilter extends BaseFilter {
 

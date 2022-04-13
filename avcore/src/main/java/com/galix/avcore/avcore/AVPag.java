@@ -92,10 +92,7 @@ public class AVPag extends AVComponent {
     @Override
     public int close() {
         if (!isOpen()) return RESULT_OK;
-        if (cacheTexture.id() != 0) {
-            glDeleteTextures(1, cacheTexture.idAsBuf());
-            cacheTexture = null;
-        }
+        cacheTexture.release();
         pagPlayer.release();
         return RESULT_OK;
     }

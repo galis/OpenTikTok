@@ -3,7 +3,9 @@ package com.galix.opentiktok.ui;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.Size;
 import android.view.View;
 import android.view.ViewGroup;
@@ -66,6 +68,7 @@ public class VideoPreviewPanel extends RelativeLayout {
     }
 
     private void initChildes() {
+        //new
         mThumbSize = compatSize(mThumbSize);
         mThumbPreview = new RecyclerView(getContext());
         mThumbPreview.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.HORIZONTAL, false));
@@ -76,19 +79,28 @@ public class VideoPreviewPanel extends RelativeLayout {
         mSplitView.setImageResource(R.drawable.drawable_video_split);
         mTrans = new Button(getContext());
         mAddBtn = new Button(getContext());
-
+        //设置相关属性
         addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mThumbSize));
-//        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, mThumbSize + 2 * ClipView.LINE_WIDTH));
+//        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 //        addView(mTrans, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
 //        addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
         addView(mSplitView, new RelativeLayout.LayoutParams(
                 compatSize(2),
                 ViewGroup.LayoutParams.MATCH_PARENT));
-
         ((LayoutParams) mClipView.getLayoutParams()).addRule(CENTER_VERTICAL);
         ((LayoutParams) mSplitView.getLayoutParams()).addRule(CENTER_IN_PARENT);
         ((LayoutParams) mThumbPreview.getLayoutParams()).addRule(CENTER_IN_PARENT);
+
+        //绑定回调
+        mClipView.setClipCallback(new ClipView.ClipCallback() {
+            @Override
+            public void onClip(Rect src, Rect dst) {
+                if (mClipCallback != null) {
+                    mClipCallback.onClip(src, dst);
+                }
+            }
+        });
         mThumbPreview.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
@@ -101,6 +113,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                 if (mOnScrollListener != null) {
                     mOnScrollListener.onScrollStateChanged(recyclerView, newState);
                 }
+                Log.d("onScrolled",newState+"#mOnScrollListener");
             }
 
             @Override
@@ -110,7 +123,8 @@ public class VideoPreviewPanel extends RelativeLayout {
                     mOnScrollListener.onScrolled(recyclerView, dx, dy);
                 }
                 mCacheScrollX += dx;
-                freshClip();
+                updateClip();
+                Log.d("onScrolled",mCacheScrollX+"#mCacheScrollX");
             }
         });
     }
@@ -121,6 +135,7 @@ public class VideoPreviewPanel extends RelativeLayout {
             public void onGlobalLayout() {
                 mCurrentViewSize = new Size(getMeasuredWidth(), getMeasuredHeight());
                 getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                updateData(mVideoState);
             }
         });
     }
@@ -135,8 +150,8 @@ public class VideoPreviewPanel extends RelativeLayout {
     }
 
     public void updateData(AVEngine.VideoState videoState) {
+        if (videoState == null) return;
         mVideoState = videoState;
-        freshClip();
         //处理预览缩略等相关数据
         mInfoList.clear();
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
@@ -146,16 +161,27 @@ public class VideoPreviewPanel extends RelativeLayout {
             if (avVideo == null) break;
             mInfoList.add(new ViewType(TYPE_THUMB));
             mInfoList.get(mInfoList.size() - 1).component = avVideo;
-            mInfoList.get(mInfoList.size() - 1).imgPath = VideoUtil.getThumbJpg(getContext(),
-                    avVideo.getPath(),
-                    currentPts - avVideo.getEngineStartTime() + avVideo.getClipStartTime());
-            if (currentPts + 1000000 > avVideo.getEngineEndTime()) {//处理component最后一帧不满1s
-                mInfoList.get(mInfoList.size() - 1).duration = avVideo.getEngineEndTime() - currentPts;
-                currentPts = avVideo.getEngineEndTime();
-            } else {
-                mInfoList.get(mInfoList.size() - 1).duration = 1000000;
-                currentPts += 1000000;
+            //计算正确的pts，针对单个文件
+            long correctFilePts = currentPts - avVideo.getEngineStartTime() + avVideo.getClipStartTime();
+            mInfoList.get(mInfoList.size() - 1).imgPath = VideoUtil.getThumbJpg(getContext(), avVideo.getPath(), correctFilePts);
+            //处理开头不满1s
+            if (correctFilePts % 1000000 != 0) {
+                mInfoList.get(mInfoList.size() - 1).duration = 1000000 - correctFilePts % 1000000;
+                mInfoList.get(mInfoList.size() - 1).clipStart = false;
+                currentPts += mInfoList.get(mInfoList.size() - 1).duration;
+                continue;
             }
+            //处理最后一帧不满1s
+            if (currentPts + 1000000 > avVideo.getEngineEndTime()) {
+                mInfoList.get(mInfoList.size() - 1).duration = avVideo.getEngineEndTime() - currentPts;
+                mInfoList.get(mInfoList.size() - 1).clipStart = true;
+                currentPts = avVideo.getEngineEndTime();
+                continue;
+            }
+            //正常
+            mInfoList.get(mInfoList.size() - 1).duration = 1000000;
+            mInfoList.get(mInfoList.size() - 1).clipStart = true;
+            currentPts += 1000000;
         }
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         mThumbPreview.getAdapter().notifyDataSetChanged();
@@ -169,7 +195,7 @@ public class VideoPreviewPanel extends RelativeLayout {
     }
 
 
-    private void freshClip() {
+    public void updateClip() {
         if (mVideoState.isEdit) {
             RelativeLayout.LayoutParams layoutParams = (LayoutParams) mClipView.getLayoutParams();
             layoutParams.width = (int) (mVideoState.editComponent.getEngineDuration() / 1000000.f * mThumbSize) + 2 * ClipView.DRAG_BTN_WIDTH;
@@ -205,7 +231,7 @@ public class VideoPreviewPanel extends RelativeLayout {
         public String imgPath;
         public AVComponent component;
         public long duration;
-        public Object arg2;
+        public boolean clipStart;
 
         public ViewType(int type) {
             this.type = type;
@@ -249,8 +275,13 @@ public class VideoPreviewPanel extends RelativeLayout {
                                     if (toTransform.getWidth() == holder.itemView.getLayoutParams().width) {
                                         return toTransform;
                                     }
-                                    return Bitmap.createBitmap(toTransform, 0, 0,
-                                            (int) (toTransform.getWidth() * viewType.duration / 1000000.f), toTransform.getHeight());
+                                    if (viewType.clipStart) {
+                                        return Bitmap.createBitmap(toTransform, 0, 0,
+                                                (int) (toTransform.getWidth() * viewType.duration / 1000000.f), toTransform.getHeight());
+                                    } else {
+                                        return Bitmap.createBitmap(toTransform, (int) (toTransform.getWidth() * (1000000.f - viewType.duration) / 1000000.f), 0,
+                                                (int) (toTransform.getWidth() * viewType.duration / 1000000.f), toTransform.getHeight());
+                                    }
                                 }
 
                                 @Override
@@ -270,7 +301,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                         mVideoState.isEdit = !mVideoState.isEdit;
                         mVideoState.editComponent = mInfoList.get(position).component;
                         mVideoState.unlock();
-                        freshClip();
+                        updateClip();
                     }
                 });
             } else {

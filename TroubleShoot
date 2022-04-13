@@ -36,4 +36,5 @@ System.nanoTime() ns
    Oh,两个都要有值...
 28.lut 黑色变红色。。。？白色变蓝色。。?只有oes读出的纹理颜色才有这个问题
 29.Android处理半透明居然乘上一个alpha值。Android opengl es 使用半透明png图片作为texture的一些要点
+30.EGL 坑http://geekfaner.com/shineengine/blog3_OpenGLESv2_2.html
 

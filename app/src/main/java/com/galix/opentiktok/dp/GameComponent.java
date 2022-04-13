@@ -5,16 +5,20 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.opengl.GLES30;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.util.IOUtils;
+import com.galix.avcore.util.MathUtils;
 import com.galix.opentiktok.R;
 
+import org.opencv.core.Mat;
 import org.opencv.core.Point;
 
 import java.io.IOException;
@@ -22,6 +26,21 @@ import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.Map;
+
+import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
+import static android.opengl.GLES20.GL_LINEAR;
+import static android.opengl.GLES20.GL_LUMINANCE;
+import static android.opengl.GLES20.GL_TEXTURE_2D;
+import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
+import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.GL_UNPACK_ALIGNMENT;
+import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
+import static android.opengl.GLES20.glBindTexture;
+import static android.opengl.GLES20.glDeleteTextures;
+import static android.opengl.GLES20.glTexParameterf;
+import static android.opengl.GLES20.glTexParameteri;
 
 public class GameComponent extends AVComponent {
 
@@ -166,7 +185,13 @@ public class GameComponent extends AVComponent {
         mPlayerComponent.close();
         mScreenEffect.close();
         mPlayerEffect.close();
+        gameInfoCloseIfNeed();
         return RESULT_OK;
+    }
+
+    private void gameInfoCloseIfNeed() {
+        mGameInfo.playerEffectTexture.release();
+        mGameInfo.playerMaskTexture.release();
     }
 
     @Override
@@ -263,5 +288,91 @@ public class GameComponent extends AVComponent {
         peekFrame().setEof(mCoachVideo.peekFrame().isEof());
         peekFrame().setDuration(mCoachVideo.peekFrame().getDuration());
         peekFrame().setValid(true);
+
+        renderReady(peekFrame());
+    }
+
+    private void renderReady(AVFrame avFrame) {
+        GameComponent.GameInfo gameInfo = (GameComponent.GameInfo) avFrame.getExt();
+        gameInfo.playerSurfaceTexture.updateTexImage();
+        gameInfo.coachSurfaceTexture.updateTexImage();
+//        dpInfo.effectSurfaceTexture.updateTexImage();
+
+        if (gameInfo.playerMaskInfo.playerMaskBuffer != null) {
+            if (gameInfo.playerMaskTexture.id() != 0) {
+                glDeleteTextures(1, gameInfo.playerMaskTexture.idAsBuf());
+            }
+            GLES30.glGenTextures(1, gameInfo.playerMaskTexture.idAsBuf());
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glBindTexture(GL_TEXTURE_2D, gameInfo.playerMaskTexture.id());
+            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE,
+                    gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
+                    gameInfo.playerMaskInfo.playerMaskSize.getHeight(),
+                    0, GL_LUMINANCE, GL_UNSIGNED_BYTE,
+                    gameInfo.playerMaskInfo.playerMaskBuffer);//注意检查 dpInfo.playerMaskBuffer position==0 limit==width*height
+            GLES30.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            gameInfo.playerTexture.setSize(gameInfo.playerMaskInfo.playerMaskSize.getWidth(),
+                    gameInfo.playerMaskInfo.playerMaskSize.getHeight());
+        } else {
+            gameInfo.playerMaskTexture.idAsBuf().put(0);
+            gameInfo.playerTexture.setSize(0, 0);
+        }
+        gameInfo.playerMaskTexture.idAsBuf().position(0);
+
+        //根据roi计算 mask mat
+        gameInfo.srcPoints[0].x = 0;
+        gameInfo.srcPoints[0].y = 0;
+        gameInfo.srcPoints[1].x = gameInfo.videoSize.getWidth();
+        gameInfo.srcPoints[1].y = 0;
+        gameInfo.srcPoints[2].x = 0;
+        gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
+
+        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top;
+        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
+        gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
+        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + gameInfo.playerMaskInfo.playerMaskRoi.height();
+        Mat resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
+                gameInfo.dstPoints, gameInfo.videoSize);
+        gameInfo.playerMaskMat.clear();
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                gameInfo.playerMaskMat.put((float) resultMat.get(i, j)[0]);
+            }
+        }
+        gameInfo.playerMaskMat.position(0);
+
+        //根据roi计算 玩家特效 mat
+        int targetHeight = (int) (gameInfo.playerMaskInfo.playerMaskRoi.width() *
+                (gameInfo.playerEffectTexture.size().getHeight() * 1.0f /
+                        gameInfo.playerEffectTexture.size().getWidth()));
+        gameInfo.srcPoints[0].x = 0;
+        gameInfo.srcPoints[0].y = 0;
+        gameInfo.srcPoints[1].x = gameInfo.videoSize.getWidth();
+        gameInfo.srcPoints[1].y = 0;
+        gameInfo.srcPoints[2].x = 0;
+        gameInfo.srcPoints[2].y = gameInfo.videoSize.getHeight();
+
+        gameInfo.dstPoints[0].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[0].y = gameInfo.playerMaskInfo.playerMaskRoi.top + (gameInfo.playerMaskInfo.playerMaskRoi.height() - targetHeight);
+        gameInfo.dstPoints[1].x = gameInfo.playerMaskInfo.playerMaskRoi.left + gameInfo.playerMaskInfo.playerMaskRoi.width();
+        gameInfo.dstPoints[1].y = gameInfo.dstPoints[0].y;
+        gameInfo.dstPoints[2].x = gameInfo.playerMaskInfo.playerMaskRoi.left;
+        gameInfo.dstPoints[2].y = gameInfo.dstPoints[0].y + targetHeight;
+        resultMat = MathUtils.getTransform(gameInfo.srcPoints, gameInfo.videoSize,
+                gameInfo.dstPoints, gameInfo.videoSize);
+        gameInfo.playerEffectMat.clear();
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                gameInfo.playerEffectMat.put((float) resultMat.get(i, j)[0]);
+            }
+        }
+        gameInfo.playerEffectMat.position(0);
+
     }
 }

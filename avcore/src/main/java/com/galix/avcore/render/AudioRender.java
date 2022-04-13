@@ -36,10 +36,14 @@ public class AudioRender implements IRender {
 
     @Override
     public void close() {
-        if (mAudioTrack != null) {
-            mAudioTrack.stop();
-            mAudioTrack.release();
-            mAudioTrack = null;
+        try {
+            if (mAudioTrack != null) {
+                mAudioTrack.stop();
+                mAudioTrack.release();
+                mAudioTrack = null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

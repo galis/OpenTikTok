@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.Surface;
 
 import com.galix.avcore.render.IRender;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.OtherUtils;
 
 import java.io.IOException;
@@ -140,7 +141,7 @@ public class AVVideo extends AVComponent {
                     if (sampleSize < 0) {
                         sampleSize = 0;
                         isInputEOF = true;
-                        Log.d(TAG, "isInputEOF");
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#isInputEOF");
                     }
                     mediaCodec.getInputBuffer(inputBufIdx).put(peekFrame().getByteBuffer());
                     mediaCodec.queueInputBuffer(inputBufIdx, 0,
@@ -175,11 +176,11 @@ public class AVVideo extends AVComponent {
                     }
                     break;
                 } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    Log.d(TAG, "INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
+                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
                 } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                    Log.d(TAG, "INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
+                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
                 } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
+                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
                 }
             }
         }
@@ -202,7 +203,7 @@ public class AVVideo extends AVComponent {
             OtherUtils.recordStart("seekFrame");
             readFrame();
             OtherUtils.recordEnd("seekFrame");
-            Log.d(TAG, "seekframe" + peekFrame().getPts());
+            LogUtil.log(LogUtil.ENGINE_TAG + "AVVideo#seekframe()" + peekFrame().getPts());
         }
         return RESULT_OK;
     }

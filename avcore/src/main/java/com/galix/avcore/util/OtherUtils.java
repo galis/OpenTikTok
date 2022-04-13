@@ -22,6 +22,6 @@ public class OtherUtils {
     }
 
     public static void recordEnd(String tag) {
-        Log.d("record_time", tag + "#" + (System.currentTimeMillis() - mTimeRecordMap.get(tag)));
+        LogUtil.log("record_time#" + tag + "#" + (System.currentTimeMillis() - mTimeRecordMap.get(tag)));
     }
 }

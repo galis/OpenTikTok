@@ -27,7 +27,8 @@
 
         <activity
             android:name=".dp.GameActivity"
-            android:label="@string/title_activity_game">
+            android:label="@string/title_activity_game"
+            android:launchMode="singleTop">
 
         </activity>
         <activity

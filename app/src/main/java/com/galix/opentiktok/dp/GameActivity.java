@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.gl.GLManager;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
@@ -40,8 +41,10 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LogUtil.log("Game#onCreate()");
         setContentView(R.layout.activity_game);
         mGLSurfaceView = findViewById(R.id.glsurface_game);
+        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
@@ -100,8 +103,27 @@ public class GameActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onRestart() {
+        super.onRestart();
+        LogUtil.log("Game#onRestart()");
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        LogUtil.log("Game#onStart()");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        LogUtil.log("Game#onStop()");
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+        LogUtil.log("Game#onDestroy()");
         mAVEngine.release();
         GLManager.getManager().unInstallContext();
     }

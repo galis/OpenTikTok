@@ -6,6 +6,7 @@ import android.media.MediaFormat;
 import android.util.Log;
 
 import com.galix.avcore.render.IRender;
+import com.galix.avcore.util.LogUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -80,7 +81,7 @@ public class AVAudio extends AVComponent {
                 mediaExtractor = null;
             }
         } catch (Exception e) {
-            Log.d(TAG, "AVAudio#Error#close" + e.getMessage());
+            LogUtil.log("AVAudio#Error#close" + e.getMessage());
         }
         if (sampleBuffer != null) {
             sampleBuffer = null;
@@ -104,7 +105,7 @@ public class AVAudio extends AVComponent {
                         if (sampleSize < 0) {
                             sampleSize = 0;
                             isInputEOF = true;
-                            Log.d(TAG, "isInputEOF");
+                            LogUtil.log("Audio readFrame()#isInputEOF");
                         }
                         mediaCodec.getInputBuffer(inputBufIdx).put(sampleBuffer);
                         mediaCodec.queueInputBuffer(inputBufIdx, 0,
@@ -122,7 +123,7 @@ public class AVAudio extends AVComponent {
                             isOutputEOF = true;
                         }
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
-                        Log.d(TAG, "AVAudio#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
                         peekFrame().getByteBuffer().position(0);
                         peekFrame().getByteBuffer().put(byteBuffer);
                         peekFrame().getByteBuffer().position(0);
@@ -133,15 +134,15 @@ public class AVAudio extends AVComponent {
                         mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                         break;
                     } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                        Log.d(TAG, "INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
                     } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                        Log.d(TAG, "INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
                     } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                        Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
                     }
                 }
             } catch (Exception e) {
-                Log.d(TAG, "AVAudio#Error#readFrame" + e.getMessage());
+                LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#Error#readFrame" + e.getMessage());
                 retry(peekFrame().getPts() - getEngineStartTime() + getClipStartTime());
                 return RESULT_FAILED;
             }
@@ -153,6 +154,7 @@ public class AVAudio extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
+        LogUtil.log(LogUtil.ENGINE_TAG+"seekFrame()");
         long correctPosition = position - getEngineStartTime();
         if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getDuration()) {
             return RESULT_FAILED;
@@ -165,11 +167,11 @@ public class AVAudio extends AVComponent {
     }
 
     private void retry(long position) {
-        Log.d(TAG, "AVAudio#Error#close");
+        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#close");
         close();
-        Log.d(TAG, "AVAudio#Error#open");
+        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#open");
         open();
-        Log.d(TAG, "AVAudio#Error#seekFrame");
+        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#seekFrame");
         seekFrame(position);
     }
 

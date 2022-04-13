@@ -171,7 +171,7 @@ public abstract class AVComponent {
     }
 
     public boolean isValid(long position) {
-        return position >= engineStartTime && position <= engineEndTime;
+        return position >= engineStartTime && position < engineEndTime;
     }
 
     public boolean isLoop() {

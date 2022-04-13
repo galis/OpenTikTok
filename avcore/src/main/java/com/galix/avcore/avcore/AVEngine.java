@@ -1,6 +1,7 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
+import android.opengl.EGL14;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -15,6 +16,7 @@ import androidx.annotation.NonNull;
 import com.galix.avcore.render.AudioRender;
 import com.galix.avcore.render.OESRender;
 import com.galix.avcore.util.EglHelper;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.Mp4Composite;
 import com.galix.avcore.util.OtherUtils;
 
@@ -140,6 +142,7 @@ public class AVEngine {
         public boolean hasVideo;
         public boolean readyAudio;//合成视频用
         public boolean readyVideo;//合成视频用
+        public boolean isSurfaceReady = false;
         public Size mTargetSize;//合成视频目标宽高
         public String mTargetPath;//合成视频路径
         public Clock videoClock;
@@ -167,6 +170,7 @@ public class AVEngine {
             isEdit = false;
             seekPositionUS = Long.MAX_VALUE;
             status = VideoStatus.INIT;
+            isSurfaceReady = false;
         }
 
         public void lock() {
@@ -267,23 +271,18 @@ public class AVEngine {
 
             @Override
             public void surfaceCreated(@NonNull SurfaceHolder holder) {
-                Log.d(TAG, "surfaceCreated");
                 AVEngine.this.surfaceCreated(holder.getSurface());
             }
 
             @Override
             public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
-                Log.d(TAG, "surfaceChanged");
-                AVEngine.this.surfaceChanged(holder.getSurface(), width, height);
-                seek(true);
-                seek(0);
-                seek(false);
+                AVEngine.this.surfaceChanged(holder, width, height);
+                fastSeek(0);
             }
 
             @Override
             public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
-                Log.d(TAG, "surfaceDestroyed");
-                AVEngine.this.surfaceDestroyed();
+                AVEngine.this.surfaceDestroyed(holder);
             }
         });
     }
@@ -314,7 +313,9 @@ public class AVEngine {
 
         long delay = 0;
         if (mVideoState.status == RELEASE) {
-            mOesRender.close();
+            if (mOesRender != null) {
+                mOesRender.close();
+            }
             return delay;
         }
 
@@ -346,7 +347,7 @@ public class AVEngine {
             component.unlock();
             AVFrame avFrame = component.peekFrame();
             if (!avFrame.isValid()) {
-                Log.d(TAG, "VIDEO#WTF???Something I don't understand!");
+                LogUtil.log("VIDEO#WTF???Something I don't understand!");
                 continue;
             }
             //画面同步.
@@ -359,7 +360,7 @@ public class AVEngine {
             if (needRender) {
                 if (delay > 0) {
                     try {
-//                        Log.d(TAG, "delay#" + delay / 1000);
+//                        LogUtil.log("delay#" + delay / 1000);
                         Thread.sleep(delay / 1000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -441,6 +442,10 @@ public class AVEngine {
     }
 
     private void createEngineDaemon() {
+        if (mEngineThread != null) {
+            LogUtil.log(LogUtil.MAIN_TAG + "createEngineDaemon ??? Something no destroy!");
+            return;
+        }
         mEngineThread = new HandlerThread("EngineThread");
         mEngineThread.start();
         mEngineHandler = new Handler(mEngineThread.getLooper());
@@ -452,18 +457,23 @@ public class AVEngine {
             GLES30.glBindTexture(GL_TEXTURE_2D, 0);
             GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
             mVideoState.reset();
-            boolean isSurfaceReady = false;
             while (mVideoState.status != RELEASE) {
-                Log.d(TAG, "Engine callback");
                 dumpVideoState();
-                while (!mCmdQueue.isEmpty()) {
+                while (true) {
                     Command command = mCmdQueue.poll();
+                    if (command == null) break;
                     if (command.cmd == Command.Cmd.SURFACE_CREATED) {
-                        Log.d(TAG, "Surface SURFACE_CREATED!");
+                        LogUtil.log(LogUtil.ENGINE_TAG + "SURFACE_CREATED!");
                     } else if (command.cmd == Command.Cmd.SURFACE_CHANGED) {
-                        Log.d(TAG, "Surface SURFACE_CHANGED!");
-                        mEglHelper.createSurface((Surface) command.args0);
-                        mEglHelper.makeCurrent();
+                        LogUtil.log(LogUtil.ENGINE_TAG + "SURFACE_CHANGED!#" + command.args0.toString());
+                        if (!mEglHelper.createSurface((Surface) command.args0)) {
+                            LogUtil.log(LogUtil.ENGINE_TAG + "createSurface()#Error!!");
+                            continue;
+                        }
+                        if (!mEglHelper.makeCurrent()) {
+                            LogUtil.log(LogUtil.ENGINE_TAG + "makeCurrent()#Error!!");
+                            continue;
+                        }
                         if (mOesRender == null) {
                             mOesRender = new OESRender();
                             mOesRender.open();
@@ -477,14 +487,16 @@ public class AVEngine {
                                 component.getRender().write(OtherUtils.buildMap("surface_size", new Size(width, height)));
                             }
                         }
-                        isSurfaceReady = true;
+                        mVideoState.isSurfaceReady = true;
                     } else if (command.cmd == Command.Cmd.SURFACE_DESTROYED) {
-                        Log.d(TAG, "Surface SURFACE_DESTROYED!");
+                        LogUtil.log(LogUtil.ENGINE_TAG + "SURFACE_DESTROYED!");
                         mEglHelper.destroySurface();
                         mEglHelper.makeCurrent();
-                        mOesRender.close();
-                        mOesRender = null;
-                        isSurfaceReady = false;
+                        if (mOesRender != null) {
+                            mOesRender.close();
+                            mOesRender = null;
+                        }
+                        mVideoState.isSurfaceReady = false;
                     } else if (command.cmd == Command.Cmd.INIT) {
                         mVideoState.status = INIT;
                     } else if (command.cmd == Command.Cmd.PLAY) {
@@ -586,14 +598,17 @@ public class AVEngine {
 //                        mVideoState.mTargetPath = (String) command.args0;
                         compositeMp4Internal();
                     } else {
-                        Log.d(TAG, "Seek cmd error!");
+                        LogUtil.log(LogUtil.ENGINE_TAG + "Seek cmd error!");
                     }
                 }
 
                 //处理视频
-                if (isSurfaceReady) {
+                if (mVideoState.isSurfaceReady) {
                     long delay = onDrawFrame();
-                    mEglHelper.swap();
+                    if (!mEglHelper.swap()) {
+                        int error = EGL14.eglGetError();
+                        LogUtil.log(LogUtil.ENGINE_TAG + "mEglHelper.swap() Error#" + error);
+                    }
                     if (delay == 0) {
                         try {
                             Thread.sleep(10);
@@ -625,6 +640,7 @@ public class AVEngine {
                     }
                     List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, extClk);
                     for (AVComponent audio : components) {
+                        if (!audio.isOpen()) continue;
                         audio.lock();
                         boolean needSeek = mVideoState.audioClock.seekReq != mVideoState.audioClock.lastSeekReq
                                 || (mLastAudioComponent != audio);
@@ -637,12 +653,12 @@ public class AVEngine {
                         audio.unlock();
                         AVFrame audioFrame = audio.peekFrame();
                         if (!audioFrame.isValid()) {
-                            Log.d(TAG, "WTF???Something I don't understand!");
+                            LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#WTF???Something I don't understand!");
                             continue;
                         }
                         if (Math.abs(audioFrame.getPts() - extClk) > 100000) {
                             audioFrame.markRead();//掉帧
-                            Log.d(TAG, "Drop Audio Frame#" + audioFrame.toString());
+                            LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#Drop Audio Frame#" + audioFrame.toString());
                             continue;
                         }
                         if (audio.getRender() != null) {
@@ -723,6 +739,7 @@ public class AVEngine {
      * @param avComponent
      */
     public void addComponent(AVComponent avComponent, EngineCallback engineCallback) {
+        LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "addComponent()");
         Command command = new Command();
         command.cmd = Command.Cmd.ADD_COM;
         command.args0 = avComponent;
@@ -739,6 +756,7 @@ public class AVEngine {
      * @param engineCallback 回调
      */
     public void changeComponent(LinkedList<AVComponent> avComponent, Rect src, Rect dst, EngineCallback engineCallback) {
+        LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "changeComponent()");
         Command command = new Command();
         command.cmd = Command.Cmd.CHANGE_COM;
         command.args0 = avComponent;
@@ -754,6 +772,7 @@ public class AVEngine {
      * @param avComponent
      */
     public void removeComponent(AVComponent avComponent) {
+        LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "removeComponent()");
         Command command = new Command();
         command.cmd = Command.Cmd.REMOVE_COM;
         command.args0 = avComponent;
@@ -764,6 +783,7 @@ public class AVEngine {
      * 计算总时长US.
      */
     private void reCalculate() {
+        LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "reCalculate()");
         mVideoState.durationUS = 0;
         for (AVComponent component : mVideoState.mVideoComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
@@ -774,33 +794,57 @@ public class AVEngine {
     }
 
     private void surfaceCreated(Surface surface) {
+        LogUtil.log(LogUtil.MAIN_TAG + "surfaceCreated(Surface)");
         Command command = new Command();
         command.cmd = Command.Cmd.SURFACE_CREATED;
         mCmdQueue.add(command);
     }
 
-    private void surfaceChanged(Surface surface, int width, int height) {
+    private void surfaceChanged(SurfaceHolder holder, int width, int height) {
+        LogUtil.log(LogUtil.MAIN_TAG + "surfaceChanged(SurfaceHolder,int,int)#"
+                + width + "#" + height + "#" + holder.getSurface().toString());
         Command command = new Command();
         command.cmd = Command.Cmd.SURFACE_CHANGED;
-        command.args0 = surface;
+        command.args0 = holder.getSurface();
         command.args1 = width;
         command.args2 = height;
         mCmdQueue.add(command);
+        //同步等待Engine线程处理完surface
+        while (!mVideoState.isSurfaceReady) {
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        LogUtil.log(LogUtil.MAIN_TAG + "surfaceChanged(SurfaceHolder,int,int) END");
     }
 
-    private void surfaceDestroyed() {
+    private void surfaceDestroyed(SurfaceHolder holder) {
+        LogUtil.log(LogUtil.MAIN_TAG + "surfaceDestroyed(SurfaceHolder)" + holder.toString());
         Command command = new Command();
         command.cmd = Command.Cmd.SURFACE_DESTROYED;
         mCmdQueue.add(command);
+        //同步等待Engine线程处理完surface
+        while (mVideoState.isSurfaceReady) {
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        LogUtil.log(LogUtil.MAIN_TAG + "surfaceDestroyed(SurfaceHolder) END" + holder.toString());
     }
 
     public void start() {
+        LogUtil.log(LogUtil.MAIN_TAG + "start()");
         Command command = new Command();
         command.cmd = Command.Cmd.PLAY;
         mCmdQueue.add(command);
     }
 
     public void pause() {
+        LogUtil.log(LogUtil.MAIN_TAG + "pause()");
         Command command = new Command();
         command.cmd = Command.Cmd.PAUSE;
         mCmdQueue.add(command);
@@ -825,12 +869,14 @@ public class AVEngine {
      */
 
     public void fastSeek(long position) {
+        LogUtil.log(LogUtil.MAIN_TAG + "fastSeek(long)");
         seek(true);
         seek(position);
         seek(false);
     }
 
     public void seek(long position) {
+        LogUtil.log(LogUtil.MAIN_TAG + "seek(long)");
         Command command = new Command();
         command.cmd = Command.Cmd.SEEK;
         command.args0 = position;
@@ -838,6 +884,7 @@ public class AVEngine {
     }
 
     public void seek(boolean status) {
+        LogUtil.log(LogUtil.MAIN_TAG + "seek(boolean)");
         Command command = new Command();
         command.cmd = Command.Cmd.SEEK;
         command.args0 = (long) (status ? SEEK_ENTER : SEEK_EXIT);
@@ -845,13 +892,14 @@ public class AVEngine {
     }
 
     public void create() {
+        LogUtil.log(LogUtil.MAIN_TAG + "create()");
         createEngineDaemon();
         createAudioDaemon();
     }
 
     public void release() {
 
-        Log.d(TAG, "release()");
+        LogUtil.log(LogUtil.MAIN_TAG + "release()");
 
         Command command = new Command();
         command.cmd = Command.Cmd.RELEASE;
@@ -864,7 +912,7 @@ public class AVEngine {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            Log.d(TAG, "mAudioThread quit");
+            LogUtil.log(LogUtil.MAIN_TAG + "mAudioThread quit");
         }
 
         if (mEngineHandler != null && mEngineThread != null) {
@@ -874,10 +922,13 @@ public class AVEngine {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            Log.d(TAG, "mEngineThread quit");
+            LogUtil.log(LogUtil.MAIN_TAG + "mEngineThread quit");
         }
 
-        AVEngine.gAVEngine = null;//...貌似不是很合适。。
+        mEngineThread = null;
+        mEngineHandler = null;
+        LogUtil.log(LogUtil.MAIN_TAG + "release END");
+//        AVEngine.gAVEngine = null;//...貌似不是很合适。。
 
     }
 
@@ -885,12 +936,16 @@ public class AVEngine {
         mVideoState.status = RELEASE;
         mVideoState.lock();
         for (AVComponent avComponent : mVideoState.mAudioComponents) {
+            avComponent.lock();
             avComponent.close();
+            avComponent.unlock();
         }
         mVideoState.mAudioComponents.clear();
 
         for (AVComponent avComponent : mVideoState.mVideoComponents) {
+            avComponent.lock();
             avComponent.close();
+            avComponent.unlock();
         }
         mVideoState.mVideoComponents.clear();
         mVideoState.unlock();
@@ -924,9 +979,9 @@ public class AVEngine {
 
 
     private void dumpVideoState() {
-//        Log.d(TAG_VIDEO_STATE, mVideoState.toString());
+//        LogUtil.log(TAG_VIDEO_STATE, mVideoState.toString());
 //        for (AVComponent avComponent : mAudioComponents) {
-//            Log.d(TAG_COMPONENT, avComponent.toString());
+//            LogUtil.log(TAG_COMPONENT, avComponent.toString());
 //        }
     }
 

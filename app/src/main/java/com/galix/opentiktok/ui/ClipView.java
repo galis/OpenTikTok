@@ -16,7 +16,7 @@ import android.widget.LinearLayout;
 public class ClipView extends View {
     private static final String TAG = ClipView.class.getSimpleName();
     public static final int mPaintSize = 16;
-    public static final int DRAG_BTN_WIDTH = 50;
+    public static final int DRAG_BTN_WIDTH = 60;
     public static final int LINE_WIDTH = 5;
     private boolean mIsDrag = false;
     private boolean mDragLeft = false;
@@ -65,7 +65,7 @@ public class ClipView extends View {
                                 mRect[2].right = mRect[2].left + DRAG_BTN_WIDTH;
                                 mRect[0].left = mRect[1].left = (int) event.getX();
                             } else if (mDragRight) {
-                                mRect[3].left = Math.min((int) event.getX(), getMeasuredWidth() - DRAG_BTN_WIDTH);
+                                mRect[3].left = Math.min((int) event.getX(), getLayoutParams().width - DRAG_BTN_WIDTH);
                                 mRect[3].right = mRect[3].left + DRAG_BTN_WIDTH;
                                 mRect[0].right = mRect[1].right = (int) event.getX();
                             }
@@ -75,7 +75,7 @@ public class ClipView extends View {
                     case MotionEvent.ACTION_UP:
                         mIsDrag = false;
                         getParent().requestDisallowInterceptTouchEvent(false);
-                        if (event.getEventTime() - event.getDownTime() < 100) {
+                        if (event.getEventTime() - event.getDownTime() > 100) {
                             mIsEdit = !mIsEdit;
                             callbackIfNeed();
                             Log.d(TAG, "ACTION_UP" + event.toString());
@@ -130,9 +130,9 @@ public class ClipView extends View {
     private void callbackIfNeed() {
         if (mClipCallback != null) {
             mRect[4].left = 0;
-            mRect[4].right = getLayoutParams().width;
-            mRect[5].left = mRect[2].left;
-            mRect[5].right = mRect[3].right;
+            mRect[4].right = getLayoutParams().width - 2 * DRAG_BTN_WIDTH;
+            mRect[5].left = mRect[2].right - DRAG_BTN_WIDTH;
+            mRect[5].right = mRect[3].left - DRAG_BTN_WIDTH;
             mClipCallback.onClip(mRect[4], mRect[5]);
         }
     }

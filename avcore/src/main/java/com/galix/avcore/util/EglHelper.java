@@ -25,42 +25,60 @@ public class EglHelper {
 
     public void create(EGLContext shareContext, int version) {
         mEglCore = new EglCore(shareContext, version);
+        LogUtil.log("Egl#create(EGLContext,int)" + mEglCore.toString());
     }
 
     public boolean createSurface(Surface surface) {
         destroySurface();
         mEglSurface = mEglCore.createWindowSurface(surface);
+        if (mEglSurface == null) {
+            return false;
+        }
+        LogUtil.log("Egl#createSurface" + mEglCore.toString());
         return true;
     }
 
     public boolean swap() {
+//        LogUtil.log("Egl#swap()");
+        if (mEglCore == null) {
+            LogUtil.log("Egl#swap() null????");
+        }
         return mEglCore.swapBuffers(mEglSurface);
     }
 
     public void destroySurface() {
+        LogUtil.log("Egl#destroySurface()");
         if (mEglSurface != EGL14.EGL_NO_SURFACE) {
             mEglCore.releaseSurface(mEglSurface);
             mEglSurface = EGL14.EGL_NO_SURFACE;
+            LogUtil.log("Egl#destroySurface() success!");
         }
     }
 
     public void release() {
+        LogUtil.log("Egl#release()");
+        if(mEglCore==null){
+            LogUtil.log("Egl#mEglCore==null");
+        }
         mEglCore.releaseSurface(mEglSurface);
         mEglCore.release();
         mEglCore = null;
         mEglSurface = EGL14.EGL_NO_SURFACE;
     }
 
-    public void makeCurrent() {
-        mEglCore.makeCurrent(mEglSurface);
+    public boolean makeCurrent() {
+        LogUtil.log("Egl#makeCurrent()");
+        return mEglCore.makeCurrent(mEglSurface);
     }
 
     public void makeNothingCurrent() {
+        LogUtil.log("Egl#makeNothingCurrent()");
         mEglCore.makeNothingCurrent();
     }
 
 
     public void setPresentationTime(long nsecs) {
+        LogUtil.log("Egl#setPresentationTime()");
         mEglCore.setPresentationTime(mEglSurface, nsecs);
     }
 
