@@ -190,6 +190,7 @@ public class GameComponent extends AVComponent {
     }
 
     private void gameInfoCloseIfNeed() {
+        mGameInfo.playerMaskInfo.playerMaskBuffer = null;
         mGameInfo.playerEffectTexture.release();
         mGameInfo.playerMaskTexture.release();
     }
@@ -208,18 +209,22 @@ public class GameComponent extends AVComponent {
         if (configs.containsKey("screen_effect_duration")) {
             long playTime = peekFrame().getPts() + 60000;
             mGameInfo.screenEffectDuration = (long) configs.get("screen_effect_duration");
+            mScreenEffect.lock();
             mScreenEffect.setLoop(mGameInfo.screenEffectDuration == -1);
             mScreenEffect.setEngineStartTime(playTime);//延迟一点播放
             mScreenEffect.setEngineEndTime(mScreenEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.screenEffectDuration);
             mScreenEffect.seekFrame(playTime);
+            mScreenEffect.unlock();
         }
         if (configs.containsKey("player_effect_duration")) {
             long playTime = peekFrame().getPts() + 60000;
             mGameInfo.playerEffectDuration = (long) configs.get("player_effect_duration");
+            mScreenEffect.lock();
             mPlayerEffect.setLoop(mGameInfo.playerEffectDuration == -1);
             mPlayerEffect.setEngineStartTime(playTime);
             mPlayerEffect.setEngineEndTime(mPlayerEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.playerEffectDuration);
             mPlayerEffect.seekFrame(playTime);
+            mScreenEffect.unlock();
         }
         return super.write(configs);
     }

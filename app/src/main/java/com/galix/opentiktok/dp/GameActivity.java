@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
@@ -44,6 +45,15 @@ public class GameActivity extends AppCompatActivity {
         LogUtil.log("Game#onCreate()");
         setContentView(R.layout.activity_game);
         mGLSurfaceView = findViewById(R.id.glsurface_game);
+        mGLSurfaceView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                mGLSurfaceView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                mGLSurfaceView.getLayoutParams().width = mGLSurfaceView.getMeasuredWidth();
+                mGLSurfaceView.getLayoutParams().height = (int) (mGLSurfaceView.getMeasuredWidth() * 1080.f / 1920.f);
+                mGLSurfaceView.requestLayout();
+            }
+        });
         LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
@@ -95,11 +105,21 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void run() {
                 mGameComponent.write(OtherUtils.buildMap(
-                        "screen_effect_duration", -1L, //持续3秒
+                        "screen_effect_duration", 8000000L, //持续3秒
                         "player_effect_duration", -1L  //无限循环
                 ));
             }
         }, 3000);
+
+        mBeautyButton.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mGameComponent.write(OtherUtils.buildMap(
+                        "screen_effect_duration", 8000000L, //持续3秒
+                        "player_effect_duration", -1L  //无限循环
+                ));
+            }
+        }, 10000);
     }
 
     @Override

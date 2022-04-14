@@ -1,11 +1,9 @@
 package com.galix.avcore.avcore;
 
 import android.content.res.AssetManager;
-import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
-import android.opengl.GLUtils;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -14,18 +12,15 @@ import org.libpag.PAGFile;
 import org.libpag.PAGPlayer;
 import org.libpag.PAGSurface;
 
-import java.io.IOException;
 import java.nio.IntBuffer;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_LINEAR;
-import static android.opengl.GLES20.GL_NEAREST;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
-import static android.opengl.GLES20.glDeleteTextures;
 import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
 
@@ -79,8 +74,10 @@ public class AVPag extends AVComponent {
         mFrameRoi = new Rect(0, 0, pagFile.width(), pagFile.height());
         cacheTexture = new GLTexture(intBuffer.get(0), false);
         cacheTexture.setSize(pagFile.width(), pagFile.height());
-        pagPlayer.setSurface(PAGSurface.FromTexture(intBuffer.get(0), pagFile.width(), pagFile.height()));
         pagPlayer.setComposition(pagFile);
+        pagPlayer.setSurface(PAGSurface.FromTexture(intBuffer.get(0), pagFile.width(), pagFile.height()));
+        pagPlayer.setProgress(0);//提前update一次，相当于初始化配置。
+        pagPlayer.flush();
         setDuration(pagFile.duration());
         setClipStartTime(0);
         setClipEndTime(getDuration());
@@ -109,13 +106,13 @@ public class AVPag extends AVComponent {
             peekFrame().setValid(false);
             return RESULT_FAILED;
         }
-        pagPlayer.setProgress(mCurrentFramePts * 1.0f / getClipDuration());
+        pagPlayer.setProgress(mCurrentFramePts * 1.f / getClipDuration());
         pagPlayer.flush();
         peekFrame().setTexture(cacheTexture.id());
         peekFrame().setPts(mCurrentFramePts + getEngineStartTime());
         peekFrame().setValid(true);
         peekFrame().setRoi(mFrameRoi);
-        peekFrame().setDuration(33000);
+        peekFrame().setDuration((long) (1000000.f / 24));
         mCurrentFramePts += peekFrame().getDuration();
         return RESULT_OK;
     }
@@ -127,7 +124,7 @@ public class AVPag extends AVComponent {
         if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getEngineDuration()) {
             return RESULT_FAILED;
         }
-        mCurrentFramePts = position - getEngineStartTime();
+        mCurrentFramePts = correctPosition;
         return readFrame();
     }
 }
