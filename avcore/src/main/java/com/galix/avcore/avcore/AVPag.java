@@ -128,7 +128,7 @@ public class AVPag extends AVComponent {
                         }
                     }
                 }
-                eglHelper.makeNothingCurrent();
+                eglHelper.release();
                 LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");
             }
         });
