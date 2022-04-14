@@ -101,25 +101,17 @@ public class GameActivity extends AppCompatActivity {
             }
         });
 
-        mBeautyButton.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                mGameComponent.write(OtherUtils.buildMap(
-                        "screen_effect_duration", 8000000L, //持续3秒
-                        "player_effect_duration", -1L  //无限循环
-                ));
-            }
-        }, 3000);
-
-        mBeautyButton.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                mGameComponent.write(OtherUtils.buildMap(
-                        "screen_effect_duration", 8000000L, //持续3秒
-                        "player_effect_duration", -1L  //无限循环
-                ));
-            }
-        }, 10000);
+        for (int i = 0; i < 10; i++) {
+            mBeautyButton.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mGameComponent.write(OtherUtils.buildMap(
+                            "screen_effect_duration", 8000000L,
+                            "player_effect_duration", -1L
+                    ));
+                }
+            }, i * 10000);
+        }
     }
 
     @Override

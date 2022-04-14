@@ -210,7 +210,7 @@ public class GameComponent extends AVComponent {
             long playTime = peekFrame().getPts() + 60000;
             mGameInfo.screenEffectDuration = (long) configs.get("screen_effect_duration");
             mScreenEffect.lock();
-            mScreenEffect.setLoop(mGameInfo.screenEffectDuration == -1);
+            mScreenEffect.setLoop(mGameInfo.screenEffectDuration == -1L);
             mScreenEffect.setEngineStartTime(playTime);//延迟一点播放
             mScreenEffect.setEngineEndTime(mScreenEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.screenEffectDuration);
             mScreenEffect.seekFrame(playTime);
