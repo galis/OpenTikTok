@@ -43,7 +43,12 @@ public class EglHelper {
         if (mEglCore == null) {
             LogUtil.log("Egl#swap() null????");
         }
-        return mEglCore.swapBuffers(mEglSurface);
+        if (!mEglCore.swapBuffers(mEglSurface)) {
+            int error = EGL14.eglGetError();
+            LogUtil.log(LogUtil.ENGINE_TAG + "mEglHelper.swap() Error#" + error);
+            return false;
+        }
+        return true;
     }
 
     public void destroySurface() {
@@ -57,7 +62,7 @@ public class EglHelper {
 
     public void release() {
         LogUtil.log("Egl#release()");
-        if(mEglCore==null){
+        if (mEglCore == null) {
             LogUtil.log("Egl#mEglCore==null");
         }
         mEglCore.releaseSurface(mEglSurface);

@@ -37,6 +37,10 @@ public class GLTexture {
         return textureIdBuf;
     }
 
+    public void setOes(boolean oes) {
+        this.oes = oes;
+    }
+
     public boolean isOes() {
         return oes;
     }

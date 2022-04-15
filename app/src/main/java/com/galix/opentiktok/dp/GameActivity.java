@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVEngine;
+import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.OtherUtils;
@@ -54,7 +55,7 @@ public class GameActivity extends AppCompatActivity {
                 mGLSurfaceView.requestLayout();
             }
         });
-        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
+        LogUtil.setLogLevel(LogUtil.LogLevel.NONE);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
@@ -64,7 +65,6 @@ public class GameActivity extends AppCompatActivity {
                     0,
                     "/sdcard/coach.mp4",
                     "/sdcard/testplayer.mp4",
-                    "pag/screen_effect.pag",
                     "pag/player_effect.pag",
                     BitmapFactory.decodeStream(getAssets().open("lut/beauty_lut.png")),
                     BitmapFactory.decodeStream(getAssets().open("lut/std_lut.png")),
@@ -100,18 +100,27 @@ public class GameActivity extends AppCompatActivity {
                 Log.d(TAG, "check#" + isChecked);
             }
         });
-
-        for (int i = 0; i < 10; i++) {
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        AVPag testPag = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//        AVPag testPag1 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//        AVPag testPag2 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//        AVPag testPag4 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//
+        for (int i = 0; i < 30; i++) {
             mBeautyButton.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    mGameComponent.write(OtherUtils.buildMap(
-                            "screen_effect_duration", 8000000L,
-                            "player_effect_duration", -1L
-                    ));
+                    mAVEngine.playPag(testPag);
                 }
-            }, i * 10000);
+            }, i * 4000);
         }
+
     }
 
     @Override

@@ -1,70 +1,53 @@
 package com.galix.avcore.render;
 
-import android.util.Size;
-
 import com.galix.avcore.avcore.AVFrame;
-import com.galix.avcore.render.IRender;
+import com.galix.avcore.render.filters.GLTexture;
+import com.galix.avcore.render.filters.OesFilter;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public class OESRender implements IRender {
-    public static class OesRenderConfig {
-        int width;
-        int height;
+public class OESRender implements IVideoRender {
 
-        public OesRenderConfig(int width, int height) {
-            this.width = width;
-            this.height = height;
-        }
-    }
+    private OesFilter mOesFilter;
+    private Map<String, Object> mConfigs = new HashMap<>();
 
-    private long mNativeObj = -1;
-
-    public OESRender() {
-
+    @Override
+    public GLTexture getOutTexture() {
+        return mOesFilter.getOutputTexture();
     }
 
     @Override
     public boolean isOpen() {
-        return mNativeObj != -1;
+        return mOesFilter != null;
     }
 
     @Override
     public void open() {
-        if (mNativeObj != -1) return;
-        mNativeObj = nativeOpen();
+        if (isOpen()) return;
+        mOesFilter = new OesFilter();
+        mOesFilter.open();
     }
 
     @Override
     public void close() {
-        if (mNativeObj == -1) {
-            return;
-        }
-        nativeClose(mNativeObj);
-        mNativeObj = -1;
+        if (!isOpen()) return;
+        mOesFilter.close();
+        mOesFilter = null;
     }
 
     @Override
     public void write(Map<String, Object> config) {
-        if (config == null || !config.containsKey("surface_size")) {
-            return;
-        }
-        Size size = (Size) config.get("surface_size");
-        nativeWrite(mNativeObj, size.getWidth(), size.getHeight());
-    }
 
+    }
 
     @Override
     public void render(AVFrame avFrame) {
-        avFrame.getSurfaceTexture().updateTexImage();
-        nativeRender(mNativeObj, avFrame.getTexture(), avFrame.getRoi().width(), avFrame.getRoi().height(), avFrame.getTextColor());
+        mConfigs.clear();
+        mConfigs.put("use_fbo", true);
+        mConfigs.put("fbo_size", avFrame.getTexture().size());
+        mConfigs.put("inputImageTexture", avFrame.getTexture());
+        mOesFilter.write(mConfigs);
+        mOesFilter.render();
     }
-
-    private native long nativeOpen();
-
-    private native int nativeWrite(long nativeObj, int surfaceWidth, int surfaceHeight);
-
-    private native int nativeRender(long nativeObj, int textureId, int textureWidth, int textureHeight, int color);
-
-    private native int nativeClose(long nativeObj);
 }

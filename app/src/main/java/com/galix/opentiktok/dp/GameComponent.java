@@ -2,7 +2,6 @@ package com.galix.opentiktok.dp;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.opengl.GLES30;
@@ -46,14 +45,10 @@ public class GameComponent extends AVComponent {
 
     private AVVideo mCoachVideo;
     private AVComponent mPlayerComponent;
-    private AVPag mScreenEffect;
     private AVPag mPlayerEffect;
     private String mCoachPath;
     private String mPlayerTestPath;
-    private String mScreenEffectPath;
     private String mPlayerEffectPath;
-    //    private String mBeautyLutPath;
-//    private String mPlayerLutPath;
     private GameInfo mGameInfo = new GameInfo();
     public WeakReference<Context> mContext;
 
@@ -69,7 +64,6 @@ public class GameComponent extends AVComponent {
         public SurfaceTexture playerSurfaceTexture;
         public GLTexture coachTexture = new GLTexture(0, true);//教练输入
         public GLTexture playerTexture = new GLTexture(0, true);//用户输入
-        public GLTexture screenEffectTexture = new GLTexture(0, false);//全屏特效
         public GLTexture playerEffectTexture = new GLTexture(0, false);//用户身上特效
         public Size videoSize = new Size(1920, 1080);//画面大小
         public long screenEffectDuration = 0;
@@ -107,7 +101,6 @@ public class GameComponent extends AVComponent {
                          long engineStartTime,
                          String coachPath,
                          String playerTestVideoPath,
-                         String screenEffectPath,
                          String playerEffectPath,
                          Bitmap beautyLut,
                          Bitmap playerLut,
@@ -120,7 +113,6 @@ public class GameComponent extends AVComponent {
         this.mContext = new WeakReference<>(context);
         this.mCoachPath = coachPath;
         this.mPlayerTestPath = playerTestVideoPath;
-        this.mScreenEffectPath = screenEffectPath;
         this.mPlayerEffectPath = playerEffectPath;
     }
 
@@ -128,7 +120,6 @@ public class GameComponent extends AVComponent {
                          long engineStartTime,
                          String coachPath,
                          AVComponent dpComponent,
-                         String screenEffectPath,
                          String playerEffectPath,
                          Bitmap beautyLut,
                          Bitmap playerLut,
@@ -141,7 +132,6 @@ public class GameComponent extends AVComponent {
         this.mContext = new WeakReference<>(context);
         this.mCoachPath = coachPath;
         this.mPlayerComponent = dpComponent;
-        this.mScreenEffectPath = screenEffectPath;
         this.mPlayerEffectPath = playerEffectPath;
     }
 
@@ -162,13 +152,11 @@ public class GameComponent extends AVComponent {
             }
             mPlayerComponent.peekFrame().setExt(playerMaskInfo);
         }
-        mScreenEffect = new AVPag(mContext.get().getAssets(), mScreenEffectPath, Long.MAX_VALUE, null);
         mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
 
         //打开各个组件
         mCoachVideo.open();
         mPlayerComponent.open();
-        mScreenEffect.open();
         mPlayerEffect.open();
         setDuration(mCoachVideo.getDuration());
         setEngineEndTime(mCoachVideo.getEngineStartTime() + getDuration());
@@ -183,7 +171,6 @@ public class GameComponent extends AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         mCoachVideo.close();
         mPlayerComponent.close();
-        mScreenEffect.close();
         mPlayerEffect.close();
         gameInfoCloseIfNeed();
         return RESULT_OK;
@@ -206,25 +193,15 @@ public class GameComponent extends AVComponent {
         if (configs.containsKey("use_beauty")) {
             mGameInfo.useBeauty = (boolean) configs.get("use_beauty");
         }
-        if (configs.containsKey("screen_effect_duration")) {
-            long playTime = peekFrame().getPts() + 60000;
-            mGameInfo.screenEffectDuration = (long) configs.get("screen_effect_duration");
-            mScreenEffect.lock();
-            mScreenEffect.setLoop(mGameInfo.screenEffectDuration == -1L);
-            mScreenEffect.setEngineStartTime(playTime);//延迟一点播放
-            mScreenEffect.setEngineEndTime(mScreenEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.screenEffectDuration);
-            mScreenEffect.seekFrame(playTime);
-            mScreenEffect.unlock();
-        }
         if (configs.containsKey("player_effect_duration")) {
             long playTime = peekFrame().getPts() + 60000;
             mGameInfo.playerEffectDuration = (long) configs.get("player_effect_duration");
-            mScreenEffect.lock();
+            mPlayerEffect.lock();
             mPlayerEffect.setLoop(mGameInfo.playerEffectDuration == -1);
             mPlayerEffect.setEngineStartTime(playTime);
             mPlayerEffect.setEngineEndTime(mPlayerEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.playerEffectDuration);
             mPlayerEffect.seekFrame(playTime);
-            mScreenEffect.unlock();
+            mPlayerEffect.unlock();
         }
         return super.write(configs);
     }
@@ -233,9 +210,6 @@ public class GameComponent extends AVComponent {
     public int readFrame() {
         mCoachVideo.readFrame();
         mPlayerComponent.readFrame();
-        if (peekFrame().getPts() >= mScreenEffect.getEngineStartTime()) {
-            mScreenEffect.readFrame();
-        }
         if (peekFrame().getPts() >= mPlayerEffect.getEngineStartTime()) {
             mPlayerEffect.readFrame();
         }
@@ -247,7 +221,6 @@ public class GameComponent extends AVComponent {
     public int seekFrame(long position) {
         mCoachVideo.seekFrame(position);
         mPlayerComponent.seekFrame(position);
-        mScreenEffect.seekFrame(position);
         mPlayerEffect.seekFrame(position);
         freshFrame();
         return RESULT_OK;
@@ -256,31 +229,17 @@ public class GameComponent extends AVComponent {
     private void freshFrame() {
 
         //教练
-        mGameInfo.coachTexture.idAsBuf().put(mCoachVideo.peekFrame().getTexture());
-        mGameInfo.coachTexture.setSize(mCoachVideo.peekFrame().getRoi().width(), mCoachVideo.peekFrame().getRoi().height());
+        mGameInfo.coachTexture = mCoachVideo.peekFrame().getTexture();
         mGameInfo.coachSurfaceTexture = mCoachVideo.peekFrame().getSurfaceTexture();
 
         //玩家
-        mGameInfo.playerTexture.idAsBuf().put(mPlayerComponent.peekFrame().getTexture());
-        mGameInfo.playerTexture.setSize(mPlayerComponent.peekFrame().getRoi().width(), mPlayerComponent.peekFrame().getRoi().height());
+        mGameInfo.playerTexture = mPlayerComponent.peekFrame().getTexture();
         mGameInfo.playerSurfaceTexture = mPlayerComponent.peekFrame().getSurfaceTexture();
         mGameInfo.playerMaskInfo = (PlayerMaskInfo) mPlayerComponent.peekFrame().getExt();
 
-        //全屏特效
-        if (mScreenEffect.peekFrame().isValid()) {
-            mGameInfo.screenEffectTexture.idAsBuf().put(mScreenEffect.peekFrame().getTexture());
-            mGameInfo.screenEffectTexture.setSize(mScreenEffect.peekFrame().getRoi().width(),
-                    mScreenEffect.peekFrame().getRoi().height());
-        } else {
-            mGameInfo.screenEffectTexture.idAsBuf().put(0);
-            mGameInfo.screenEffectTexture.setSize(16, 16);
-        }
-
         //用户特效
         if (mPlayerEffect.peekFrame().isValid()) {
-            mGameInfo.playerEffectTexture.idAsBuf().put(mPlayerEffect.peekFrame().getTexture());
-            mGameInfo.playerEffectTexture.setSize(mPlayerEffect.peekFrame().getRoi().width(),
-                    mPlayerEffect.peekFrame().getRoi().height());
+            mGameInfo.playerEffectTexture = mPlayerEffect.peekFrame().getTexture();
         } else {
             mGameInfo.playerEffectTexture.idAsBuf().put(0);
             mGameInfo.playerEffectTexture.setSize(16, 16);

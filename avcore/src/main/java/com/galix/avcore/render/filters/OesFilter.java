@@ -6,7 +6,6 @@ import java.util.Map;
 
 public class OesFilter extends BaseFilter {
 
-    private GLTexture mInputImage;
 
     public OesFilter() {
         super(R.raw.oes_vs, R.raw.oes_fs);
@@ -14,13 +13,10 @@ public class OesFilter extends BaseFilter {
 
     @Override
     public void onRenderPre() {
-        bindTexture("inputImageTexture", mInputImage);
+        bindTexture("inputImageTexture");
     }
 
     @Override
     public void onWrite(Map<String, Object> config) {
-        if (config.containsKey("oes_input")) {
-            mInputImage = (GLTexture) config.get("oes_input");
-        }
     }
 }

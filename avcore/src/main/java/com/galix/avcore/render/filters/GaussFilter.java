@@ -72,6 +72,11 @@ public class GaussFilter extends BaseFilterGroup {
         mChildFilterY.render();
     }
 
+    @Override
+    public void write(Object... config) {
+
+    }
+
     private static class ChildFilter extends BaseFilter {
 
         public ChildFilter() {

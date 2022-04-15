@@ -4,12 +4,14 @@ import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 
+import com.galix.avcore.render.filters.GLTexture;
+
 import java.nio.ByteBuffer;
 
 public class AVFrame {
     private long pts = -1;
-    private int texture = 0;
-    private int textureExt = 0;
+    private GLTexture texture = new GLTexture(0, false);
+    private GLTexture textureExt = new GLTexture(0, false);
     private boolean eof = false;
     private boolean isValid = false;
     private long duration = 0;
@@ -32,19 +34,25 @@ public class AVFrame {
         this.pts = pts;
     }
 
-    public int getTexture() {
+    public GLTexture getTexture() {
         return texture;
     }
 
-    public void setTexture(int texture) {
-        this.texture = texture;
+    public void setTexture(GLTexture texture) {
+        this.texture.idAsBuf().put(texture.id());
+        this.texture.setSize(texture.size().getWidth(), texture.size().getHeight());
+        this.texture.setOes(texture.isOes());
     }
 
-    public int getTextureExt() {
+    public void setTexture(int textureId) {
+        this.texture.idAsBuf().put(textureId);
+    }
+
+    public GLTexture getTextureExt() {
         return textureExt;
     }
 
-    public void setTextureExt(int textureExt) {
+    public void setTextureExt(GLTexture textureExt) {
         this.textureExt = textureExt;
     }
 

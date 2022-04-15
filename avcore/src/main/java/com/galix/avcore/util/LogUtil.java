@@ -8,7 +8,8 @@ public class LogUtil {
     public static final String TAG = "AVCore";
     public static final String ENGINE_TAG = "Engine#";
     public static final String MAIN_TAG = "Main#";
-    public static LogLevel logLevel = LogLevel.ENGINE;
+    public static final String EGL_TAG = "EGL#";
+    public static LogLevel logLevel = NONE;
 
     public enum LogLevel {
         NONE,
@@ -31,5 +32,9 @@ public class LogUtil {
                 Log.d(TAG, msg);
             }
         }
+    }
+
+    public static void logEngine(String msg) {
+        log(ENGINE_TAG + msg);
     }
 }

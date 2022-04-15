@@ -70,6 +70,11 @@ public class SkinFilter extends BaseFilterGroup {
         mSkinCompositeFilter.render();
     }
 
+    @Override
+    public void write(Object... config) {
+
+    }
+
     private static class DiffFilter extends BaseFilter {
 
         public DiffFilter() {

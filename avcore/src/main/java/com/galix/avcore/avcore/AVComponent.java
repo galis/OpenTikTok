@@ -1,5 +1,6 @@
 package com.galix.avcore.avcore;
 
+import android.opengl.Matrix;
 import android.util.Log;
 
 import com.galix.avcore.render.IRender;
@@ -69,6 +70,7 @@ public abstract class AVComponent {
     private AVFrame cache;
     private AVComponentType type;
     private AtomicBoolean lockLock;
+    private Matrix matrix;
 
     public AVComponent(long engineStartTime, AVComponentType type, IRender render) {
         this.engineStartTime = engineStartTime;
@@ -180,6 +182,14 @@ public abstract class AVComponent {
 
     public void setLoop(boolean loop) {
         isLoop = loop;
+    }
+
+    public Matrix getMatrix() {
+        return matrix;
+    }
+
+    public void setMatrix(Matrix matrix) {
+        this.matrix = matrix;
     }
 
     public abstract int open();

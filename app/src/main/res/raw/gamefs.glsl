@@ -28,15 +28,10 @@ void main(){
 
     //读取信息
     float alpha = filterTexture2D(playerMaskTexture, vec2(playerCoord.x, 1.0-playerCoord.y)).r;//玩家MASK
-    vec4 playerColor = texture(playerTexture, vec2(playerShiftCoord.x, 1.0-playerShiftCoord.y));//玩家画面
+    vec4 playerColor = texture(playerTexture, playerShiftCoord.xy);//玩家画面
     vec4 coachColor = texture(coachTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//教练Color
-    vec4 screenEffectColor = texture(screenEffectTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));//全屏特效
     vec4 playerEffectColor = texture(playerEffectTexture, vec2(playerEffectCoord.x, 1.0-playerEffectCoord.y));//用户特效
-    if (screenEffectColor.a!=0.0){
-        screenEffectColor.rgb = screenEffectColor.rgb/screenEffectColor.a;//半透明纹理有坑
-    }
     //开始合并
     vec3 dstColor = mix(coachColor.rgb, playerColor.rgb+ playerEffectColor.rgb, alpha);//合并教练画面
-    dstColor = mix(dstColor, screenEffectColor.rgb, screenEffectColor.a);//合并全屏动效
     vFragColor = vec4(dstColor, 1.0);
 }

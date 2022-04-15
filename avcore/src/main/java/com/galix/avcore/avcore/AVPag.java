@@ -109,8 +109,7 @@ public class AVPag extends AVComponent {
                 eglHelper.create(mCurrentContext, EglHelper.GL_VERSION_3);
                 eglHelper.makeCurrent();
                 pagPlayer.setComposition(pagFile);
-                pagPlayer.setSurface(PAGSurface.FromTexture(intBuffer.get(0), pagFile.width(), pagFile.height()));
-                pagPlayer.setMaxFrameRate(30);
+                pagPlayer.setSurface(PAGSurface.FromTexture(cacheTexture.id(), pagFile.width(), pagFile.height()));
                 pagPlayer.setCacheEnabled(true);
                 pagPlayer.setProgress(0);//提前update一次，相当于初始化配置。
                 pagPlayer.flush();
@@ -161,7 +160,7 @@ public class AVPag extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
-        if (mPagPts >= getEngineDuration()) {
+        if (mPagPts >= getClipDuration()) {
             peekFrame().setTexture(0);
             peekFrame().setRoi(new Rect(0, 0, 16, 16));
             peekFrame().setValid(true);
@@ -174,11 +173,11 @@ public class AVPag extends AVComponent {
             }
             return RESULT_FAILED;
         }
-        peekFrame().setTexture(cacheTexture.id());
+        peekFrame().setTexture(cacheTexture);
         peekFrame().setPts(mPagPts + getEngineStartTime());
         peekFrame().setValid(true);
         peekFrame().setRoi(mFrameRoi);
-        peekFrame().setDuration((long) (1000000.f / 30));
+        peekFrame().setDuration((long) (1000000.f / 24));
         mPagPts += peekFrame().getDuration();
         if (isLoop()) {
             mPagPts %= getClipDuration();

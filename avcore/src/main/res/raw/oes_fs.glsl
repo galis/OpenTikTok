@@ -6,5 +6,5 @@ out vec4 vFragColor;
 uniform samplerExternalOES inputImageTexture;
 
 void main(){
-    vFragColor = texture(inputImageTexture, vTextureCoord);
+    vFragColor = texture(inputImageTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));
 }

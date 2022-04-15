@@ -1,25 +1,16 @@
 package com.galix.opentiktok.dp;
 
-import android.graphics.Rect;
-import android.opengl.GLES30;
-import android.util.Log;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVFrame;
-import com.galix.avcore.render.IRender;
+import com.galix.avcore.render.IVideoRender;
 import com.galix.avcore.render.filters.BaseFilter;
 import com.galix.avcore.render.filters.BeautyFilter;
+import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
-import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.MathUtils;
 import com.galix.opentiktok.R;
-
-import org.opencv.core.Mat;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
@@ -42,10 +33,13 @@ import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
 import static android.opengl.GLES20.glViewport;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * 地平线渲染器
  */
-public class GameRender implements IRender {
+public class GameRender implements IVideoRender {
 
     private static final String TAG = GameRender.class.getSimpleName();
     //滤镜
@@ -107,7 +101,7 @@ public class GameRender implements IRender {
         mConfig.clear();
         mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheGameInfo.videoSize);
-        mConfig.put("oes_input", mCacheGameInfo.playerTexture);
+        mConfig.put("inputImageTexture", mCacheGameInfo.playerTexture);
         mOesFilter.write(mConfig);
         mOesFilter.render();
         lastFilter = mOesFilter;
@@ -138,19 +132,24 @@ public class GameRender implements IRender {
 
         //游戏画面合成.
         mConfig.clear();
-        mConfig.put("use_fbo", false);
+        mConfig.put("use_fbo", true);
+        mConfig.put("fbo_size", mCacheGameInfo.videoSize);
         mConfig.put("coachTexture", mCacheGameInfo.coachTexture);
         mConfig.put("playerTexture", lastFilter.getOutputTexture());
         mConfig.put("playerMaskTexture", mCacheGameInfo.playerMaskTexture);
         mConfig.put("playerEffectTexture", mCacheGameInfo.playerEffectTexture);
-        mConfig.put("screenEffectTexture", mCacheGameInfo.screenEffectTexture);
         mConfig.put("playerMaskMat", mCacheGameInfo.playerMaskMat);
         mConfig.put("playerEffectMat", mCacheGameInfo.playerEffectMat);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
+//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         mGameFilter.write(mConfig);
         mGameFilter.render();
+    }
+
+    @Override
+    public GLTexture getOutTexture() {
+        return mGameFilter.getOutputTexture();
     }
 
 

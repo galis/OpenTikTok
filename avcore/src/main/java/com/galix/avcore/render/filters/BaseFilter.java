@@ -194,6 +194,16 @@ public abstract class BaseFilter implements IFilter {
         onWrite(config);
     }
 
+    @Override
+    public void write(Object... configs) {
+        if (configs == null) return;
+        mConfig.clear();
+        for (int i = 0; i < configs.length / 2; i++) {
+            mConfig.put((String) configs[2 * i], configs[2 * i + 1]);
+        }
+        onWrite(mConfig);
+    }
+
     /**
      * 主要做绑定参数
      */

@@ -12,6 +12,8 @@ public interface IFilter {
 
     void write(Map<String, Object> config);
 
+    void write(Object... config);
+
     void render();
 
     GLTexture getOutputTexture();

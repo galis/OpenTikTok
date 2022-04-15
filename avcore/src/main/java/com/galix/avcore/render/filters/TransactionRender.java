@@ -149,8 +149,8 @@ public class TransactionRender implements IRender {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(mProgram);
         glViewport(0, 0, mConfig.surfaceSize.getWidth(), mConfig.surfaceSize.getHeight());
-        bindTexture("video0", avFrame.getTexture(), true);
-        bindTexture("video1", avFrame.getTextureExt(), true);
+        bindTexture("video0", avFrame.getTexture().id(), true);
+        bindTexture("video1", avFrame.getTextureExt().id(), true);
         bindFloat("alpha", avFrame.getDelta());
         Log.d(TAG, "avFrame.getDelta()#" + avFrame.getDelta());
         glBindVertexArray(mVAO.get(0));

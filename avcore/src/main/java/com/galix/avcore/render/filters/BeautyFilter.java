@@ -64,4 +64,8 @@ public class BeautyFilter extends BaseFilterGroup {
     }
 
 
+    @Override
+    public void write(Object... config) {
+
+    }
 }
