@@ -369,74 +369,77 @@ public class AVEngine {
         boolean needRender = true;
         long correctPts = mainVideoFrame.getPts();
         if (mVideoState.status == START) {
-            needRender = correctPts >= extClk || (extClk - correctPts) < 33000;
+            needRender = correctPts >= extClk || (extClk - correctPts) < 100000;//这个阈值。。
             delay = Math.max(correctPts - extClk, 0);
         }
-        if (needRender) {
-            if (delay > 0) {
-                try {
-//                        LogUtil.log("delay#" + delay / 1000);
-                    Thread.sleep(delay / 1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+        if (!needRender) {
+            LogUtil.logEngine("onDrawFrame#no need render#" + (extClk - correctPts));
+            mVideoState.videoClock.seekReq++;
+            return -1L;
+        }
+        if (delay > 0) {
+            try {
+                Thread.sleep(delay / 1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            if (mainComponent.getRender() != null) {
-                if (!mainComponent.getRender().isOpen()) {
-                    mainComponent.getRender().open();
-                    mainComponent.getRender().write(buildConfig("surface_size", mVideoState.mTargetSize));
-                }
-                mainVideoFrame.setTextureExt(lastTexture);
-                mainComponent.getRender().render(mainVideoFrame);
-                lastTexture = ((IVideoRender) mainComponent.getRender()).getOutTexture();
-            } else {
-                mainVideoFrame.setTextColor(mVideoState.mBgColor);
-                mOesRender.render(mainVideoFrame);
-                lastTexture = mOesRender.getOutTexture();
+        }
+        if (mainComponent.getRender() != null) {
+            if (!mainComponent.getRender().isOpen()) {
+                mainComponent.getRender().open();
+                mainComponent.getRender().write(buildConfig("surface_size", mVideoState.mTargetSize));
             }
+            mainVideoFrame.setTextureExt(lastTexture);
+            mainComponent.getRender().render(mainVideoFrame);
+            lastTexture = ((IVideoRender) mainComponent.getRender()).getOutTexture();
+        } else {
+            mainVideoFrame.setTextColor(mVideoState.mBgColor);
+            mOesRender.render(mainVideoFrame);
+            lastTexture = mOesRender.getOutTexture();
+        }
 
-            //如果是暂停状态，那么就保留，不是就mark read.
-            if (mVideoState.status == START && !mainVideoFrame.isEof()) {
-                mainVideoFrame.markRead();
-            }
+        //如果是暂停状态，那么就保留，不是就mark read.
+        if (mVideoState.status == START && !mainVideoFrame.isEof()) {
+            mainVideoFrame.markRead();
+        }
 
-            //渲染pag组件
-            OtherUtils.recordStart("read_pag");
-            for (AVComponent avPag : pagComponents) {
+        LogUtil.logEngine("onDrawFrame#5");
+        //渲染pag组件
+        OtherUtils.recordStart("read_pag");
+        for (AVComponent avPag : pagComponents) {
+            if (!avPag.peekFrame().isValid()) {
                 avPag.lock();
-                if (!avPag.peekFrame().isValid()) {
-                    avPag.readFrame();
-                }
+                avPag.readFrame();
                 avPag.unlock();
             }
-            OtherUtils.recordEnd("read_pag");
-            OtherUtils.recordStart("render_pag");
-            if (pagRender == null) {
-                pagRender = new PagRender();
-                pagRender.open();
-            }
-            GLES30.glEnable(GL_BLEND);
-            GLES30.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            GLES30.glBlendEquation(GL_FUNC_ADD);
-            for (AVComponent avPag : pagComponents) {
-                pagRender.render(avPag.peekFrame());
-                if (mVideoState.status == START && !avPag.peekFrame().isEof()) {
-                    avPag.peekFrame().markRead();
-                }
-            }
-            GLES30.glDisable(GL_BLEND);
-            OtherUtils.recordEnd("render_pag");
-
-            //渲染到屏幕
-            if (screenFrame == null) {
-                screenFrame = new AVFrame();
-            }
-            screenFrame.setTexture(lastTexture);
-            screenRender.render(screenFrame);
-
-            mVideoState.isLastVideoDisplay = true;
-            setClock(mVideoState.videoClock, correctPts);
         }
+        OtherUtils.recordEnd("read_pag");
+        OtherUtils.recordStart("render_pag");
+        if (pagRender == null) {
+            pagRender = new PagRender();
+            pagRender.open();
+        }
+        GLES30.glEnable(GL_BLEND);
+        GLES30.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        GLES30.glBlendEquation(GL_FUNC_ADD);
+        for (AVComponent avPag : pagComponents) {
+            pagRender.render(avPag.peekFrame());
+            if (mVideoState.status == START && !avPag.peekFrame().isEof()) {
+                avPag.peekFrame().markRead();
+            }
+        }
+        GLES30.glDisable(GL_BLEND);
+        OtherUtils.recordEnd("render_pag");
+
+        //渲染到屏幕
+        if (screenFrame == null) {
+            screenFrame = new AVFrame();
+        }
+        screenFrame.setTexture(lastTexture);
+        screenRender.render(screenFrame);
+
+        mVideoState.isLastVideoDisplay = true;
+        setClock(mVideoState.videoClock, correctPts);
 
         mLastVideoComponent = mainComponent;
 
@@ -666,6 +669,9 @@ public class AVEngine {
                 //处理视频
                 if (mVideoState.isSurfaceReady) {
                     long delay = onDrawFrame();
+                    if (delay == -1L) {//没有渲染到画面
+                        continue;
+                    }
                     mEglHelper.swap();
                     if (delay == 0) {
                         try {
