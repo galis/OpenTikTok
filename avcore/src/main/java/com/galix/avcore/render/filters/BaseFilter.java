@@ -6,6 +6,9 @@ import android.util.Size;
 
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.GLUtil;
+import com.galix.avcore.util.MathUtils;
+
+import org.opencv.core.Mat;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -246,6 +249,8 @@ public abstract class BaseFilter implements IFilter {
     public void bindMat3(String str) {
         if (mConfig.containsKey(str) && mConfig.get(str) instanceof FloatBuffer) {
             bindMat3(str, (FloatBuffer) mConfig.get(str));
+        } else if (mConfig.containsKey(str) && mConfig.get(str) instanceof Mat) {
+            bindMat3(str, MathUtils.mat2FloatBuffer((Mat) mConfig.get(str)));
         } else {
             bindMat3(str, FloatBuffer.allocate(9));
         }

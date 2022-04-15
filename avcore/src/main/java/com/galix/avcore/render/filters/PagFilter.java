@@ -13,7 +13,7 @@ public class PagFilter extends BaseFilter {
     public void onRenderPre() {
         bindTexture("inputImageTexture");
         bindTexture("pagTexture");
-//        bindMat3("pagMat");
+        bindMat3("pagMat");
     }
 
     @Override

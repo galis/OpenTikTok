@@ -4,6 +4,8 @@ import android.graphics.Bitmap;
 import android.opengl.GLES30;
 import android.util.Size;
 
+import org.opencv.core.Mat;
+
 import java.nio.IntBuffer;
 
 public class GLTexture {
@@ -13,6 +15,7 @@ public class GLTexture {
     private String path;
     private Bitmap bitmap;
     private Object dirty;
+    private Mat matrix;
 
     public GLTexture() {
     }
@@ -51,6 +54,14 @@ public class GLTexture {
 
     public void setSize(int w, int h) {
         mSize = new Size(w, h);
+    }
+
+    public Mat getMatrix() {
+        return matrix;
+    }
+
+    public void setMatrix(Mat matrix) {
+        this.matrix = matrix;
     }
 
     public void release() {

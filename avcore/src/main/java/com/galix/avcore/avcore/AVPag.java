@@ -160,7 +160,7 @@ public class AVPag extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
-        if (mPagPts >= getClipDuration()) {
+        if (mPagPts >= getClipDuration() || !isVisible()) {
             peekFrame().setTexture(0);
             peekFrame().setRoi(new Rect(0, 0, 16, 16));
             peekFrame().setValid(true);
@@ -178,6 +178,7 @@ public class AVPag extends AVComponent {
         peekFrame().setValid(true);
         peekFrame().setRoi(mFrameRoi);
         peekFrame().setDuration((long) (1000000.f / 24));
+        peekFrame().getTexture().setMatrix(getMatrix());
         mPagPts += peekFrame().getDuration();
         if (isLoop()) {
             mPagPts %= getClipDuration();

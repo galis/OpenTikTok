@@ -2,7 +2,6 @@ package com.galix.avcore.avcore;
 
 import android.content.Context;
 import android.graphics.Rect;
-import android.opengl.EGL14;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -19,7 +18,6 @@ import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.PagRender;
 import com.galix.avcore.render.ScreenRender;
 import com.galix.avcore.render.filters.GLTexture;
-import com.galix.avcore.render.filters.ScreenFilter;
 import com.galix.avcore.util.EglHelper;
 import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.Mp4Composite;
@@ -33,8 +31,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.GL_BLEND;
+import static android.opengl.GLES20.GL_FUNC_ADD;
+import static android.opengl.GLES20.GL_ONE_MINUS_SRC_ALPHA;
 import static android.opengl.GLES20.GL_RGBA;
+import static android.opengl.GLES20.GL_SRC_ALPHA;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.INIT;
@@ -70,6 +71,7 @@ public class AVEngine {
     private BlockingQueue<Command> mCmdQueue;
     private GLTexture lastTexture = null;
     private IVideoRender screenRender;
+    private IVideoRender pagRender;
     private AVFrame screenFrame;
 
     public interface EngineCallback {
@@ -399,24 +401,31 @@ public class AVEngine {
             }
 
             //渲染pag组件
+            OtherUtils.recordStart("read_pag");
             for (AVComponent avPag : pagComponents) {
                 avPag.lock();
                 if (!avPag.peekFrame().isValid()) {
                     avPag.readFrame();
                 }
                 avPag.unlock();
-                if (avPag.getRender() != null) {
-                    if (!avPag.getRender().isOpen()) {
-                        avPag.getRender().open();
-                    }
-                    avPag.peekFrame().setTextureExt(lastTexture);
-                    avPag.getRender().render(avPag.peekFrame());
-                    if (mVideoState.status == START && !avPag.peekFrame().isEof()) {
-                        avPag.peekFrame().markRead();
-                    }
-                    lastTexture = ((IVideoRender) avPag.getRender()).getOutTexture();
+            }
+            OtherUtils.recordEnd("read_pag");
+            OtherUtils.recordStart("render_pag");
+            if (pagRender == null) {
+                pagRender = new PagRender();
+                pagRender.open();
+            }
+            GLES30.glEnable(GL_BLEND);
+            GLES30.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            GLES30.glBlendEquation(GL_FUNC_ADD);
+            for (AVComponent avPag : pagComponents) {
+                pagRender.render(avPag.peekFrame());
+                if (mVideoState.status == START && !avPag.peekFrame().isEof()) {
+                    avPag.peekFrame().markRead();
                 }
             }
+            GLES30.glDisable(GL_BLEND);
+            OtherUtils.recordEnd("render_pag");
 
             //渲染到屏幕
             if (screenFrame == null) {
@@ -543,6 +552,10 @@ public class AVEngine {
                         if (mOesRender != null) {
                             mOesRender.close();
                             mOesRender = null;
+                        }
+                        if (pagRender != null) {
+                            pagRender.close();
+                            pagRender = null;
                         }
                         mVideoState.isSurfaceReady = false;
                     } else if (command.cmd == Command.Cmd.INIT) {
@@ -777,8 +790,6 @@ public class AVEngine {
         }
         return mTargetComponents;
     }
-
-    private PagRender mPagRender;
 
     public AVPag playPag(Context context, String path) {
         AVPag pag = new AVPag(context.getAssets(), path, getMainClock(), new PagRender());

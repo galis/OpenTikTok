@@ -3,6 +3,7 @@ package com.galix.opentiktok.dp;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
@@ -19,6 +20,7 @@ import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
@@ -55,7 +57,7 @@ public class GameActivity extends AppCompatActivity {
                 mGLSurfaceView.requestLayout();
             }
         });
-        LogUtil.setLogLevel(LogUtil.LogLevel.NONE);
+        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
@@ -100,25 +102,30 @@ public class GameActivity extends AppCompatActivity {
                 Log.d(TAG, "check#" + isChecked);
             }
         });
+        AVPag testPag = mAVEngine.playPag(this, "pag/screen_effect.pag");
         mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        AVPag testPag = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//        AVPag testPag1 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//        AVPag testPag2 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//        AVPag testPag4 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//
-        for (int i = 0; i < 30; i++) {
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        AVPag testPag2 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
+                1920 / 2 - 1280 / 2,
+                1080 / 2 - 720 / 2,
+                1920 / 2 + 1280 / 2,
+                1080 / 2 + 720 / 2
+        )));
+
+        for (int i = 1; i < 30; i++) {
+            int finalI = i;
             mBeautyButton.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    mAVEngine.playPag(testPag);
+                    mAVEngine.playPag(testPag2);
                 }
-            }, i * 4000);
+            }, i * 3000);
         }
 
     }

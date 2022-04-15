@@ -1,12 +1,13 @@
 package com.galix.avcore.avcore;
 
-import android.opengl.Matrix;
-import android.util.Log;
-
 import com.galix.avcore.render.IRender;
+
+import org.opencv.core.Mat;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.opencv.core.CvType.CV_32F;
 
 /**
  * AV组件，视频，音频，文字，特效，转场等
@@ -46,6 +47,7 @@ public abstract class AVComponent {
     private static final String TAG = AVComponent.class.getSimpleName();
     public static final int RESULT_FAILED = -1;
     public static final int RESULT_OK = 0;
+    private static final Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
 
     public enum AVComponentType {
         VIDEO,          //视频
@@ -65,12 +67,13 @@ public abstract class AVComponent {
     private long duration;//组件本身duration,不可改变
     private long position;//
     private boolean isOpen;
-    private boolean isLoop;
+    private boolean isLoop;//是否循环播放
+    private boolean isVisible;//是否可见
     private IRender render;
     private AVFrame cache;
     private AVComponentType type;
     private AtomicBoolean lockLock;
-    private Matrix matrix;
+    private Mat matrix;
 
     public AVComponent(long engineStartTime, AVComponentType type, IRender render) {
         this.engineStartTime = engineStartTime;
@@ -84,6 +87,8 @@ public abstract class AVComponent {
         this.render = render;
         this.lockLock = new AtomicBoolean(false);
         this.isLoop = false;
+        this.isVisible = true;
+        this.matrix = mIdentityMat;
     }
 
     public AVComponent() {
@@ -98,6 +103,8 @@ public abstract class AVComponent {
         this.render = null;
         this.lockLock = new AtomicBoolean(false);
         this.isLoop = false;
+        this.isVisible = true;
+        this.matrix = mIdentityMat;
     }
 
     public long getEngineStartTime() {
@@ -184,12 +191,20 @@ public abstract class AVComponent {
         isLoop = loop;
     }
 
-    public Matrix getMatrix() {
+    public Mat getMatrix() {
         return matrix;
     }
 
-    public void setMatrix(Matrix matrix) {
+    public void setMatrix(Mat matrix) {
         this.matrix = matrix;
+    }
+
+    public boolean isVisible() {
+        return isVisible;
+    }
+
+    public void setVisible(boolean visible) {
+        isVisible = visible;
     }
 
     public abstract int open();

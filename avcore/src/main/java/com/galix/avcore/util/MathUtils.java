@@ -1,18 +1,15 @@
 package com.galix.avcore.util;
 
-import android.graphics.PointF;
-import android.util.Log;
 import android.util.Size;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
+
+import java.nio.FloatBuffer;
 
 import static org.opencv.core.CvType.CV_32F;
 import static org.opencv.imgproc.Imgproc.getAffineTransform;
@@ -52,7 +49,7 @@ public class MathUtils {
 
 
     static Rect sRect = new Rect(0, 0, 3, 2);
-    static MatOfPoint2f mSrcPoints = new MatOfPoint2f();
+    static MatOfPoint2f mSrcPoints = new MatOfPoint2f();//TODO 多线程环境下有问题。
     static MatOfPoint2f mDstPoints = new MatOfPoint2f();
     static Mat mHolderMat = new Mat();
     static Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
@@ -98,5 +95,42 @@ public class MathUtils {
         Core.gemm(dstMat.inv(), mMatB, 1, mHolderMat, 0, dstMat);
 
         return dstMat.t();
+    }
+
+    private static Point[] calMatrixSrc = new Point[]{new Point(), new Point(), new Point()};
+    private static Point[] calMatrixDst = new Point[]{new Point(), new Point(), new Point()};
+    private static Size calSize = new Size(0, 0);
+
+    public static Mat calMatrix(android.graphics.Rect src, android.graphics.Rect dst) {
+
+        calSize = new Size(src.width(), src.height());
+
+        calMatrixSrc[0].x = 0;
+        calMatrixSrc[0].y = 0;
+        calMatrixSrc[1].x = src.width();
+        calMatrixSrc[1].y = 0;
+        calMatrixSrc[2].x = 0;
+        calMatrixSrc[2].y = src.height();
+
+        calMatrixDst[0].x = dst.left;
+        calMatrixDst[0].y = dst.top;
+        calMatrixDst[1].x = dst.right;
+        calMatrixDst[1].y = dst.top;
+        calMatrixDst[2].x = dst.left;
+        calMatrixDst[2].y = dst.bottom;
+        return getTransform(calMatrixSrc, calSize, calMatrixDst, calSize);
+    }
+
+    private static FloatBuffer cacheMatBuffer = FloatBuffer.allocate(9);
+
+    public static FloatBuffer mat2FloatBuffer(Mat mat) {
+        cacheMatBuffer.position(0);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                cacheMatBuffer.put((float) (mat.get(i, j)[0] * 1.0f));
+            }
+        }
+        cacheMatBuffer.position(0);
+        return cacheMatBuffer;
     }
 }

@@ -7,9 +7,10 @@ uniform sampler2D pagTexture;
 uniform mat3 pagMat;
 
 void main(){
-    //    vec4 pagColor = texture(pagTexture, pagMat*vec3(vTextureCoord, 1.0));
-    vec4 srcColor = texture(inputImageTexture, vTextureCoord);
-    vec4 pagColor = texture(pagTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));
-    pagColor.rgb = pagColor.rgb/pagColor.a;
-    vFragColor = vec4(mix(srcColor.rgb, pagColor.rgb, pagColor.a), 1.0);
+    vec3 correctCoord = pagMat*vec3(vTextureCoord, 1.0);
+    vec4 pagColor = texture(pagTexture, vec2(correctCoord.x, 1.0-correctCoord.y));
+    if (pagColor.a>0.0){
+        pagColor.rgb = pagColor.rgb/pagColor.a;
+    }
+    vFragColor = vec4(pagColor.rgba);
 }

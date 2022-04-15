@@ -50,10 +50,11 @@ public class PagRender implements IVideoRender {
     public void render(AVFrame avFrame) {
         GLTexture lastTexture = avFrame.getTextureExt();
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", lastTexture.size());
-        mConfig.put("inputImageTexture", lastTexture);
+        mConfig.put("use_fbo", false);
+//        mConfig.put("fbo_size", lastTexture.size());
+//        mConfig.put("inputImageTexture", lastTexture);
         mConfig.put("pagTexture", avFrame.getTexture());
+        mConfig.put("pagMat", avFrame.getTexture().getMatrix());
         mPagFilter.write(mConfig);
         mPagFilter.render();
     }
