@@ -4,6 +4,7 @@ import android.content.res.AssetManager;
 import android.graphics.Rect;
 
 import com.galix.avcore.render.IRender;
+import com.galix.avcore.util.LogUtil;
 
 import org.libpag.PAGFile;
 
@@ -65,8 +66,8 @@ public class AVPag extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
-        if (mPagPts >= getClipDuration() || !isVisible()) {
-            peekFrame().setTexture(0);
+        if (mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible()) {
+            peekFrame().setExt(null);
             peekFrame().setRoi(new Rect(0, 0, 16, 16));
             peekFrame().setValid(true);
             return RESULT_FAILED;
@@ -84,6 +85,7 @@ public class AVPag extends AVComponent {
         if (isLoop()) {
             mPagPts %= getClipDuration();
         }
+        LogUtil.logEngine("pag pts#" + mPagPts);
         return RESULT_OK;
     }
 
@@ -91,6 +93,8 @@ public class AVPag extends AVComponent {
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
         if (position < getEngineStartTime() || position > getEngineEndTime()) {
+            mPagPts = -1;
+            LogUtil.logEngine("pag seekFrame 0");
             return RESULT_FAILED;
         }
         mPagPts = position - getEngineStartTime();

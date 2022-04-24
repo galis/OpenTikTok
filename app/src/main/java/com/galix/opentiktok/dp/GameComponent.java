@@ -45,7 +45,7 @@ public class GameComponent extends AVComponent {
 
     private AVVideo mCoachVideo;
     private AVComponent mPlayerComponent;
-    private AVPag mPlayerEffect;
+    //    private AVPag mPlayerEffect;
     private String mCoachPath;
     private String mPlayerTestPath;
     private String mPlayerEffectPath;
@@ -152,12 +152,12 @@ public class GameComponent extends AVComponent {
             }
             mPlayerComponent.peekFrame().setExt(playerMaskInfo);
         }
-        mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
+//        mPlayerEffect = new AVPag(mContext.get().getAssets(), mPlayerEffectPath, Long.MAX_VALUE, null);
 
         //打开各个组件
         mCoachVideo.open();
         mPlayerComponent.open();
-        mPlayerEffect.open();
+//        mPlayerEffect.open();
         setDuration(mCoachVideo.getDuration());
         setEngineEndTime(mCoachVideo.getEngineStartTime() + getDuration());
         setClipStartTime(0);
@@ -171,7 +171,7 @@ public class GameComponent extends AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         mCoachVideo.close();
         mPlayerComponent.close();
-        mPlayerEffect.close();
+//        mPlayerEffect.close();
         gameInfoCloseIfNeed();
         return RESULT_OK;
     }
@@ -196,12 +196,12 @@ public class GameComponent extends AVComponent {
         if (configs.containsKey("player_effect_duration")) {
             long playTime = peekFrame().getPts() + 60000;
             mGameInfo.playerEffectDuration = (long) configs.get("player_effect_duration");
-            mPlayerEffect.lock();
-            mPlayerEffect.setLoop(mGameInfo.playerEffectDuration == -1);
-            mPlayerEffect.setEngineStartTime(playTime);
-            mPlayerEffect.setEngineEndTime(mPlayerEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.playerEffectDuration);
-            mPlayerEffect.seekFrame(playTime);
-            mPlayerEffect.unlock();
+//            mPlayerEffect.lock();
+//            mPlayerEffect.setLoop(mGameInfo.playerEffectDuration == -1);
+//            mPlayerEffect.setEngineStartTime(playTime);
+//            mPlayerEffect.setEngineEndTime(mPlayerEffect.isLoop() ? Long.MAX_VALUE : playTime + mGameInfo.playerEffectDuration);
+//            mPlayerEffect.seekFrame(playTime);
+//            mPlayerEffect.unlock();
         }
         return super.write(configs);
     }
@@ -210,9 +210,9 @@ public class GameComponent extends AVComponent {
     public int readFrame() {
         mCoachVideo.readFrame();
         mPlayerComponent.readFrame();
-        if (peekFrame().getPts() >= mPlayerEffect.getEngineStartTime()) {
-            mPlayerEffect.readFrame();
-        }
+//        if (peekFrame().getPts() >= mPlayerEffect.getEngineStartTime()) {
+//            mPlayerEffect.readFrame();
+//        }
         freshFrame();
         return RESULT_OK;
     }
@@ -221,7 +221,7 @@ public class GameComponent extends AVComponent {
     public int seekFrame(long position) {
         mCoachVideo.seekFrame(position);
         mPlayerComponent.seekFrame(position);
-        mPlayerEffect.seekFrame(position);
+//        mPlayerEffect.seekFrame(position);
         freshFrame();
         return RESULT_OK;
     }
@@ -238,12 +238,12 @@ public class GameComponent extends AVComponent {
         mGameInfo.playerMaskInfo = (PlayerMaskInfo) mPlayerComponent.peekFrame().getExt();
 
         //用户特效
-        if (mPlayerEffect.peekFrame().isValid()) {
-            mGameInfo.playerEffectTexture = mPlayerEffect.peekFrame().getTexture();
-        } else {
-            mGameInfo.playerEffectTexture.idAsBuf().put(0);
-            mGameInfo.playerEffectTexture.setSize(16, 16);
-        }
+//        if (mPlayerEffect.peekFrame().isValid()) {
+//            mGameInfo.playerEffectTexture = mPlayerEffect.peekFrame().getTexture();
+//        } else {
+        mGameInfo.playerEffectTexture.idAsBuf().put(0);
+        mGameInfo.playerEffectTexture.setSize(16, 16);
+//        }
 
         //作为私有数据
         peekFrame().setExt(mGameInfo);

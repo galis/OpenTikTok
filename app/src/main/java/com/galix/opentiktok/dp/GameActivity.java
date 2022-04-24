@@ -107,7 +107,10 @@ public class GameActivity extends AppCompatActivity {
         mAVEngine.playPag(this, "pag/screen_effect.pag");
         mAVEngine.playPag(this, "pag/screen_effect.pag");
         mAVEngine.playPag(this, "pag/screen_effect.pag");
-        AVPag testPag = mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        AVPag testPag = mAVEngine.playPag(this, "pag/screen_effect.pag");
         AVPag borderPag = mAVEngine.playPag(this, "pag/animation_border.pag");
         AVPag borderPag1 = mAVEngine.playPag(this, "pag/animation_border.pag");
         AVPag borderPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
