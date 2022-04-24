@@ -5,6 +5,7 @@ import android.graphics.Rect;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.OtherUtils;
 
 import org.libpag.PAGFile;
 
@@ -67,14 +68,21 @@ public class AVPag extends AVComponent {
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
         if (mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible()) {
+            LogUtil.logEngine("pag read frame return");
             peekFrame().setExt(null);
             peekFrame().setRoi(new Rect(0, 0, 16, 16));
             peekFrame().setValid(true);
             return RESULT_FAILED;
         }
 //        pagFile.setMatrix(getMatrix());
-        pagFile.setStartTime(getEngineStartTime());
+        OtherUtils.recordStart("read_pag_1");
+        if (pagFile.startTime() != getEngineStartTime()) {
+            pagFile.setStartTime(getEngineStartTime());
+        }
+        OtherUtils.recordEnd("read_pag_1");
+        OtherUtils.recordStart("read_pag_2");
         pagFile.setCurrentTime(mPagPts);
+        OtherUtils.recordEnd("read_pag_2");
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
         peekFrame().setValid(true);
@@ -82,9 +90,9 @@ public class AVPag extends AVComponent {
         peekFrame().setDuration((long) (1000000.f / 24));
         peekFrame().getTexture().setMatrix(getMatrix());
         mPagPts += peekFrame().getDuration();
-        if (isLoop()) {
+//        if (isLoop()) {
             mPagPts %= getClipDuration();
-        }
+//        }
         LogUtil.logEngine("pag pts#" + mPagPts);
         return RESULT_OK;
     }

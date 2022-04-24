@@ -391,7 +391,6 @@ public class AVEngine {
                     component.unlock();
                 }
             }
-            mPagDecodeSync.notifyAll();
         }
 
         //Video组件
@@ -469,17 +468,7 @@ public class AVEngine {
         }
 
         synchronized (mPagDecodeSync) {
-            for (AVComponent avPag : mVideoState.mDrawPagComponents) {
-                if (!avPag.peekFrame().isValid()) {
-                    avPag.lock();
-                    avPag.readFrame();
-                    avPag.unlock();
-                }
-                if (mVideoState.status == START) {
-                    avPag.peekFrame().markRead();
-                }
-            }
-            OtherUtils.recordEnd("read_pag");
+            mPagDecodeSync.notifyAll();
         }
 
         OtherUtils.recordStart("render_pag");
@@ -834,7 +823,6 @@ public class AVEngine {
                 mPagPlayer.setSurface(PAGSurface.FromTexture(mPagTexture.id(), mPagComposition.width(), mPagComposition.height()));
                 while (mVideoState.status != RELEASE) {
                     //渲染pag组件
-                    OtherUtils.recordStart("read_pag");
                     synchronized (mPagDecodeSync) {
                         try {
                             mPagDecodeSync.wait();
@@ -843,19 +831,28 @@ public class AVEngine {
                         }
                         mPagComposition.removeAllLayers();
                         for (AVComponent avPag : mVideoState.mDrawPagComponents) {
+                            if (!avPag.peekFrame().isValid()) {
+                                avPag.lock();
+                                OtherUtils.recordStart("read_pag_0");
+                                avPag.readFrame();
+                                OtherUtils.recordEnd("read_pag_0");
+                                avPag.unlock();
+                            }
+                            if (mVideoState.status == START) {
+                                avPag.peekFrame().markRead();
+                            }
                             PAGLayer layer = (PAGLayer) avPag.peekFrame().getExt();
                             if (layer != null) {
                                 mPagComposition.addLayer(layer);
                             }
                         }
-                        OtherUtils.recordEnd("read_pag");
                     }
                     long duration = mPagPlayer.duration();
                     double progress = getMainClock() * 1.0 / duration;
-                    OtherUtils.recordStart("AVPag#readFrame()#" + progress + "#" + duration);
+                    OtherUtils.recordStart("AVPag#flush()#" + progress + "#" + duration);
                     mPagPlayer.setProgress(progress);
                     mPagPlayer.flush();
-                    OtherUtils.recordEnd("AVPag#readFrame()#" + progress + "#" + duration);
+                    OtherUtils.recordEnd("AVPag#flush()#" + progress + "#" + duration);
                 }
                 eglHelper.release();
                 LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");
