@@ -38,4 +38,5 @@ System.nanoTime() ns
 29.Android处理半透明居然乘上一个alpha值。Android opengl es 使用半透明png图片作为texture的一些要点
 30.EGL 坑http://geekfaner.com/shineengine/blog3_OpenGLESv2_2.html
 31.Opengl fence https://jishuin.proginn.com/p/763bfbd6c6f4
+32.android mat Matrix互换
 

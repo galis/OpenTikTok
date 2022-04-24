@@ -102,30 +102,25 @@ public class GameActivity extends AppCompatActivity {
                 Log.d(TAG, "check#" + isChecked);
             }
         });
+
         AVPag testPag = mAVEngine.playPag(this, "pag/screen_effect.pag");
         mAVEngine.playPag(this, "pag/screen_effect.pag");
         mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
         AVPag testPag2 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
-                1920 / 2 - 1280 / 2,
-                1080 / 2 - 720 / 2,
-                1920 / 2 + 1280 / 2,
-                1080 / 2 + 720 / 2
-        )));
-
+//        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
+//                1920 / 2 - 1280 / 2,
+//                1080 / 2 - 720 / 2,
+//                1920 / 2 + 1280 / 2,
+//                1080 / 2 + 720 / 2
+//        )));
+//
         for (int i = 1; i < 30; i++) {
-            int finalI = i;
             mBeautyButton.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     mAVEngine.playPag(testPag2);
                 }
-            }, i * 3000);
+            }, i * 5000);
         }
 
     }

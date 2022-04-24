@@ -1,7 +1,5 @@
 package com.galix.avcore.util;
 
-import android.util.Log;
-
 import java.util.HashMap;
 import java.util.Map;
 

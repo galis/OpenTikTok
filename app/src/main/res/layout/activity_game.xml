@@ -33,5 +33,13 @@
         android:checked="true"
         android:text="美颜" />
 
+<!--    <Switch-->
+<!--        android:id="@+id/btn_sync"-->
+<!--        android:layout_width="100dp"-->
+<!--        android:layout_height="50dp"-->
+<!--        android:layout_below="@id/btn_beauty"-->
+<!--        android:checked="true"-->
+<!--        android:text="同步" />-->
+
 </RelativeLayout>
 
