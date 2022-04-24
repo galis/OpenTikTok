@@ -379,29 +379,31 @@ public class AVEngine {
             LogUtil.logEngine("videoComponents.size() != 1");
             return false;
         }
+
+        boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
+        //Pag组件
         synchronized (mPagDecodeSync) {
             mVideoState.mDrawPagComponents.clear();
             mVideoState.mDrawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
-        }
-
-        //Seek相关组件
-        boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
-        if (needSeek) {//优先处理seek行为
-            for (AVComponent component : mVideoState.mDrawVideoComponents) {
-                component.lock();
-                component.seekFrame(mainClk);
-                component.unlock();
-            }
-            //针对pag组件处理
-            synchronized (mPagDecodeSync) {
+            if (needSeek) {
                 for (AVComponent component : mVideoState.mDrawPagComponents) {
                     component.lock();
                     component.seekFrame(mainClk);
                     component.unlock();
                 }
             }
-            mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
+            mPagDecodeSync.notifyAll();
         }
+
+        //Video组件
+        if (needSeek) {//优先处理seek行为
+            for (AVComponent component : mVideoState.mDrawVideoComponents) {
+                component.lock();
+                component.seekFrame(mainClk);
+                component.unlock();
+            }
+        }
+        mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
         return true;
     }
 
@@ -465,10 +467,6 @@ public class AVEngine {
     private void renderPag() {
         if (mVideoState.mDrawPagComponents.isEmpty()) {
             return;
-        }
-
-        synchronized (mPagDecodeSync) {
-            mPagDecodeSync.notifyAll();
         }
 
         OtherUtils.recordStart("render_pag");
@@ -1118,6 +1116,8 @@ public class AVEngine {
             mPagComposition.removeAllLayers();
             mPagTexture.release();
             mPagPlayer.release();
+            mPagPlayer = null;
+            mPagComposition = null;
         });
         ThreadManager.getInstance().destroyThread("EngineThread");
         LogUtil.log(LogUtil.MAIN_TAG + "release END");
