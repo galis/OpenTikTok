@@ -55,11 +55,14 @@ public class ThreadManager {
         LogUtil.logEngine(threadName + "#finish");
     }
 
-    public void destroyThread(String threadName, Runnable policy) {
-        if (policy != null) {
-            policy.run();
+    public void destroyThread(String threadName, Runnable pre, Runnable post) {
+        if (pre != null) {
+            pre.run();
         }
         destroyThread(threadName);
+        if (post != null) {
+            post.run();
+        }
     }
 
 //    public void destroy() {

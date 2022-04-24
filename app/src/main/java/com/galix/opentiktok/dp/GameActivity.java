@@ -103,9 +103,14 @@ public class GameActivity extends AppCompatActivity {
             }
         });
 
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
         AVPag testPag = mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        AVPag borderPag = mAVEngine.playPag(this, "pag/animation_border.pag");
+        AVPag borderPag1 = mAVEngine.playPag(this, "pag/animation_border.pag");
+        AVPag borderPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
         AVPag testPag2 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
 //                1920 / 2 - 1280 / 2,
@@ -119,6 +124,7 @@ public class GameActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     mAVEngine.playPag(testPag2);
+                    mAVEngine.playPag(borderPag);
                 }
             }, i * 5000);
         }

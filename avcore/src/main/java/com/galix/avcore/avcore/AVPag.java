@@ -2,35 +2,10 @@ package com.galix.avcore.avcore;
 
 import android.content.res.AssetManager;
 import android.graphics.Rect;
-import android.opengl.EGL14;
-import android.opengl.EGLContext;
-import android.opengl.GLES20;
-import android.opengl.GLES30;
-import android.os.Handler;
-import android.os.HandlerThread;
 
 import com.galix.avcore.render.IRender;
-import com.galix.avcore.render.filters.GLTexture;
-import com.galix.avcore.util.EglHelper;
-import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.OtherUtils;
 
-import org.libpag.PAGComposition;
 import org.libpag.PAGFile;
-import org.libpag.PAGPlayer;
-import org.libpag.PAGSurface;
-
-import java.nio.IntBuffer;
-
-import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
-import static android.opengl.GLES20.GL_LINEAR;
-import static android.opengl.GLES20.GL_TEXTURE_2D;
-import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
-import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
-import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
-import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
-import static android.opengl.GLES20.glTexParameterf;
-import static android.opengl.GLES20.glTexParameteri;
 
 /**
  * PAG组件支持
@@ -97,6 +72,8 @@ public class AVPag extends AVComponent {
             return RESULT_FAILED;
         }
 //        pagFile.setMatrix(getMatrix());
+        pagFile.setStartTime(getEngineStartTime());
+        pagFile.setCurrentTime(mPagPts);
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
         peekFrame().setValid(true);

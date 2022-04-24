@@ -20,7 +20,7 @@ public class OtherUtils {
     }
 
     public static void recordEnd(String tag) {
-        if (mTimeRecordMap.containsKey(tag)) {
+        if (mTimeRecordMap.containsKey(tag) && mTimeRecordMap.get(tag) != null) {
             LogUtil.log("record_time#" + tag + "#" + (System.currentTimeMillis() - mTimeRecordMap.get(tag)));
         }
     }

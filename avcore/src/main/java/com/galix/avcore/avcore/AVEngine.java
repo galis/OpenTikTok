@@ -379,8 +379,10 @@ public class AVEngine {
             LogUtil.logEngine("videoComponents.size() != 1");
             return false;
         }
-        mVideoState.mDrawPagComponents.clear();
-        mVideoState.mDrawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
+        synchronized (mPagDecodeSync) {
+            mVideoState.mDrawPagComponents.clear();
+            mVideoState.mDrawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
+        }
 
         //Seek相关组件
         boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
@@ -390,10 +392,13 @@ public class AVEngine {
                 component.seekFrame(mainClk);
                 component.unlock();
             }
-            for (AVComponent component : mVideoState.mDrawPagComponents) {
-                component.lock();
-                component.seekFrame(mainClk);
-                component.unlock();
+            //针对pag组件处理
+            synchronized (mPagDecodeSync) {
+                for (AVComponent component : mVideoState.mDrawPagComponents) {
+                    component.lock();
+                    component.seekFrame(mainClk);
+                    component.unlock();
+                }
             }
             mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
         }
@@ -462,19 +467,6 @@ public class AVEngine {
             return;
         }
 
-        //渲染pag组件
-        OtherUtils.recordStart("read_pag");
-        mPagComposition.removeAllLayers();
-        for (AVComponent avPag : mVideoState.mDrawPagComponents) {
-            if (!avPag.peekFrame().isValid()) {
-                avPag.lock();
-                avPag.readFrame();
-                avPag.unlock();
-            }
-            mPagComposition.addLayer((PAGLayer) avPag.peekFrame().getExt());
-            avPag.peekFrame().markRead();
-        }
-        OtherUtils.recordEnd("read_pag");
         synchronized (mPagDecodeSync) {
             mPagDecodeSync.notifyAll();
         }
@@ -830,6 +822,21 @@ public class AVEngine {
                 mPagPlayer.setComposition(mPagComposition);
                 mPagPlayer.setSurface(PAGSurface.FromTexture(mPagTexture.id(), mPagComposition.width(), mPagComposition.height()));
                 while (mVideoState.status != RELEASE) {
+                    //渲染pag组件
+                    OtherUtils.recordStart("read_pag");
+                    synchronized (mPagDecodeSync) {
+                        mPagComposition.removeAllLayers();
+                        for (AVComponent avPag : mVideoState.mDrawPagComponents) {
+                            if (!avPag.peekFrame().isValid()) {
+                                avPag.lock();
+                                avPag.readFrame();
+                                avPag.unlock();
+                            }
+                            mPagComposition.addLayer((PAGLayer) avPag.peekFrame().getExt());
+                            avPag.peekFrame().markRead();
+                        }
+                        OtherUtils.recordEnd("read_pag");
+                    }
                     long duration = mPagPlayer.duration();
                     double progress = getMainClock() * 1.0 / duration;
                     OtherUtils.recordStart("AVPag#readFrame()#" + progress + "#" + duration);
@@ -1107,6 +1114,10 @@ public class AVEngine {
             synchronized (mPagDecodeSync) {
                 mPagDecodeSync.notify();
             }
+        }, () -> {
+            mPagComposition.removeAllLayers();
+            mPagTexture.release();
+            mPagPlayer.release();
         });
         ThreadManager.getInstance().destroyThread("EngineThread");
         LogUtil.log(LogUtil.MAIN_TAG + "release END");
