@@ -69,32 +69,18 @@ public class AVPag extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
-        if (mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible()) {
-            LogUtil.logEngine("pag read frame return");
-            peekFrame().setExt(null);
-            peekFrame().setRoi(new Rect(0, 0, 16, 16));
-            peekFrame().setValid(true);
-            return RESULT_FAILED;
-        }
-//        pagFile.setMatrix(getMatrix());
-        if (mPagPts > getClipDuration()) {
-            mPagPts = 0;
-        }
-        OtherUtils.recordStart("read_pag_2");
-        pagFile.setProgress(mPagPts * 1.0 / getClipDuration());
-        OtherUtils.recordEnd("read_pag_2");
+        boolean isInValid = mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible();
+        OtherUtils.RecordStart("avpag#setProgress#" + pagPath);
+        pagFile.setProgress(isInValid ? 1.1f : mPagPts * 1.0 / getClipDuration());
+        OtherUtils.RecordEnd("avpag#setProgress#" + pagPath);
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
         peekFrame().setValid(true);
         peekFrame().setRoi(mFrameRoi);
-        peekFrame().setDuration((long) (1000000.f / 24));
+        peekFrame().setDuration((long) (1000000.f / 30));
         peekFrame().getTexture().setMatrix(getMatrix());
         mPagPts += peekFrame().getDuration();
-
-//        if (isLoop()) {
-//        mPagPts %= getClipDuration();
-//        }
-        LogUtil.logEngine("pag pts#" + mPagPts);
+        LogUtil.logEngine("avpag#pag pts#" + mPagPts);
         return RESULT_OK;
     }
 
@@ -103,7 +89,7 @@ public class AVPag extends AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         if (position < getEngineStartTime() || position > getEngineEndTime()) {
             mPagPts = -1;
-            LogUtil.logEngine("pag seekFrame 0");
+            LogUtil.logEngine("avpag#pag seekFrame 0");
             return RESULT_FAILED;
         }
         mPagPts = position - getEngineStartTime();

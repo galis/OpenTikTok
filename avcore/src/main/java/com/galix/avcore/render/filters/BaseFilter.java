@@ -8,6 +8,7 @@ import android.util.SizeF;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.MathUtils;
+import com.galix.avcore.util.OtherUtils;
 
 import org.opencv.core.Mat;
 
@@ -142,6 +143,7 @@ public abstract class BaseFilter implements IFilter {
     @Override
     public void render() {
         if (!isOpen()) return;
+        OtherUtils.RecordStart(getClass().getSimpleName() + "#filter_render");
         runTasks();
         bindCurrentProgram();
         bindCurrentVAO();
@@ -150,6 +152,7 @@ public abstract class BaseFilter implements IFilter {
         drawNow();
         onRenderPost();
         bindEmptyVAO();
+        OtherUtils.RecordEnd(getClass().getSimpleName() + "#filter_render");
 //        flushNow();
     }
 

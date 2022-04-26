@@ -26,7 +26,6 @@ import com.galix.avcore.util.Mp4Composite;
 import com.galix.avcore.util.OtherUtils;
 
 import org.libpag.PAGComposition;
-import org.libpag.PAGFile;
 import org.libpag.PAGLayer;
 import org.libpag.PAGPlayer;
 import org.libpag.PAGSurface;
@@ -347,12 +346,42 @@ public class AVEngine {
         if (!checkSeekAndReadyForRender()) {
             return 0;
         }
-        long delay = renderVideo();
+        OtherUtils.RecordStart("renderVideo");
+        renderVideo();
+        OtherUtils.RecordEnd("renderVideo");
+        OtherUtils.RecordStart("renderPag");
         renderPag();//渲染pag
+        OtherUtils.RecordEnd("renderPag");
+        OtherUtils.RecordStart("renderScreen");
         renderScreen();//渲染到屏幕
+        OtherUtils.RecordEnd("renderScreen");
         renderSticker();//贴纸渲染
         renderWord();//文字渲染
         renderPost();//刷新回调
+        return renderForDelay();
+    }
+
+    private long renderForDelay() {
+        boolean needRender = true;
+        long delay = 0;
+        long mainClock = getMainClock();
+        long correctPts = getClock(mVideoState.videoClock);
+        if (mVideoState.status == START) {
+            delay = Math.max(correctPts - mainClock, 0);
+            needRender = correctPts >= mainClock || delay < 50000;//这个阈值。。
+        }
+        LogUtil.logEngine("delay#" + delay);
+        if (!needRender) {
+            LogUtil.logEngine("needRender#delay#" + delay);
+            return -1L;
+        }
+        if (delay > 0) {
+            try {
+                Thread.sleep(delay / 1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         return delay;
     }
 
@@ -405,8 +434,7 @@ public class AVEngine {
         return true;
     }
 
-    private long renderVideo() {
-        long delay = 0;
+    private void renderVideo() {
         long mainClock = mVideoState.mDrawClock;
         AVComponent mainComponent = mVideoState.mDrawVideoComponents.get(0);
         mainComponent.lock();
@@ -417,26 +445,9 @@ public class AVEngine {
         AVFrame mainVideoFrame = mainComponent.peekFrame();
         if (!mainVideoFrame.isValid()) {
             LogUtil.log("VIDEO#WTF???Something I don't understand!");
-            return delay;
+            return;
         }
-        boolean needRender = true;
         long correctPts = mainVideoFrame.getPts();
-        if (mVideoState.status == START) {
-            needRender = correctPts >= mainClock || (mainClock - correctPts) < 100000;//这个阈值。。
-            delay = Math.max(correctPts - mainClock, 0);
-        }
-        if (!needRender) {
-            LogUtil.logEngine("onDrawFrame#no need render#" + (mainClock - correctPts));
-            mVideoState.videoClock.seekReq++;
-            return -1L;
-        }
-        if (delay > 0) {
-            try {
-                Thread.sleep(delay / 1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
         if (mainComponent.getRender() != null) {
             if (!mainComponent.getRender().isOpen()) {
                 mainComponent.getRender().open();
@@ -459,19 +470,17 @@ public class AVEngine {
         mVideoState.isLastVideoDisplay = true;
         setClock(mVideoState.videoClock, correctPts);
         mLastVideoComponent = mainComponent;
-        return delay;
     }
 
     private void renderPag() {
         if (mVideoState.mDrawPagComponents.isEmpty()) {
             return;
         }
-
+        //通知解码线程渲染
         synchronized (mPagDecodeSync) {
             mPagDecodeSync.notifyAll();
         }
 
-        OtherUtils.recordStart("render_pag");
         if (pagRender == null) {
             pagRender = new PagRender();
             pagRender.open();
@@ -486,7 +495,6 @@ public class AVEngine {
         GLES30.glBlendEquation(GL_FUNC_ADD);
         pagRender.render(mPagFrame);
         GLES30.glDisable(GL_BLEND);
-        OtherUtils.recordEnd("render_pag");
     }
 
     private void renderScreen() {
@@ -585,12 +593,12 @@ public class AVEngine {
                         }
                         int width = (int) command.args1;
                         int height = (int) command.args2;
-                        mOesRender.write(OtherUtils.buildMap("surface_size", new Size(width, height)));
-                        screenRender.write(OtherUtils.buildMap("surface_size", new Size(width, height)));
+                        mOesRender.write(OtherUtils.BuildMap("surface_size", new Size(width, height)));
+                        screenRender.write(OtherUtils.BuildMap("surface_size", new Size(width, height)));
                         List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, -1);
                         for (AVComponent component : components) {
                             if (component.getRender() != null) {
-                                component.getRender().write(OtherUtils.buildMap("surface_size", new Size(width, height)));
+                                component.getRender().write(OtherUtils.BuildMap("surface_size", new Size(width, height)));
                             }
                         }
                         mVideoState.isSurfaceReady = true;
@@ -713,7 +721,9 @@ public class AVEngine {
 
                 //处理视频
                 if (mVideoState.isSurfaceReady) {
+                    OtherUtils.RecordStart("onDrawFrame");
                     long delay = onDrawFrame();
+                    OtherUtils.RecordEnd("onDrawFrame");
                     if (delay == -1L) {//没有渲染到画面
                         continue;
                     }
@@ -832,12 +842,13 @@ public class AVEngine {
                         for (int i = 0; i < mPagComposition.numChildren(); i++) {
                             mPagComposition.getLayerAt(i).setVisible(false);
                         }
+                        LogUtil.logEngine("decode_pag#size" + mVideoState.mDrawPagComponents.size());
                         for (AVComponent avPag : mVideoState.mDrawPagComponents) {
                             if (!avPag.peekFrame().isValid()) {
                                 avPag.lock();
-                                OtherUtils.recordStart("read_pag_0");
+                                OtherUtils.RecordStart("decode_pag#avPag.readFrame");
                                 avPag.readFrame();
-                                OtherUtils.recordEnd("read_pag_0");
+                                OtherUtils.RecordEnd("decode_pag#avPag.readFrame");
                                 avPag.unlock();
                             }
                             if (mVideoState.status == START) {
@@ -853,9 +864,9 @@ public class AVEngine {
                         }
                     }
                     long duration = mPagPlayer.duration();
-                    OtherUtils.recordStart("AVPag#flush()#" + "#" + duration);
+                    OtherUtils.RecordStart("decode_pag#mPagPlayer.flush");
                     mPagPlayer.flush();
-                    OtherUtils.recordEnd("AVPag#flush()#" + "#" + duration);
+                    OtherUtils.RecordEnd("decode_pag#mPagPlayer.flush");
                 }
                 eglHelper.release();
                 LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");

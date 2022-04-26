@@ -3,7 +3,6 @@ package com.galix.opentiktok.dp;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
@@ -12,6 +11,7 @@ import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -20,7 +20,6 @@ import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.OtherUtils;
 import com.galix.opentiktok.R;
 
@@ -34,6 +33,7 @@ public class GameActivity extends AppCompatActivity {
     private AVEngine mAVEngine;
     private Button mToggleButton;
     private Switch mBeautyButton;
+    private TextView mEngineInfo;
     private GameRender mGameRender;
     private GameComponent mGameComponent;
     private boolean mIsBeauty = true;
@@ -57,7 +57,7 @@ public class GameActivity extends AppCompatActivity {
                 mGLSurfaceView.requestLayout();
             }
         });
-        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
+        LogUtil.setLogLevel(LogUtil.LogLevel.NONE);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mGLSurfaceView);
         mAVEngine.create();
@@ -98,19 +98,21 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 mIsBeauty = isChecked;
-                mGameComponent.write(OtherUtils.buildMap("use_beauty", mIsBeauty));
+                mGameComponent.write(OtherUtils.BuildMap("use_beauty", mIsBeauty));
                 Log.d(TAG, "check#" + isChecked);
             }
         });
 
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/animation_border.pag");
-//        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-//
-//
-//        mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        mAVEngine.playPag(this, "pag/animation_border.pag");
-//        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+        mEngineInfo = findViewById(R.id.tv_engine_info);
+
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/animation_border.pag");
+        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+
+
+        mAVEngine.playPag(this, "pag/screen_effect.pag");
+        mAVEngine.playPag(this, "pag/animation_border.pag");
+        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 
         AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
         AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
@@ -132,6 +134,18 @@ public class GameActivity extends AppCompatActivity {
                 }
             }, i * 10000);
         }
+
+        mAVEngine.setOnFrameUpdateCallback(new AVEngine.EngineCallback() {
+            @Override
+            public void onCallback(Object... args1) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mEngineInfo.setText(OtherUtils.LogStr("render","decode"));
+                    }
+                });
+            }
+        });
 
     }
 

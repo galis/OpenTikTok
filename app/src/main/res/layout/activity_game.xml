@@ -33,13 +33,19 @@
         android:checked="true"
         android:text="美颜" />
 
-<!--    <Switch-->
-<!--        android:id="@+id/btn_sync"-->
-<!--        android:layout_width="100dp"-->
-<!--        android:layout_height="50dp"-->
-<!--        android:layout_below="@id/btn_beauty"-->
-<!--        android:checked="true"-->
-<!--        android:text="同步" />-->
+    <!--    <Switch-->
+    <!--        android:id="@+id/btn_sync"-->
+    <!--        android:layout_width="100dp"-->
+    <!--        android:layout_height="50dp"-->
+    <!--        android:layout_below="@id/btn_beauty"-->
+    <!--        android:checked="true"-->
+    <!--        android:text="同步" />-->
+    <TextView
+        android:id="@+id/tv_engine_info"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/glsurface_game"
+        android:textColor="#00ff00" />
 
 </RelativeLayout>
 

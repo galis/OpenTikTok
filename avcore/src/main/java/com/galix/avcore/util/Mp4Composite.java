@@ -319,7 +319,7 @@ public class Mp4Composite {
         mEngine.getEglHelper().makeCurrent();
         OESRender oesRender = new OESRender();
         oesRender.open();
-        oesRender.write(OtherUtils.buildMap("surface_size", mVideoState.mTargetSize));
+        oesRender.write(OtherUtils.BuildMap("surface_size", mVideoState.mTargetSize));
 
         while (!mVideoEncodeStream.isInputEOF) {
             AVFrame videoFrame = readVideoFrame();

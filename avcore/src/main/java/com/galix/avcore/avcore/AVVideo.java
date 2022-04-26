@@ -196,9 +196,9 @@ public class AVVideo extends AVComponent {
         mediaCodec.flush();
         peekFrame().setPts(Long.MIN_VALUE);
         while (peekFrame().getPts() < position) {
-            OtherUtils.recordStart("seekFrame");
+            OtherUtils.RecordStart("seekFrame");
             readFrame();
-            OtherUtils.recordEnd("seekFrame");
+            OtherUtils.RecordEnd("seekFrame");
             LogUtil.log(LogUtil.ENGINE_TAG + "AVVideo#seekframe()" + peekFrame().getPts());
         }
         return RESULT_OK;
