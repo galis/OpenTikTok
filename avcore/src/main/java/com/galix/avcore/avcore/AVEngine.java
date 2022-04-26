@@ -829,7 +829,9 @@ public class AVEngine {
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                        mPagComposition.removeAllLayers();
+                        for (int i = 0; i < mPagComposition.numChildren(); i++) {
+                            mPagComposition.getLayerAt(i).setVisible(false);
+                        }
                         for (AVComponent avPag : mVideoState.mDrawPagComponents) {
                             if (!avPag.peekFrame().isValid()) {
                                 avPag.lock();
@@ -843,16 +845,17 @@ public class AVEngine {
                             }
                             PAGLayer layer = (PAGLayer) avPag.peekFrame().getExt();
                             if (layer != null) {
-                                mPagComposition.addLayer(layer);
+                                if (!mPagComposition.contains(layer)) {
+                                    mPagComposition.addLayer(layer);
+                                }
+                                layer.setVisible(true);
                             }
                         }
                     }
                     long duration = mPagPlayer.duration();
-                    double progress = getMainClock() * 1.0 / duration;
-                    OtherUtils.recordStart("AVPag#flush()#" + progress + "#" + duration);
-                    mPagPlayer.setProgress(progress);
+                    OtherUtils.recordStart("AVPag#flush()#" + "#" + duration);
                     mPagPlayer.flush();
-                    OtherUtils.recordEnd("AVPag#flush()#" + progress + "#" + duration);
+                    OtherUtils.recordEnd("AVPag#flush()#" + "#" + duration);
                 }
                 eglHelper.release();
                 LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");

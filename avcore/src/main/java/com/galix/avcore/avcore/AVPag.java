@@ -48,6 +48,7 @@ public class AVPag extends AVComponent {
         } else {
             pagFile = PAGFile.Load(pagPath);
         }
+        pagFile.setExcludedFromTimeline(true);
         mFrameRoi = new Rect(0, 0, pagFile.width(), pagFile.height());
         //设置相关参数
         setDuration(pagFile.duration());
@@ -61,6 +62,7 @@ public class AVPag extends AVComponent {
     @Override
     public int close() {
         if (!isOpen()) return RESULT_OK;
+        pagFile.removeAllLayers();
         return RESULT_OK;
     }
 
@@ -75,13 +77,11 @@ public class AVPag extends AVComponent {
             return RESULT_FAILED;
         }
 //        pagFile.setMatrix(getMatrix());
-        OtherUtils.recordStart("read_pag_1");
-        if (pagFile.startTime() != getEngineStartTime()) {
-            pagFile.setStartTime(getEngineStartTime());
+        if (mPagPts > getClipDuration()) {
+            mPagPts = 0;
         }
-        OtherUtils.recordEnd("read_pag_1");
         OtherUtils.recordStart("read_pag_2");
-        pagFile.setCurrentTime(mPagPts);
+        pagFile.setProgress(mPagPts * 1.0 / getClipDuration());
         OtherUtils.recordEnd("read_pag_2");
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
@@ -90,8 +90,9 @@ public class AVPag extends AVComponent {
         peekFrame().setDuration((long) (1000000.f / 24));
         peekFrame().getTexture().setMatrix(getMatrix());
         mPagPts += peekFrame().getDuration();
+
 //        if (isLoop()) {
-            mPagPts %= getClipDuration();
+//        mPagPts %= getClipDuration();
 //        }
         LogUtil.logEngine("pag pts#" + mPagPts);
         return RESULT_OK;
