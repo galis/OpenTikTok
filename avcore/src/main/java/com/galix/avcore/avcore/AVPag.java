@@ -71,7 +71,10 @@ public class AVPag extends AVComponent {
         if (!isOpen()) return RESULT_FAILED;
         boolean isInValid = mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible();
         OtherUtils.RecordStart("avpag#setProgress#" + pagPath);
-        pagFile.setProgress(isInValid ? 1.1f : mPagPts * 1.0 / getClipDuration());
+        double progress = isInValid ? 1.1f : mPagPts * 1.0 / getClipDuration();
+        if (pagFile.getProgress() != progress) {
+            pagFile.setProgress(progress);
+        }
         OtherUtils.RecordEnd("avpag#setProgress#" + pagPath);
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
@@ -87,12 +90,12 @@ public class AVPag extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
+        LogUtil.logEngine("avpag#pag seekFrame " + position);
         if (position < getEngineStartTime() || position > getEngineEndTime()) {
             mPagPts = -1;
-            LogUtil.logEngine("avpag#pag seekFrame 0");
             return RESULT_FAILED;
         }
         mPagPts = position - getEngineStartTime();
-        return readFrame();
+        return RESULT_OK;
     }
 }

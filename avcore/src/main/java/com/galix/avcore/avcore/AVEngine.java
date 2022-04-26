@@ -157,7 +157,7 @@ public class AVEngine {
 
         public boolean isInputEOF;
         public boolean isOutputEOF;
-        public boolean isLastVideoDisplay;
+        public long displaySwapCount;
         public long seekPositionUS;
         public long durationUS;//视频总时长 us
         public int mBgColor;
@@ -197,7 +197,7 @@ public class AVEngine {
             durationUS = 0;
             isInputEOF = false;
             isOutputEOF = false;
-            isLastVideoDisplay = false;
+            displaySwapCount = 0;
             isEdit = false;
             seekPositionUS = Long.MAX_VALUE;
             status = VideoStatus.INIT;
@@ -242,7 +242,7 @@ public class AVEngine {
             return "VideoState{" +
                     "isInputEOF=" + isInputEOF +
                     ", isOutputEOF=" + isOutputEOF +
-                    ", isLastVideoDisplay=" + isLastVideoDisplay +
+                    ", isLastVideoDisplay=" + displaySwapCount +
                     ", seekPositionUS=" + seekPositionUS +
                     ", durationUS=" + durationUS +
                     ", videoClock=" + videoClock.toString() +
@@ -467,7 +467,6 @@ public class AVEngine {
             mainVideoFrame.markRead();
         }
 
-        mVideoState.isLastVideoDisplay = true;
         setClock(mVideoState.videoClock, correctPts);
         mLastVideoComponent = mainComponent;
     }
@@ -647,6 +646,7 @@ public class AVEngine {
                             mVideoState.seekPositionUS = (long) command.args0;
                             mVideoState.extClock.seekReq++;
                             mVideoState.audioClock.seekReq = mVideoState.videoClock.seekReq = mVideoState.extClock.seekReq;
+                            mVideoState.displaySwapCount = 0;
                             setClock(mVideoState.extClock, mVideoState.seekPositionUS);
                         }
                     } else if (command.cmd == Command.Cmd.ADD_COM) {
@@ -720,14 +720,21 @@ public class AVEngine {
                 }
 
                 //处理视频
-                if (mVideoState.isSurfaceReady) {
+                boolean needRender = mVideoState.isSurfaceReady && (mVideoState.displaySwapCount < 1
+                        || mVideoState.status == START);
+                if (needRender) {
                     OtherUtils.RecordStart("onDrawFrame");
                     long delay = onDrawFrame();
                     OtherUtils.RecordEnd("onDrawFrame");
                     if (delay == -1L) {//没有渲染到画面
                         continue;
                     }
+                    //swap两次才能在屏幕显示...
                     mEglHelper.swap();
+                    mVideoState.displaySwapCount++;
+                    if (mVideoState.displaySwapCount == Long.MAX_VALUE) {
+                        mVideoState.displaySwapCount = 1;
+                    }
                     if (delay == 0) {
                         try {
                             Thread.sleep(10);
@@ -834,11 +841,6 @@ public class AVEngine {
                 while (mVideoState.status != RELEASE) {
                     //渲染pag组件
                     synchronized (mPagDecodeSync) {
-                        try {
-                            mPagDecodeSync.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
                         for (int i = 0; i < mPagComposition.numChildren(); i++) {
                             mPagComposition.getLayerAt(i).setVisible(false);
                         }
@@ -851,9 +853,7 @@ public class AVEngine {
                                 OtherUtils.RecordEnd("decode_pag#avPag.readFrame");
                                 avPag.unlock();
                             }
-                            if (mVideoState.status == START) {
-                                avPag.peekFrame().markRead();
-                            }
+                            avPag.peekFrame().markRead();
                             PAGLayer layer = (PAGLayer) avPag.peekFrame().getExt();
                             if (layer != null) {
                                 if (!mPagComposition.contains(layer)) {
@@ -863,10 +863,16 @@ public class AVEngine {
                             }
                         }
                     }
-                    long duration = mPagPlayer.duration();
                     OtherUtils.RecordStart("decode_pag#mPagPlayer.flush");
                     mPagPlayer.flush();
                     OtherUtils.RecordEnd("decode_pag#mPagPlayer.flush");
+                    synchronized (mPagDecodeSync) {
+                        try {
+                            mPagDecodeSync.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 eglHelper.release();
                 LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");

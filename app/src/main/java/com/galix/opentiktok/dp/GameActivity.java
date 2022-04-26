@@ -141,7 +141,7 @@ public class GameActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mEngineInfo.setText(OtherUtils.LogStr("render","decode"));
+                        mEngineInfo.setText(OtherUtils.LogStr("pag"));
                     }
                 });
             }
