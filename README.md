@@ -23,9 +23,6 @@ raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.open
 
 ### 9.转场
 
-
-以上功能会在2022.03.20前完成!
-
 ## v2.0功能如下
 
 ### 1.变速播放
