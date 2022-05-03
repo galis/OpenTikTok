@@ -34,6 +34,7 @@ import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.TextRender;
 import com.galix.avcore.render.filters.TransactionRender;
 import com.galix.avcore.util.GestureUtils;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
@@ -250,6 +251,7 @@ public class VideoEditActivity extends BaseActivity {
         mAVEngine.create();
         mAVEngine.setCanvasSize(calCanvasSize("原始"));
         GLManager.getManager().installContext(this);
+        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
 
         mVideoPreViewPanel = findViewById(R.id.rl_video_preview_panel);
         long startTime = 0;
@@ -286,29 +288,6 @@ public class VideoEditActivity extends BaseActivity {
                 freshUI();
             }
         });
-        mVideoPreViewPanel.setDragCallback(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    mAVEngine.seek(-1);//进入seek模式
-                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    mAVEngine.pause();//退出seek模式，处于暂停状态
-                }
-            }
-
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                mScrollX += dx;
-                if (recyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE &&
-                        mAVEngine.getVideoState().status == SEEK) {
-                    int slotWidth = (int) (THUMB_SLOT_WIDTH * getResources().getDisplayMetrics().density);
-                    mAVEngine.seek((long) (1000000.f / slotWidth * mScrollX));
-                    Log.d(TAG, "mScrollX@" + mScrollX);
-                }
-            }
-        });
         mVideoPreViewPanel.setClipCallback(new ClipView.ClipCallback() {
             @Override
             public void onClip(Rect src, Rect dst) {
@@ -317,21 +296,16 @@ public class VideoEditActivity extends BaseActivity {
                 mAVEngine.changeComponent(componentList, src, dst, new AVEngine.EngineCallback() {
                     @Override
                     public void onCallback(Object[] args1) {
-                        long currentPts = mAVEngine.getClock(mAVEngine.getVideoState().extClock);
-                        long correctSeek = Math.max(currentPts, mAVEngine.getVideoState().editComponent.getEngineStartTime());
-                        correctSeek = Math.min(correctSeek, mAVEngine.getVideoState().editComponent.getEngineEndTime());
-                        mAVEngine.fastSeek(correctSeek);
+                        mAVEngine.fastSeek(mAVEngine.getMainClock());
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
-                                mVideoPreViewPanel.updateScroll();
-                                mVideoPreViewPanel.updateClip();
+                                mVideoPreViewPanel.updateScroll(false);
                             }
                         });
                     }
                 });
-
             }
         });
 
@@ -433,7 +407,7 @@ public class VideoEditActivity extends BaseActivity {
                         positionInMS / 1000 / 60 % 60, positionInMS / 1000 % 60, positionInMS % 1000,
                         durationInMS / 1000 / 60 % 60, durationInMS / 1000 % 60, durationInMS % 1000));
                 mPlayBtn.setImageResource(mVideoState.status == START ? R.drawable.icon_video_pause : R.drawable.icon_video_play);
-                mVideoPreViewPanel.updateScroll();
+                mVideoPreViewPanel.updateScroll(true);
             }
         });
     }

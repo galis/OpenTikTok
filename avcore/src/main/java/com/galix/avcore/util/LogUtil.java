@@ -37,4 +37,13 @@ public class LogUtil {
     public static void logEngine(String msg) {
         log(ENGINE_TAG + msg);
     }
+
+    public static void logMain(String msg) {
+        log(MAIN_TAG + msg);
+    }
+
+    public static void logEGL(String msg) {
+        log(EGL_TAG + msg);
+    }
+
 }

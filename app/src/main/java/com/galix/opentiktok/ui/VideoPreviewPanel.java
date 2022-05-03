@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.Size;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,14 +23,15 @@ import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVVideo;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
 import java.util.LinkedList;
 import java.util.List;
 
-import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING;
 import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE;
+import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 
 
 /**
@@ -48,7 +48,7 @@ public class VideoPreviewPanel extends RelativeLayout {
     private ImageView mSplitView;
     private Button mTrans;//转场按钮
     private Button mAddBtn;//添加视频按钮
-    private Size mCurrentViewSize = new Size(0, 0);
+    private Size mLayoutSize = new Size(0, 0);
     private int mCacheScrollX = 0;
     private boolean mIsDrag = false;
 
@@ -89,6 +89,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                 compatSize(2),
                 ViewGroup.LayoutParams.MATCH_PARENT));
         ((LayoutParams) mClipView.getLayoutParams()).addRule(CENTER_VERTICAL);
+        ((LayoutParams) mClipView.getLayoutParams()).addRule(ALIGN_PARENT_LEFT);
         ((LayoutParams) mSplitView.getLayoutParams()).addRule(CENTER_IN_PARENT);
         ((LayoutParams) mThumbPreview.getLayoutParams()).addRule(CENTER_IN_PARENT);
 
@@ -99,41 +100,57 @@ public class VideoPreviewPanel extends RelativeLayout {
                 if (mClipCallback != null) {
                     mClipCallback.onClip(src, dst);
                 }
+                AVEngine.getVideoEngine().updateEdit(mVideoState.editComponent, false);
+                updateClip();
             }
         });
         mThumbPreview.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
-                if (newState == SCROLL_STATE_IDLE) {
-                    mIsDrag = false;
-                } else if (newState == SCROLL_STATE_DRAGGING) {
-                    mIsDrag = true;
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    AVEngine.getVideoEngine().seek(true);//进入seek模式
+                } else if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    AVEngine.getVideoEngine().seek(false);//退出seek模式，处于暂停状态
                 }
-                if (mOnScrollListener != null) {
-                    mOnScrollListener.onScrollStateChanged(recyclerView, newState);
-                }
-                Log.d("onScrolled",newState+"#mOnScrollListener");
+                updateCorrectScrollX();
+                LogUtil.logMain("onScrollStateChanged@" + newState + "@" + getScrollX());
             }
 
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                if (mOnScrollListener != null) {
-                    mOnScrollListener.onScrolled(recyclerView, dx, dy);
-                }
-                mCacheScrollX += dx;
+                updateCorrectScrollX();
                 updateClip();
-                Log.d("onScrolled",mCacheScrollX+"#mCacheScrollX");
+                if (recyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE &&
+                        AVEngine.getVideoEngine().getVideoState().status == SEEK) {
+                    AVEngine.getVideoEngine().seek((long) (1000000.f / mThumbSize * mCacheScrollX));
+                }
+                LogUtil.logMain("onScrolled@" + mCacheScrollX);
             }
         });
+    }
+
+    private void updateCorrectScrollX() {
+        LinearLayoutManager layoutManager = (LinearLayoutManager) mThumbPreview.getLayoutManager();
+        int firstPos = layoutManager.findFirstVisibleItemPosition();
+        if (firstPos == 0) {
+            mCacheScrollX = -layoutManager.findViewByPosition(0).getLeft();
+        } else {
+            int totalScroll = mLayoutSize.getWidth() / 2;
+            for (int i = 1; i < firstPos; i++) {
+                totalScroll += mInfoList.get(i).duration / 1000000.f * mThumbSize;
+            }
+            totalScroll += -layoutManager.findViewByPosition(firstPos).getLeft();
+            mCacheScrollX = totalScroll;
+        }
     }
 
     private void bindViewTreeCallback() {
         getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                mCurrentViewSize = new Size(getMeasuredWidth(), getMeasuredHeight());
+                mLayoutSize = new Size(getMeasuredWidth(), getMeasuredHeight());
                 getViewTreeObserver().removeOnGlobalLayoutListener(this);
                 updateData(mVideoState);
             }
@@ -180,28 +197,39 @@ public class VideoPreviewPanel extends RelativeLayout {
             }
             //正常
             mInfoList.get(mInfoList.size() - 1).duration = 1000000;
-            mInfoList.get(mInfoList.size() - 1).clipStart = true;
+            mInfoList.get(mInfoList.size() - 1).clipStart = false;
             currentPts += 1000000;
         }
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         mThumbPreview.getAdapter().notifyDataSetChanged();
     }
 
-    public void updateScroll() {
-        if (mVideoState.status == AVEngine.VideoState.VideoStatus.START) {
-            int correctScrollX = (int) (mThumbSize / 1000000.f * AVEngine.getVideoEngine().getClock(mVideoState.extClock));
-            mThumbPreview.smoothScrollBy(correctScrollX - mCacheScrollX, 0);
+    public void updateScroll(boolean isSmooth) {
+        if (mVideoState == null) return;
+        boolean needScroll = mVideoState.status == AVEngine.VideoState.VideoStatus.START
+                || (mVideoState.status == AVEngine.VideoState.VideoStatus.PAUSE && mThumbPreview.getScrollState() == SCROLL_STATE_IDLE
+        );
+        if (needScroll) {
+            int correctScrollX = (int) (mThumbSize / 1000000.f * AVEngine.getVideoEngine().getMainClock());
+            if (isSmooth) {
+                mThumbPreview.smoothScrollBy(correctScrollX - mCacheScrollX, 0);
+            } else {
+                mThumbPreview.scrollBy(correctScrollX - mCacheScrollX, 0);
+            }
         }
     }
 
 
     public void updateClip() {
         if (mVideoState.isEdit) {
+            updateCorrectScrollX();
+            int eStartTime = (int) (mVideoState.editComponent.getEngineStartTime() / 1000000.f * mThumbSize);
             RelativeLayout.LayoutParams layoutParams = (LayoutParams) mClipView.getLayoutParams();
             layoutParams.width = (int) (mVideoState.editComponent.getEngineDuration() / 1000000.f * mThumbSize) + 2 * ClipView.DRAG_BTN_WIDTH;
             layoutParams.height = mThumbSize + 2 * ClipView.LINE_WIDTH;
-            layoutParams.leftMargin = (int) (mVideoState.editComponent.getEngineStartTime() / 1000000.f * mThumbSize) + mCurrentViewSize.getWidth() / 2 -
+            layoutParams.leftMargin = eStartTime + mLayoutSize.getWidth() / 2 -
                     ClipView.DRAG_BTN_WIDTH - mCacheScrollX;
+            LogUtil.logMain("updateClip@" + mCacheScrollX + "@" + eStartTime);
             mClipView.requestLayout();
         }
         mClipView.setVisibility(mVideoState.isEdit ? VISIBLE : GONE);
@@ -256,7 +284,7 @@ public class VideoPreviewPanel extends RelativeLayout {
             ImageView view = new ImageView(parent.getContext());
             view.setScaleType(ImageView.ScaleType.FIT_XY);
             view.setLayoutParams(new RecyclerView.LayoutParams(viewType == TYPE_HEAD_FOOT ?
-                    mCurrentViewSize.getWidth() / 2 : mThumbSize, mThumbSize));
+                    mLayoutSize.getWidth() / 2 : mThumbSize, mThumbSize));
             return new ThumbViewHolder(view);
         }
 
@@ -286,7 +314,7 @@ public class VideoPreviewPanel extends RelativeLayout {
 
                                 @Override
                                 public String getId() {
-                                    return viewType.imgPath + "_clip";
+                                    return position + "#" + viewType.duration + "_clip";
                                 }
                             }).into((ImageView) holder.itemView);
                 } else {
@@ -297,15 +325,12 @@ public class VideoPreviewPanel extends RelativeLayout {
                 holder.itemView.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        mVideoState.lock();
-                        mVideoState.isEdit = !mVideoState.isEdit;
-                        mVideoState.editComponent = mInfoList.get(position).component;
-                        mVideoState.unlock();
+                        AVEngine.getVideoEngine().updateEdit(mInfoList.get(position).component, !mVideoState.isEdit);
                         updateClip();
                     }
                 });
             } else {
-                holder.itemView.getLayoutParams().width = mCurrentViewSize.getWidth() / 2;
+                holder.itemView.getLayoutParams().width = mLayoutSize.getWidth() / 2;
                 Glide.with(getContext())
                         .load("")
                         .into((ImageView) holder.itemView);
