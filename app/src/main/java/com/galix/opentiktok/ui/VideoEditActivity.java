@@ -308,7 +308,6 @@ public class VideoEditActivity extends BaseActivity {
                 });
             }
         });
-
     }
 
     private Size calCanvasSize(String text) {
@@ -339,12 +338,6 @@ public class VideoEditActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
-//            }
-//        });
     }
 
     @Override

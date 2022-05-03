@@ -154,7 +154,7 @@ public class AVVideo extends AVComponent {
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                         isOutputEOF = true;
                         peekFrame().setEof(true);
-                        peekFrame().setPts(getDuration() + getEngineStartTime());
+                        peekFrame().setPts(getClipDuration() + getEngineStartTime());
                     } else {
                         peekFrame().setEof(false);
                         peekFrame().setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());

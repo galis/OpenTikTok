@@ -18,6 +18,7 @@ import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.render.OESRender;
+import com.galix.avcore.render.ScreenRender;
 
 import java.io.File;
 import java.io.IOException;
@@ -130,7 +131,7 @@ public class Mp4Composite {
      * @return Frame
      */
     private AVFrame readVideoFrame() {
-        if (mVideoEncodeStream.nextPts > mVideoState.durationUS) {
+        if (mVideoEncodeStream.nextPts >= mVideoState.durationUS) {
             mVideoEncodeStream.isInputEOF = true;
             return null;
         }
@@ -164,6 +165,7 @@ public class Mp4Composite {
         mAudioEncodeStream.isInputEOF = false;
         List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.AUDIO, mAudioEncodeStream.nextPts);
         AVAudio audio = (AVAudio) components.get(0);
+        LogUtil.logEngine("readAudioFrame111#");
         if (mLastAudio != audio) {
             audio.seekFrame(mAudioEncodeStream.nextPts);
         } else {
@@ -171,7 +173,7 @@ public class Mp4Composite {
         }
         mLastAudio = audio;
         mAudioEncodeStream.nextPts += mLastAudio.peekFrame().getDuration();
-        Log.d(TAG, "readAudioFrame#" + mLastAudio.peekFrame().getPts());
+        LogUtil.logEngine("readAudioFrame#" + mLastAudio.peekFrame().getPts());
         return mLastAudio.peekFrame();
     }
 
@@ -191,19 +193,19 @@ public class Mp4Composite {
             if (status >= 0) {
                 if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                     stream.isOutputEOF = true;
-                    Log.d(TAG, "writeFrame#isOutputEOF#track");
+                    LogUtil.logEngine("writeFrame#isOutputEOF#track");
                 }
                 if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    Log.d(TAG, "writeFrame#BUFFER_FLAG_CODEC_CONFIG#" + bufferInfo.size + "#trackId#" + stream.trackIdx);
+                    LogUtil.logEngine("writeFrame#BUFFER_FLAG_CODEC_CONFIG#" + bufferInfo.size + "#trackId#" + stream.trackIdx);
                 }
                 if (stream.trackIdx == -1) {
-                    Log.d(TAG, "BAD!!!!!");
+                    LogUtil.logEngine("BAD!!!!!");
                 }
                 if (!stream.isOutputEOF) {
                     ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(status);
                     byteBuffer.position(bufferInfo.offset);
                     byteBuffer.limit(bufferInfo.offset + bufferInfo.size);
-                    Log.d(TAG, "writeSampleData#bufferSize#" + byteBuffer.limit() + "stream#index#" + stream.trackIdx +
+                    LogUtil.logEngine("writeSampleData#bufferSize#" + byteBuffer.limit() + "stream#index#" + stream.trackIdx +
                             "#presentationTimeUs#" + bufferInfo.presentationTimeUs + "#nextpts#" + stream.nextPts);
                     mMediaMuxer.writeSampleData(stream.trackIdx, mediaCodec.getOutputBuffer(status), bufferInfo);
                 }
@@ -211,7 +213,7 @@ public class Mp4Composite {
             } else if (status == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 synchronized (mMediaMuxerLock) {
                     stream.trackIdx = mMediaMuxer.addTrack(mediaCodec.getOutputFormat());
-                    Log.d(TAG, "WAT#INFO_OUTPUT_FORMAT_CHANGED#trackIdx#" + stream.trackIdx +
+                    LogUtil.logEngine("WAT#INFO_OUTPUT_FORMAT_CHANGED#trackIdx#" + stream.trackIdx +
                             "#outputformat#" + mediaCodec.getOutputFormat().toString());
                     if (stream == mVideoEncodeStream) {
                         mVideoState.readyVideo = true;
@@ -292,11 +294,13 @@ public class Mp4Composite {
                         AVFrame audioFrame = readAudioFrame();
                         if (audioFrame == null) {
                             Log.d(TAG, "check#audioFrame null");
+                            mAudioEncodeStream.mediaCodec.queueInputBuffer(status, 0, 0,
+                                    mVideoState.durationUS, BUFFER_FLAG_END_OF_STREAM);
                             break;
                         }
                         ByteBuffer byteBuffer = mAudioEncodeStream.mediaCodec.getInputBuffer(status);
                         byteBuffer.put(audioFrame.getByteBuffer());
-                        Log.d(TAG, "check#pts" + audioFrame.getPts());
+                        LogUtil.logEngine("audioFrame.isEof()" + audioFrame.isEof());
                         mAudioEncodeStream.mediaCodec.queueInputBuffer(status, 0, byteBuffer.limit(), audioFrame.getPts(),
                                 audioFrame.isEof() ? BUFFER_FLAG_END_OF_STREAM : 0);
                         if (audioFrame.isEof()) {
@@ -305,7 +309,7 @@ public class Mp4Composite {
                     }
                     mCompositeHandler.sendEmptyMessage(COMPOSITE_AUDIO_VALID);
                 }
-                Log.d(TAG, "mAudioThread finish");
+                LogUtil.logEngine("mAudioThread finish");
             }
         });
         if (mVideoState.hasVideo) {
@@ -317,21 +321,22 @@ public class Mp4Composite {
         //创建Render
         mEngine.getEglHelper().createSurface(mVideoEncodeStream.inputSurface);
         mEngine.getEglHelper().makeCurrent();
-        OESRender oesRender = new OESRender();
-        oesRender.open();
-        oesRender.write(OtherUtils.BuildMap("surface_size", mVideoState.mTargetSize));
+        ScreenRender screenRender = new ScreenRender();
+        screenRender.open();
+        screenRender.write(OtherUtils.BuildMap("surface_size", mVideoState.mTargetSize));
 
         while (!mVideoEncodeStream.isInputEOF) {
             AVFrame videoFrame = readVideoFrame();
             if (videoFrame == null) {
                 mVideoEncodeStream.mediaCodec.signalEndOfInputStream();//采用surface输入的时候要注意这个了
-                Log.d(TAG, "check#signalEndOfInputStream");
+                LogUtil.logEngine("check#signalEndOfInputStream");
                 break;
             }
+            LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
             if (mLastVideo.getRender() != null) {
                 mLastVideo.getRender().render(videoFrame);
             } else {
-                oesRender.render(videoFrame);
+                screenRender.render(videoFrame);
             }
             mEngine.getEglHelper().setPresentationTime(videoFrame.getPts() * 1000);
             mEngine.getEglHelper().swap();
@@ -339,7 +344,7 @@ public class Mp4Composite {
             mCompositeHandler.sendEmptyMessage(COMPOSITE_FRAME_VALID);
         }
 
-        oesRender.close();
+        screenRender.close();
         try {
             mAudioHandler.getLooper().quitSafely();
             mAudioThread.join();
@@ -351,7 +356,7 @@ public class Mp4Composite {
         }
         mEngine.getEglHelper().destroySurface();
         mEngine.getEglHelper().makeCurrent();
-        Log.d(TAG, "Composite finish");
+        LogUtil.logEngine("Composite finish");
         return 0;
     }
 

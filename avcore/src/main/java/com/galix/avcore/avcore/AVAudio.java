@@ -121,6 +121,11 @@ public class AVAudio extends AVComponent {
                     if (outputBufIdx >= 0) {
                         if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                             isOutputEOF = true;
+                            avFrame.setPts(getClipDuration() + getEngineStartTime());//换算Engine的时间
+                            avFrame.setEof(true);
+                        } else {
+                            avFrame.setEof(false);
+                            avFrame.setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());//换算Engine的时间
                         }
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
                         LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
@@ -129,7 +134,6 @@ public class AVAudio extends AVComponent {
                         peekFrame().getByteBuffer().position(0);
                         peekFrame().setDuration(22320);//TODO
                         byteBuffer.position(0);
-                        avFrame.setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());//换算Engine的时间
                         avFrame.setValid(true);
                         mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                         break;

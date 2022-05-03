@@ -174,8 +174,11 @@ public class VideoPreviewPanel extends RelativeLayout {
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         long currentPts = 0;
         while (currentPts < videoState.durationUS) {
-            AVVideo avVideo = (AVVideo) mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts).get(0);
-            if (avVideo == null) break;
+            List<AVComponent> avComponents = mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts);
+            if (avComponents.isEmpty()) {
+                break;
+            }
+            AVVideo avVideo = (AVVideo) avComponents.get(0);
             mInfoList.add(new ViewType(TYPE_THUMB));
             mInfoList.get(mInfoList.size() - 1).component = avVideo;
             //计算正确的pts，针对单个文件
@@ -314,7 +317,7 @@ public class VideoPreviewPanel extends RelativeLayout {
 
                                 @Override
                                 public String getId() {
-                                    return position + "#" + viewType.duration + "_clip";
+                                    return viewType.imgPath + "#" + position + "#" + viewType.duration + "_clip";
                                 }
                             }).into((ImageView) holder.itemView);
                 } else {

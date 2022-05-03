@@ -16,6 +16,8 @@ public class ScreenFilter extends BaseFilter {
     @Override
     public void onRenderPre() {
         bindTexture("inputImageTexture");
+        bindTexture("oesImageTexture");
+        bindBool("isOes");
     }
 
 
