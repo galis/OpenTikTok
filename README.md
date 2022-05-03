@@ -1,7 +1,7 @@
 # 开源视频编辑项目
 
 >初衷:就是想模仿一个类似剪映编辑的项目，自己在音视频干了一段时间，想沉淀一下。
-raw目录下有testfile.mp4测试文件，可以push到/sdcard测试.
+raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.opentiktok/cache测试.
 
 ## 现况:目前是v0.8版本，v1.0版本会是实现以下功能:
 
