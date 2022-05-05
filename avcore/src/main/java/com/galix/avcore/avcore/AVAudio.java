@@ -121,28 +121,32 @@ public class AVAudio extends AVComponent {
                     if (outputBufIdx >= 0) {
                         if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
                             isOutputEOF = true;
+                            avFrame.setPts(getClipDuration() + getEngineStartTime());//换算Engine的时间
+                            avFrame.setEof(true);
+                        } else {
+                            avFrame.setEof(false);
+                            avFrame.setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());//换算Engine的时间
                         }
                         ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
-                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#getOutputBuffer#size" + bufferInfo.size + "#offset#" + bufferInfo.offset + "#pts#" + bufferInfo.presentationTimeUs);
                         peekFrame().getByteBuffer().position(0);
                         peekFrame().getByteBuffer().put(byteBuffer);
                         peekFrame().getByteBuffer().position(0);
                         peekFrame().setDuration(22320);//TODO
                         byteBuffer.position(0);
-                        avFrame.setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());//换算Engine的时间
                         avFrame.setValid(true);
                         mediaCodec.releaseOutputBuffer(outputBufIdx, false);
                         break;
                     } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
                     } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
                     } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                        LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
                     }
                 }
             } catch (Exception e) {
-                LogUtil.log(LogUtil.ENGINE_TAG+"readFrame()#Error#readFrame" + e.getMessage());
+                LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#Error#readFrame" + e.getMessage());
                 retry(peekFrame().getPts() - getEngineStartTime() + getClipStartTime());
                 return RESULT_FAILED;
             }
@@ -154,7 +158,7 @@ public class AVAudio extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
-        LogUtil.log(LogUtil.ENGINE_TAG+"seekFrame()");
+        LogUtil.log(LogUtil.ENGINE_TAG + "seekFrame()");
         long correctPosition = position - getEngineStartTime();
         if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getDuration()) {
             return RESULT_FAILED;
@@ -167,11 +171,11 @@ public class AVAudio extends AVComponent {
     }
 
     private void retry(long position) {
-        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#close");
+        LogUtil.log(LogUtil.ENGINE_TAG + "retry()#Error#close");
         close();
-        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#open");
+        LogUtil.log(LogUtil.ENGINE_TAG + "retry()#Error#open");
         open();
-        LogUtil.log(LogUtil.ENGINE_TAG+"retry()#Error#seekFrame");
+        LogUtil.log(LogUtil.ENGINE_TAG + "retry()#Error#seekFrame");
         seekFrame(position);
     }
 

@@ -21,9 +21,9 @@ uniform float alpha;
 uniform bool isOes;
 
 void main(){
-    highp vec3 srcNoOes = texture(inputImageTexture, vTextureCoord).rgb;
-    highp vec3 srcOes = texture(inputImageOesTexture, vTextureCoord).rgb;
-    highp vec3 src = isOes?srcOes:srcNoOes;
+    highp vec4 srcNoOes = texture(inputImageTexture, vTextureCoord).rgba;
+    highp vec4 srcOes = texture(inputImageOesTexture, vTextureCoord).rgba;
+    highp vec4 src = isOes?srcOes:srcNoOes;
     highp float blueColor = src.b * 63.0;
     highp vec2 quad1;
     quad1.y = floor(floor(blueColor) / 8.0);
@@ -41,5 +41,5 @@ void main(){
     highp vec4 newColor1 = texture(lutTexture, texPos1);
     highp vec4 newColor2 = texture(lutTexture, texPos2);
     highp vec4 newColor = mix(newColor1, newColor2, fract(blueColor));
-    vFragColor = vec4(newColor.rgb, 1.0);
+    vFragColor = vec4(newColor.rgb,src.a);
 }

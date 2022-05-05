@@ -48,11 +48,11 @@ public class MathUtils {
     }
 
 
+    public static final Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
     static Rect sRect = new Rect(0, 0, 3, 2);
     static MatOfPoint2f mSrcPoints = new MatOfPoint2f();//TODO 多线程环境下有问题。
     static MatOfPoint2f mDstPoints = new MatOfPoint2f();
     static Mat mHolderMat = new Mat();
-    static Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
     static Mat mMatA = new Mat();
     static Mat mMatB = new Mat();
 

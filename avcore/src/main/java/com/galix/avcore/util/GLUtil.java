@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
@@ -44,7 +45,13 @@ public final class GLUtil {
 
     public static final GLTexture DEFAULT_OES_TEXTURE = new GLTexture(0, true);
     public static final GLTexture DEFAULT_TEXTURE = new GLTexture(0, false);
+    public static final FloatBuffer DEFAULT_VEC2;
     private static final String TAG = "GLUtil";
+
+    static {
+        DEFAULT_VEC2 = FloatBuffer.allocate(2).put(1920).put(1080);
+        DEFAULT_VEC2.position(0);
+    }
 
     private GLUtil() {
 

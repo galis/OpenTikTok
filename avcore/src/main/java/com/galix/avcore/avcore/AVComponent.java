@@ -6,6 +6,7 @@ import org.opencv.core.Mat;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.opencv.core.CvType.CV_32F;
 
@@ -73,6 +74,7 @@ public abstract class AVComponent {
     private AVFrame cache;
     private AVComponentType type;
     private AtomicBoolean lockLock;
+    private ReentrantLock datalock;
     private Mat matrix;
 
     public AVComponent(long engineStartTime, AVComponentType type, IRender render) {
@@ -89,6 +91,7 @@ public abstract class AVComponent {
         this.isLoop = false;
         this.isVisible = true;
         this.matrix = mIdentityMat;
+        this.datalock = new ReentrantLock();
     }
 
     public AVComponent() {
@@ -105,6 +108,7 @@ public abstract class AVComponent {
         this.isLoop = false;
         this.isVisible = true;
         this.matrix = mIdentityMat;
+        this.datalock = new ReentrantLock();
     }
 
     public long getEngineStartTime() {
@@ -259,11 +263,11 @@ public abstract class AVComponent {
     }
 
     public void lock() {
-        while (!lockLock.compareAndSet(false, true)) ;
+        datalock.lock();
     }
 
     public void unlock() {
-        while (!lockLock.compareAndSet(true, false)) ;
+        datalock.unlock();
     }
 
     @Override

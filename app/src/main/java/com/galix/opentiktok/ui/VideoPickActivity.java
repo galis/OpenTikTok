@@ -129,6 +129,7 @@ public class VideoPickActivity extends BaseActivity {
             long now1 = System.currentTimeMillis();
             mFileCache = new ArrayList<>();
             List<String> targetPaths = new LinkedList<>();
+            targetPaths.add(getCacheDir().toString());
             targetPaths.add(Environment.getExternalStorageDirectory().getPath());//搜索sdcard目录
             targetPaths.add(FileUtils.getCompositeDir(VideoPickActivity.this));//搜索cache composite目录
             List<File> mp4List = new LinkedList<>();
@@ -138,10 +139,12 @@ public class VideoPickActivity extends BaseActivity {
                     continue;
                 }
                 File[] mp4s = dir.listFiles((dir1, name) -> name.endsWith(".mp4"));
-                if (mp4s.length > 0) {
+                if (mp4s != null && mp4s.length > 0) {
                     mp4List.addAll(Arrays.asList(mp4s));
                 }
             }
+//            List<File> mp4List = new LinkedList<>();
+//            mp4List.add(new File("/sdcard/test.mp4"));
             for (File mp4 : mp4List) {
                 MediaMetadataRetriever mediaMetadataRetriever = new MediaMetadataRetriever();
                 try {

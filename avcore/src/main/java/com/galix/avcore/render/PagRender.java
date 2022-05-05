@@ -48,7 +48,6 @@ public class PagRender implements IVideoRender {
 
     @Override
     public void render(AVFrame avFrame) {
-        GLTexture lastTexture = avFrame.getTextureExt();
         mConfig.clear();
         mConfig.put("use_fbo", false);
 //        mConfig.put("fbo_size", lastTexture.size());

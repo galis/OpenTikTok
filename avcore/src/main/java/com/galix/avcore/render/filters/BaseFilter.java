@@ -3,13 +3,16 @@ package com.galix.avcore.render.filters;
 import android.graphics.Rect;
 import android.opengl.GLES30;
 import android.util.Size;
+import android.util.SizeF;
 
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.MathUtils;
+import com.galix.avcore.util.OtherUtils;
 
 import org.opencv.core.Mat;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
@@ -34,6 +37,7 @@ import static android.opengl.GLES20.glFramebufferTexture2D;
 import static android.opengl.GLES20.glGenFramebuffers;
 import static android.opengl.GLES20.glGenTextures;
 import static android.opengl.GLES20.glTexImage2D;
+import static android.opengl.GLES20.glUniform2fv;
 import static android.opengl.GLES20.glUniformMatrix3fv;
 import static android.opengl.GLES20.glViewport;
 import static android.opengl.GLES30.GL_ARRAY_BUFFER;
@@ -139,6 +143,7 @@ public abstract class BaseFilter implements IFilter {
     @Override
     public void render() {
         if (!isOpen()) return;
+        OtherUtils.RecordStart(getClass().getSimpleName() + "#filter_render");
         runTasks();
         bindCurrentProgram();
         bindCurrentVAO();
@@ -147,6 +152,7 @@ public abstract class BaseFilter implements IFilter {
         drawNow();
         onRenderPost();
         bindEmptyVAO();
+        OtherUtils.RecordEnd(getClass().getSimpleName() + "#filter_render");
 //        flushNow();
     }
 
@@ -282,6 +288,18 @@ public abstract class BaseFilter implements IFilter {
         } else {
             bindTexture(str, GLUtil.DEFAULT_TEXTURE);
         }
+    }
+
+    public void bindVec2(String str) {
+        if (mConfig.containsKey(str) && mConfig.get(str) instanceof FloatBuffer) {
+            bindVec2(str, (FloatBuffer) mConfig.get(str));
+        } else {
+            bindVec2(str, GLUtil.DEFAULT_VEC2);
+        }
+    }
+
+    public void bindVec2(String str, FloatBuffer byteBuffer) {
+        glUniform2fv(glGetUniformLocation(mProgram, str), 1, byteBuffer);
     }
 
     public void bindFloat(String str) {

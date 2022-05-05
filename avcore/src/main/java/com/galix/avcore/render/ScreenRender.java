@@ -71,7 +71,12 @@ public class ScreenRender implements IVideoRender {
     public void render(AVFrame avFrame) {
         configs.clear();
         configs.put("use_fbo", false);
-        configs.put("inputImageTexture", avFrame.getTexture());
+        if (avFrame.getTexture().isOes()) {
+            configs.put("oesImageTexture", avFrame.getTexture());
+        } else {
+            configs.put("inputImageTexture", avFrame.getTexture());
+        }
+        configs.put("isOes", avFrame.getTexture().isOes());
         screenFilter.write(configs);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
