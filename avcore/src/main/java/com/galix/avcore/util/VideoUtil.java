@@ -204,7 +204,7 @@ public class VideoUtil {
             mediaMetadataRetriever.setDataSource(path);
             while (nowPts < end) {
                 String dstJpg = VideoUtil.getThumbJpg(context, path, nowPts);
-                Bitmap thumb = mediaMetadataRetriever.getFrameAtTime(nowPts, OPTION_CLOSEST_SYNC);
+                Bitmap thumb = mediaMetadataRetriever.getFrameAtTime(nowPts, MediaMetadataRetriever.OPTION_PREVIOUS_SYNC);
                 thumb = Bitmap.createScaledBitmap(thumb, 160, 160, true);
                 nowPts += 1000000L;
                 saveBitmapFile(thumb, dstJpg);
