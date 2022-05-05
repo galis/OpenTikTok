@@ -740,20 +740,6 @@ public class AVEngine {
                     }
                 }
 
-                if (mCompositeCallback != null) {
-                    int progress = 0;
-                    while (progress < 100) {
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-//                        mCompositeCallback.onCallback(progress++);
-                        LogUtil.logEngine("progress@" + progress + Thread.currentThread().getName());
-                    }
-                }
-
-
                 //处理视频
                 boolean needRender = mVideoState.isSurfaceReady && (mVideoState.displaySwapCount < 1
                         || mVideoState.status == START);
