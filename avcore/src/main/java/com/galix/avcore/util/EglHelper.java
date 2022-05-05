@@ -87,4 +87,8 @@ public class EglHelper {
         mEglCore.setPresentationTime(mEglSurface, nsecs);
     }
 
+    public EGLContext currentContext() {
+        return mEglCore.currentContext();
+    }
+
 }

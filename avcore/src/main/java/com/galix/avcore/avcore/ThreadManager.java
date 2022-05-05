@@ -40,6 +40,18 @@ public class ThreadManager {
         LogUtil.logEngine(threadName + "#start!");
     }
 
+    public void createThread(String threadName, Handler.Callback callback) {
+        if (mMap.containsKey(threadName)) {
+            return;
+        }
+        ThreadInfo threadInfo = new ThreadInfo();
+        threadInfo.handlerThread = new HandlerThread(threadName);
+        threadInfo.handlerThread.start();
+        threadInfo.handler = new Handler(threadInfo.handlerThread.getLooper(), callback);
+        mMap.put(threadName, threadInfo);
+        LogUtil.logEngine(threadName + "#start!");
+    }
+
     public void destroyThread(String threadName) {
         if (!mMap.containsKey(threadName)) {
             return;
@@ -63,6 +75,20 @@ public class ThreadManager {
         if (post != null) {
             post.run();
         }
+    }
+
+    public Handler getHandler(String threadName) {
+        if (!mMap.containsKey(threadName)) {
+            return null;
+        }
+        return mMap.get(threadName).handler;
+    }
+
+    public Thread getThread(String threadName) {
+        if (!mMap.containsKey(threadName)) {
+            return null;
+        }
+        return mMap.get(threadName).handlerThread;
     }
 
 //    public void destroy() {

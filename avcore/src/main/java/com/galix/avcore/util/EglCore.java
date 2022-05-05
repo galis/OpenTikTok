@@ -245,7 +245,7 @@ public final class EglCore {
         };
         EGLSurface eglSurface = EGL14.eglCreateWindowSurface(mEGLDisplay, mEGLConfig, surface,
                 surfaceAttribs, 0);
-        checkEglError("Egl#"+"eglCreateWindowSurface");
+        checkEglError("Egl#" + "eglCreateWindowSurface");
         return eglSurface;
     }
 
@@ -260,7 +260,7 @@ public final class EglCore {
         };
         EGLSurface eglSurface = EGL14.eglCreatePbufferSurface(mEGLDisplay, mEGLConfig,
                 surfaceAttribs, 0);
-        checkEglError("Egl#"+"eglCreatePbufferSurface");
+        checkEglError("Egl#" + "eglCreatePbufferSurface");
         if (eglSurface == null) {
             throw new RuntimeException("surface was null");
         }
@@ -285,7 +285,7 @@ public final class EglCore {
             } else if (error == EGL14.EGL_BAD_SURFACE) {
                 log = "EGL14.EGL_BAD_SURFACE";
             }
-            LogUtil.log("Egl#"+"eglMakeCurrent#error#" + log);
+            LogUtil.log("Egl#" + "eglMakeCurrent#error#" + log);
             return false;
         }
         return true;
@@ -384,5 +384,9 @@ public final class EglCore {
         if ((error = EGL14.eglGetError()) != EGL14.EGL_SUCCESS) {
             LogUtil.log(msg + ": EGL error: 0x" + Integer.toHexString(error));
         }
+    }
+
+    public EGLContext currentContext() {
+        return mEGLContext;
     }
 }

@@ -68,7 +68,7 @@ public class VideoUtil {
     }
 
     static {
-        mThreadPool = new ThreadPoolExecutor(3, 3,
+        mThreadPool = new ThreadPoolExecutor(2, 2,
                 10, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(10000)
         );

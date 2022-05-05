@@ -602,7 +602,6 @@ public class AVEngine {
             createPagDaemon();
 
             while (mVideoState.status != RELEASE) {
-                dumpVideoState();
                 while (true) {
                     Command command = mCmdQueue.poll();
                     if (command == null) break;
@@ -636,18 +635,7 @@ public class AVEngine {
                         }
                         mVideoState.isSurfaceReady = true;
                     } else if (command.cmd == Command.Cmd.SURFACE_DESTROYED) {
-                        LogUtil.log(LogUtil.ENGINE_TAG + "SURFACE_DESTROYED!");
-                        mEglHelper.destroySurface();
-                        mEglHelper.makeCurrent();
-                        if (mOesRender != null) {
-                            mOesRender.close();
-                            mOesRender = null;
-                        }
-                        if (pagRender != null) {
-                            pagRender.close();
-                            pagRender = null;
-                        }
-                        mVideoState.isSurfaceReady = false;
+                        surfaceDestroyInternal();
                     } else if (command.cmd == Command.Cmd.INIT) {
                         mVideoState.status = INIT;
                     } else if (command.cmd == Command.Cmd.PLAY) {
@@ -743,13 +731,28 @@ public class AVEngine {
                             callback.onCallback("");
                         }
                     } else if (command.cmd == Command.Cmd.COMPOSITE) {
-                        EngineCallback callback = (EngineCallback) command.args1;
-                        mCompositeCallback = callback;
-                        compositeMp4Internal();
+                        pauseInternal();
+                        surfaceDestroyInternal();
+                        mCompositeCallback = (EngineCallback) command.args1;
+                        compositeInternal();
                     } else {
                         LogUtil.log(LogUtil.ENGINE_TAG + "Seek cmd error!");
                     }
                 }
+
+                if (mCompositeCallback != null) {
+                    int progress = 0;
+                    while (progress < 100) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+//                        mCompositeCallback.onCallback(progress++);
+                        LogUtil.logEngine("progress@" + progress + Thread.currentThread().getName());
+                    }
+                }
+
 
                 //处理视频
                 boolean needRender = mVideoState.isSurfaceReady && (mVideoState.displaySwapCount < 1
@@ -767,7 +770,7 @@ public class AVEngine {
                             mVideoState.displaySwapCount = 1;
                         }
                     }
-                }else{
+                } else {
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
@@ -914,7 +917,6 @@ public class AVEngine {
 
     //先暂停，然后合成MP4
     public void compositeMp4(String mp4Path, EngineCallback callback) {
-        pause();
         Command command = new Command();
         command.cmd = Command.Cmd.COMPOSITE;
         command.args0 = mp4Path;
@@ -930,11 +932,14 @@ public class AVEngine {
         mCmdQueue.add(command);
     }
 
-    private void compositeMp4Internal() {
+    private void compositeInternal() {
         Mp4Composite mp4Composite = new Mp4Composite(this);
-        mp4Composite.process(progress -> {
-            if (mCompositeCallback != null) {
-                mCompositeCallback.onCallback(progress);
+        mp4Composite.process(new Mp4Composite.CompositeCallback() {
+            @Override
+            public void handle(int progress) {
+                if (mCompositeCallback != null) {
+                    mCompositeCallback.onCallback(progress);
+                }
             }
         });
     }
@@ -1107,6 +1112,21 @@ public class AVEngine {
     private void playInternal() {
         setClock(mVideoState.extClock, getClock(mVideoState.extClock));
         mVideoState.status = START;
+    }
+
+    private void surfaceDestroyInternal() {
+        LogUtil.log(LogUtil.ENGINE_TAG + "SURFACE_DESTROYED!");
+        mEglHelper.destroySurface();
+        mEglHelper.makeCurrent();
+        if (mOesRender != null) {
+            mOesRender.close();
+            mOesRender = null;
+        }
+        if (pagRender != null) {
+            pagRender.close();
+            pagRender = null;
+        }
+        mVideoState.isSurfaceReady = false;
     }
 
     public void pause() {

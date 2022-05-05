@@ -34,5 +34,4 @@
         android:text="@string/export_tip"
         android:textColor="#787878" />
 
-
 </RelativeLayout>

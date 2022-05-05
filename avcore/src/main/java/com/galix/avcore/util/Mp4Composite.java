@@ -17,6 +17,7 @@ import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.avcore.ThreadManager;
 import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.ScreenRender;
 
@@ -26,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
+import static com.galix.avcore.util.EglHelper.GL_VERSION_3;
 
 /**
  * Mp4合成类
@@ -52,13 +54,7 @@ public class Mp4Composite {
     private AVComponent mLastVideo;
     private AVAudio mLastAudio;
     private CompositeCallback mCallback;
-    private HandlerThread mCompositeThread;
-    private Handler mCompositeHandler;
-    private HandlerThread mGLThread;
-    private Handler mGLHandler;
     private final Object mMediaMuxerLock = new Object();
-    private HandlerThread mAudioThread;
-    private Handler mAudioHandler;
 
 
     public interface CompositeCallback {
@@ -236,10 +232,11 @@ public class Mp4Composite {
     }
 
     public int process(CompositeCallback bufferCallback) {
+        if (!mVideoState.hasVideo) {
+            return -1;
+        }
         mCallback = bufferCallback;
-        mCompositeThread = new HandlerThread("CompositeThread");
-        mCompositeThread.start();
-        mCompositeHandler = new Handler(mCompositeThread.getLooper(), new Handler.Callback() {
+        ThreadManager.getInstance().createThread("Composite_Muxer", new Handler.Callback() {
             @Override
             public boolean handleMessage(@NonNull Message msg) {
                 switch (msg.what) {
@@ -275,11 +272,8 @@ public class Mp4Composite {
                 return true;
             }
         });
-        mCompositeHandler.sendEmptyMessage(COMPOSITE_INIT);
-        mAudioThread = new HandlerThread("AudioThread");
-        mAudioThread.start();
-        mAudioHandler = new Handler(mAudioThread.getLooper());
-        mAudioHandler.post(new Runnable() {
+        ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_INIT);
+        ThreadManager.getInstance().createThread("Composite_Audio", new Runnable() {
             @Override
             public void run() {
                 if (mVideoState.hasAudio) {
@@ -307,20 +301,16 @@ public class Mp4Composite {
                             mAudioEncodeStream.isInputEOF = true;
                         }
                     }
-                    mCompositeHandler.sendEmptyMessage(COMPOSITE_AUDIO_VALID);
+                    ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_AUDIO_VALID);
                 }
                 LogUtil.logEngine("mAudioThread finish");
             }
         });
-        if (mVideoState.hasVideo) {
-            mVideoEncodeStream = openEncodeStream(true);
-        } else {
-            return -1;
-        }
-
+        mVideoEncodeStream = openEncodeStream(true);
         //创建Render
-        mEngine.getEglHelper().createSurface(mVideoEncodeStream.inputSurface);
-        mEngine.getEglHelper().makeCurrent();
+        EglHelper eglHelper = mEngine.getEglHelper();
+        eglHelper.createSurface(mVideoEncodeStream.inputSurface);
+        eglHelper.makeCurrent();
         ScreenRender screenRender = new ScreenRender();
         screenRender.open();
         screenRender.write(OtherUtils.BuildMap("surface_size", mVideoState.mTargetSize));
@@ -340,22 +330,24 @@ public class Mp4Composite {
             }
             mEngine.getEglHelper().setPresentationTime(videoFrame.getPts() * 1000);
             mEngine.getEglHelper().swap();
-            mCallback.handle((int) (videoFrame.getPts() * 1.0f / mVideoState.durationUS * 100));
-            mCompositeHandler.sendEmptyMessage(COMPOSITE_FRAME_VALID);
+            int progress = (int) (videoFrame.getPts() * 1.0f / mVideoState.durationUS * 100);
+            mCallback.handle(progress);
+            LogUtil.logEngine("mCallback.handle#" + progress);
+            ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_FRAME_VALID);
         }
 
         screenRender.close();
         try {
-            mAudioHandler.getLooper().quitSafely();
-            mAudioThread.join();
-            mCompositeHandler.sendEmptyMessage(COMPOSITE_DESTROY);
-            mCompositeHandler.getLooper().quitSafely();
-            mCompositeThread.join();
+            ThreadManager.getInstance().getHandler("Composite_Audio").getLooper().quitSafely();
+            ThreadManager.getInstance().getThread("Composite_Audio").join();
+            ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_DESTROY);
+            ThreadManager.getInstance().getHandler("Composite_Muxer").getLooper().quitSafely();
+            ThreadManager.getInstance().getThread("Composite_Muxer").join();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        mEngine.getEglHelper().destroySurface();
-        mEngine.getEglHelper().makeCurrent();
+        eglHelper.destroySurface();
+        eglHelper.makeCurrent();
         LogUtil.logEngine("Composite finish");
         return 0;
     }

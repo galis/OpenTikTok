@@ -58,7 +58,7 @@ public class ExportProgressView extends androidx.appcompat.widget.AppCompatImage
         mCurrentPath.reset();
         setImageBitmap(mBitmap);
         getLayoutParams().height = (int) (getLayoutParams().width * (mBitmap.getHeight() * 1.f / mBitmap.getWidth()));
-        requestLayout();
+        invalidate();
     }
 
     @Override

@@ -4,8 +4,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
+import android.util.Printer;
 import android.util.Size;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -13,7 +16,9 @@ import androidx.annotation.Nullable;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVVideo;
+import com.galix.avcore.avcore.ThreadManager;
 import com.galix.avcore.util.FileUtils;
+import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
@@ -63,23 +68,31 @@ public class VideoExportActivity extends BaseActivity {
         mAVEngine.getVideoState().readyVideo = false;
         mAVEngine.getVideoState().mTargetSize = new Size(640, 640);
         mAVEngine.getVideoState().mBgColor = Color.RED;
+        Looper.getMainLooper().setMessageLogging(new Printer() {
+            @Override
+            public void println(String x) {
+                LogUtil.logEngine("MainLooper#" + x);
+            }
+        });
         mAVEngine.compositeMp4(null, new AVEngine.EngineCallback() {
             @Override
             public void onCallback(Object... args1) {
-                mProgress = (int) args1[0];
-                Log.d(TAG, "onCallback#progress#" + mProgress);
-                mProgressView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        mProgressView.setProgress(mBackGround, mProgress);
-                        if (mProgress == 100) {
-                            ((TextView) findViewById(R.id.textview_tip)).setText(R.string.export_success);
+                if (mProgress != (int) args1[0]) {
+                    mProgress = (int) args1[0];
+                    Log.d(TAG, "onCallback#progress#" + mProgress);
+                    mProgressView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.d(TAG, "onCallback#setProgress#" + mProgress);
+                            mProgressView.setProgress(mBackGround, mProgress);
+                            if (mProgress == 100) {
+                                ((TextView) findViewById(R.id.textview_tip)).setText(R.string.export_success);
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         });
-
     }
 
     @Override
