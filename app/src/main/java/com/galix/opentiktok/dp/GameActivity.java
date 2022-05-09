@@ -20,7 +20,7 @@ import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.OtherUtils;
+import com.galix.avcore.util.TimeUtils;
 import com.galix.opentiktok.R;
 
 import java.io.IOException;
@@ -98,7 +98,7 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 mIsBeauty = isChecked;
-                mGameComponent.write(OtherUtils.BuildMap("use_beauty", mIsBeauty));
+                mGameComponent.write(TimeUtils.BuildMap("use_beauty", mIsBeauty));
                 Log.d(TAG, "check#" + isChecked);
             }
         });
@@ -141,7 +141,7 @@ public class GameActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mEngineInfo.setText(OtherUtils.LogStr("pag"));
+                        mEngineInfo.setText(TimeUtils.LogStr("pag"));
                     }
                 });
             }

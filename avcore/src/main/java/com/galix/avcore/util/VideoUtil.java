@@ -22,6 +22,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.security.MessageDigest;
@@ -57,7 +58,7 @@ public class VideoUtil {
     private static ThreadPoolExecutor mThreadPool;
     public static LinkedList<FileEntry> mTargetFiles;
 
-    public static class FileEntry {
+    public static class FileEntry implements Serializable {
         public String path;
         public String adjustPath;
         public long duration;
@@ -205,7 +206,11 @@ public class VideoUtil {
             while (nowPts < end) {
                 String dstJpg = VideoUtil.getThumbJpg(context, path, nowPts);
                 Bitmap thumb = mediaMetadataRetriever.getFrameAtTime(nowPts, MediaMetadataRetriever.OPTION_PREVIOUS_SYNC);
-                thumb = Bitmap.createScaledBitmap(thumb, 160, 160, true);
+                thumb = Bitmap.createScaledBitmap(
+                        thumb,
+                        (int) (context.getResources().getDisplayMetrics().density * 60),
+                        (int) (context.getResources().getDisplayMetrics().density * 60),
+                        true);
                 nowPts += 1000000L;
                 saveBitmapFile(thumb, dstJpg);
             }

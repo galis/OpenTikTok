@@ -1,6 +1,6 @@
 package com.galix.opentiktok.ui;
 
-import android.content.Context;
+import android.app.Activity;
 import android.content.Intent;
 import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
@@ -41,17 +41,19 @@ import java.util.List;
 public class VideoPickActivity extends BaseActivity {
 
     private static final String TAG = VideoPickActivity.class.getSimpleName();
+    public static final int REQ_PICK = 0;
     private HandlerThread mLoadThread;
     private Handler mLoadHandler;
     private ArrayList<VideoUtil.FileEntry> mFileCache;
     private RecyclerView mRecyclerView;
     private ContentLoadingProgressBar mProgressBar;
-    private LinkedList<VideoUtil.FileEntry> mPickList;
+    public static LinkedList<VideoUtil.FileEntry> mFiles = new LinkedList<>();
 
-    public static void start(Context context) {
+    public static void start(Activity context) {
         Intent intent = new Intent(context, VideoPickActivity.class);
-        context.startActivity(intent);
+        context.startActivityForResult(intent, REQ_PICK);
     }
+
 
     private static class ImageViewHolder extends RecyclerView.ViewHolder {
 
@@ -67,13 +69,13 @@ public class VideoPickActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mFiles.clear();
         setContentView(R.layout.activity_video_pick);
 
         //Actionbar
         getSupportActionBar().setTitle(R.string.choose_video);
         mProgressBar = findViewById(R.id.pb_loading);
         mProgressBar.hide();
-        mPickList = new LinkedList<>();
         mRecyclerView = findViewById(R.id.recyclerview_preview);
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
         mRecyclerView.setAdapter(new RecyclerView.Adapter() {
@@ -96,15 +98,15 @@ public class VideoPickActivity extends BaseActivity {
                 imageViewHolder.imageView.setImageBitmap(mFileCache.get(position).thumb);
                 VideoUtil.FileEntry fileEntry = mFileCache.get(position);
                 imageViewHolder.pickBtn.setSelected(
-                        mPickList.contains(fileEntry)
+                        mFiles.contains(fileEntry)
                 );
                 imageViewHolder.itemView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (mPickList.contains(fileEntry)) {
-                            mPickList.remove(fileEntry);
+                        if (mFiles.contains(fileEntry)) {
+                            mFiles.remove(fileEntry);
                         } else {
-                            mPickList.add(fileEntry);
+                            mFiles.add(fileEntry);
                         }
                         notifyDataSetChanged();
                     }
@@ -207,8 +209,8 @@ public class VideoPickActivity extends BaseActivity {
         if (!mProgressBar.isShown()) {
             mProgressBar.show();
         }
-        VideoUtil.processVideo(VideoPickActivity.this, mPickList, msg -> {
-            VideoEditActivity.start(VideoPickActivity.this);
+        VideoUtil.processVideo(VideoPickActivity.this, mFiles, msg -> {
+            setResult(REQ_PICK);
             finish();
             return true;
         });

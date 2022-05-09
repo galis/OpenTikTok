@@ -6,7 +6,6 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
@@ -18,7 +17,6 @@ import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.avcore.ThreadManager;
-import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.ScreenRender;
 
 import java.io.File;
@@ -27,7 +25,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
-import static com.galix.avcore.util.EglHelper.GL_VERSION_3;
 
 /**
  * Mp4合成类
@@ -313,7 +310,7 @@ public class Mp4Composite {
         eglHelper.makeCurrent();
         ScreenRender screenRender = new ScreenRender();
         screenRender.open();
-        screenRender.write(OtherUtils.BuildMap("surface_size", mVideoState.mTargetSize));
+        screenRender.write(TimeUtils.BuildMap("surface_size", mVideoState.mTargetSize));
 
         while (!mVideoEncodeStream.isInputEOF) {
             AVFrame videoFrame = readVideoFrame();

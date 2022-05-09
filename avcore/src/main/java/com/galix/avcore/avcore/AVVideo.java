@@ -10,7 +10,7 @@ import android.view.Surface;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.OtherUtils;
+import com.galix.avcore.util.TimeUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -196,9 +196,9 @@ public class AVVideo extends AVComponent {
         mediaCodec.flush();
         peekFrame().setPts(Long.MIN_VALUE);
         while (peekFrame().getPts() < position) {
-            OtherUtils.RecordStart("seekFrame");
+            TimeUtils.RecordStart("seekFrame");
             readFrame();
-            OtherUtils.RecordEnd("seekFrame");
+            TimeUtils.RecordEnd("seekFrame");
             LogUtil.log(LogUtil.ENGINE_TAG + "AVVideo#seekframe()" + peekFrame().getPts());
         }
         return RESULT_OK;

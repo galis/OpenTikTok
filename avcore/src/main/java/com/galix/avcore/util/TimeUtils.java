@@ -1,5 +1,7 @@
 package com.galix.avcore.util;
 
+import com.galix.avcore.avcore.AVComponent;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -7,7 +9,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class OtherUtils {
+public class TimeUtils {
     private static Map<String, RecordTag> mTimeRecordMap = new HashMap<>();
     private static StringBuilder result = new StringBuilder();
     private static final long MAX_FRAME_COUNT = 100;
@@ -85,6 +87,36 @@ public class OtherUtils {
 
     public void Clear() {
         mTimeRecordMap.clear();
+    }
+
+    public static long leftWithoutTime(long time) {
+        if (time % 1000000 == 0) {
+            return time;
+        }
+        return leftTime(time);
+    }
+
+    public static long rightWithoutTime(long time) {
+        if (time % 1000000 == 0) {
+            return time;
+        }
+        return rightTime(time);
+    }
+
+    public static long leftTime(long time) {
+        return Math.max(0, time - 1) / 1000000 * 1000000;
+    }
+
+    public static long rightTime(long time) {
+        return (time + 1000000) / 1000000 * 1000000;
+    }
+
+    public static long quzheng(long time) {
+        return time / 1000000 * 1000000;
+    }
+
+    public static long engineTime2FileTime(long pos, AVComponent avComponent) {
+        return pos - avComponent.getEngineStartTime() + avComponent.getClipStartTime();
     }
 
 }

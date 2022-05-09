@@ -27,7 +27,7 @@ public class LogoActivity extends BaseActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(false);
 
         findViewById(R.id.btn_start_work).setOnClickListener(v -> {
-            startActivity(new Intent(LogoActivity.this, VideoPickActivity.class));
+            VideoEditActivity.start(LogoActivity.this);
         });
 
         getSystemService(ACTIVITY_SERVICE);

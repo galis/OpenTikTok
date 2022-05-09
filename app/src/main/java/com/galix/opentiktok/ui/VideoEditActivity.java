@@ -17,32 +17,30 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.galix.avcore.avcore.AVAudio;
-import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVSticker;
-import com.galix.avcore.avcore.AVTransaction;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.avcore.AVWord;
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.TextRender;
-import com.galix.avcore.render.filters.TransactionRender;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
+import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.Map;
 
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
-import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 
 /**
@@ -54,8 +52,6 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 public class VideoEditActivity extends BaseActivity {
 
     private static final String TAG = VideoEditActivity.class.getSimpleName();
-    private static final int THUMB_SLOT_WIDTH = 60;
-
     private LinkedList<Integer> mStickerList;//贴纸
     private SurfaceView mSurfaceView;
     private RecyclerView mTabRecyclerView;
@@ -68,17 +64,16 @@ public class VideoEditActivity extends BaseActivity {
     private TextView mTimeInfo;
     private ImageView mPlayBtn;
     private ImageView mFullScreenBtn;
-    private int mScrollX = 0;
     private AVEngine mAVEngine;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
-            R.drawable.icon_video_cut, R.string.tab_cut,
-            R.drawable.icon_adjust, R.string.tab_audio,
-            R.drawable.icon_adjust, R.string.tab_text,
-            R.drawable.icon_adjust, R.string.tab_sticker,
-            R.drawable.icon_adjust, R.string.tab_inner_picture,
-            R.drawable.icon_adjust, R.string.tab_magic,
+            R.drawable.icon_cut, R.string.tab_cut,
+            R.drawable.icon_audio, R.string.tab_audio,
+            R.drawable.icon_word, R.string.tab_text,
+            R.drawable.icon_sticker, R.string.tab_sticker,
+            R.drawable.icon_pip, R.string.tab_inner_picture,
+            R.drawable.icon_effect, R.string.tab_magic,
             R.drawable.icon_filter, R.string.tab_filter,
             R.drawable.icon_adjust, R.string.tab_ratio,
             R.drawable.icon_background, R.string.tab_background,
@@ -152,6 +147,7 @@ public class VideoEditActivity extends BaseActivity {
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 ImageViewHolder imageViewHolder = (ImageViewHolder) holder;
                 imageViewHolder.imageView.setImageResource(TAB_INFO_LIST[2 * position]);
+                imageViewHolder.imageView.setPadding(8, 8, 8, 8);
                 imageViewHolder.textView.setText(TAB_INFO_LIST[2 * position + 1]);
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     int index = TAB_INFO_LIST[2 * position + 1];
@@ -249,39 +245,10 @@ public class VideoEditActivity extends BaseActivity {
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
         mAVEngine.create();
-        mAVEngine.setCanvasSize(calCanvasSize("原始"));
         GLManager.getManager().installContext(this);
         LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
 
         mVideoPreViewPanel = findViewById(R.id.rl_video_preview_panel);
-        long startTime = 0;
-        for (VideoUtil.FileEntry fileEntry : VideoUtil.mTargetFiles) {
-            AVVideo video = new AVVideo(true, startTime, fileEntry.path, null);
-            AVAudio audio = new AVAudio(startTime, fileEntry.path, null);
-            startTime += fileEntry.duration;
-            mAVEngine.addComponent(video, new AVEngine.EngineCallback() {
-                @Override
-                public void onCallback(Object[] args1) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
-                        }
-                    });
-                }
-            });
-            mAVEngine.addComponent(audio, new AVEngine.EngineCallback() {
-                @Override
-                public void onCallback(Object[] args1) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
-                        }
-                    });
-                }
-            });
-        }
         mAVEngine.setOnFrameUpdateCallback(new AVEngine.EngineCallback() {
             @Override
             public void onCallback(Object[] args1) {
@@ -291,9 +258,10 @@ public class VideoEditActivity extends BaseActivity {
         mVideoPreViewPanel.setClipCallback(new ClipView.ClipCallback() {
             @Override
             public void onClip(Rect src, Rect dst) {
-                LinkedList<AVComponent> componentList = new LinkedList<>();
-                componentList.add(mAVEngine.getVideoState().editComponent);
-                mAVEngine.changeComponent(componentList, src, dst, new AVEngine.EngineCallback() {
+                Map<String, Object> map = new HashMap<>();
+                map.put("comm_src", src);
+                map.put("comm_dst", dst);
+                mAVEngine.changeComponent(mAVEngine.getVideoState().editComponent, map, new AVEngine.EngineCallback() {
                     @Override
                     public void onCallback(Object[] args1) {
                         mAVEngine.fastSeek(mAVEngine.getMainClock());
@@ -308,6 +276,14 @@ public class VideoEditActivity extends BaseActivity {
                 });
             }
         });
+        mVideoPreViewPanel.setBtnAddCallback(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                VideoPickActivity.start(VideoEditActivity.this);
+            }
+        });
+
+        VideoPickActivity.start(this);
     }
 
     private Size calCanvasSize(String text) {
@@ -369,7 +345,6 @@ public class VideoEditActivity extends BaseActivity {
                 VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
-                test();
                 break;
             default:
                 break;
@@ -377,17 +352,39 @@ public class VideoEditActivity extends BaseActivity {
         return true;
     }
 
-    private void test() {
-        List<AVComponent> components = mAVEngine.findComponents(AVComponent.AVComponentType.VIDEO, -1);
-        if (components.size() == 2) {
-            AVVideo video0 = (AVVideo) components.get(0);
-            AVVideo video1 = (AVVideo) components.get(1);
-            video1.setEngineStartTime(video1.getEngineStartTime() - 1000000);
-            TransactionRender render = new TransactionRender();
-            TransactionRender.TransactionConfig config = new TransactionRender.TransactionConfig();
-            mAVEngine.addComponent(new AVTransaction(video1.getEngineStartTime(), 0, video0, video1, render), null);
-            freshUI();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode == VideoPickActivity.REQ_PICK) {
+            LinkedList<VideoUtil.FileEntry> files = VideoPickActivity.mFiles;
+            for (VideoUtil.FileEntry fileEntry : files) {
+                AVVideo video = new AVVideo(true, -1, fileEntry.path, null);
+                AVAudio audio = new AVAudio(-1, fileEntry.path, null);
+                mAVEngine.addComponent(video, new AVEngine.EngineCallback() {
+                    @Override
+                    public void onCallback(Object[] args1) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
+                            }
+                        });
+                    }
+                });
+                mAVEngine.addComponent(audio, new AVEngine.EngineCallback() {
+                    @Override
+                    public void onCallback(Object[] args1) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
+                            }
+                        });
+                    }
+                });
+            }
+            mAVEngine.setCanvasSize(calCanvasSize("原始"));
         }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void freshUI() {

@@ -3,16 +3,14 @@ package com.galix.avcore.render.filters;
 import android.graphics.Rect;
 import android.opengl.GLES30;
 import android.util.Size;
-import android.util.SizeF;
 
 import com.galix.avcore.gl.GLManager;
 import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.MathUtils;
-import com.galix.avcore.util.OtherUtils;
+import com.galix.avcore.util.TimeUtils;
 
 import org.opencv.core.Mat;
 
-import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
@@ -71,7 +69,6 @@ import static android.opengl.GLES30.glUniform1f;
 import static android.opengl.GLES30.glUniform1i;
 import static android.opengl.GLES30.glVertexAttribPointer;
 import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_0;
-import static com.galix.avcore.util.GLUtil.DEFAULT_VERT_ARRAY_90;
 import static com.galix.avcore.util.GLUtil.DRAW_ORDER;
 
 /**
@@ -143,7 +140,7 @@ public abstract class BaseFilter implements IFilter {
     @Override
     public void render() {
         if (!isOpen()) return;
-        OtherUtils.RecordStart(getClass().getSimpleName() + "#filter_render");
+        TimeUtils.RecordStart(getClass().getSimpleName() + "#filter_render");
         runTasks();
         bindCurrentProgram();
         bindCurrentVAO();
@@ -152,7 +149,7 @@ public abstract class BaseFilter implements IFilter {
         drawNow();
         onRenderPost();
         bindEmptyVAO();
-        OtherUtils.RecordEnd(getClass().getSimpleName() + "#filter_render");
+        TimeUtils.RecordEnd(getClass().getSimpleName() + "#filter_render");
 //        flushNow();
     }
 

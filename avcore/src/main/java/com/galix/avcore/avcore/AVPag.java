@@ -5,7 +5,7 @@ import android.graphics.Rect;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.LogUtil;
-import com.galix.avcore.util.OtherUtils;
+import com.galix.avcore.util.TimeUtils;
 
 import org.libpag.PAGFile;
 
@@ -70,12 +70,12 @@ public class AVPag extends AVComponent {
     public int readFrame() {
         if (!isOpen()) return RESULT_FAILED;
         boolean isInValid = mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible();
-        OtherUtils.RecordStart("avpag#setProgress#" + pagPath);
+        TimeUtils.RecordStart("avpag#setProgress#" + pagPath);
         double progress = isInValid ? 1.1f : mPagPts * 1.0 / getClipDuration();
         if (pagFile.getProgress() != progress) {
             pagFile.setProgress(progress);
         }
-        OtherUtils.RecordEnd("avpag#setProgress#" + pagPath);
+        TimeUtils.RecordEnd("avpag#setProgress#" + pagPath);
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());
         peekFrame().setValid(true);

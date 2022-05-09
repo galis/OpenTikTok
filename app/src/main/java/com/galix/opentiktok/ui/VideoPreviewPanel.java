@@ -3,6 +3,7 @@ package com.galix.opentiktok.ui;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Size;
@@ -22,13 +23,17 @@ import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
+import com.galix.avcore.avcore.AVTransaction;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.TimeUtils;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.SEEK;
@@ -56,6 +61,7 @@ public class VideoPreviewPanel extends RelativeLayout {
     private AVEngine.VideoState mVideoState;
     private List<ViewType> mInfoList = new LinkedList<>();
     private int mThumbSize = 60;
+    private static int ADD_SIZE = 40;
 
     public VideoPreviewPanel(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -77,19 +83,21 @@ public class VideoPreviewPanel extends RelativeLayout {
         mSplitView = new ImageView(getContext());
         mSplitView.setScaleType(ImageView.ScaleType.FIT_XY);
         mSplitView.setImageResource(R.drawable.drawable_video_split);
-        mTrans = new Button(getContext());
+
         mAddBtn = new Button(getContext());
+        mAddBtn.setBackgroundResource(R.drawable.icon_add);
         //设置相关属性
         addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mThumbSize));
         addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, mThumbSize + 2 * ClipView.LINE_WIDTH));
 //        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-//        addView(mTrans, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
-//        addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(30), compatSize(30)));
+        addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(ADD_SIZE), compatSize(ADD_SIZE)));
         addView(mSplitView, new RelativeLayout.LayoutParams(
                 compatSize(2),
                 ViewGroup.LayoutParams.MATCH_PARENT));
         ((LayoutParams) mClipView.getLayoutParams()).addRule(CENTER_VERTICAL);
         ((LayoutParams) mClipView.getLayoutParams()).addRule(ALIGN_PARENT_LEFT);
+        ((LayoutParams) mAddBtn.getLayoutParams()).addRule(CENTER_VERTICAL);
+        ((LayoutParams) mAddBtn.getLayoutParams()).addRule(ALIGN_PARENT_RIGHT);
         ((LayoutParams) mSplitView.getLayoutParams()).addRule(CENTER_IN_PARENT);
         ((LayoutParams) mThumbPreview.getLayoutParams()).addRule(CENTER_IN_PARENT);
 
@@ -174,7 +182,19 @@ public class VideoPreviewPanel extends RelativeLayout {
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         long currentPts = 0;
         while (currentPts < videoState.durationUS) {
-            List<AVComponent> avComponents = mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts);
+            List<AVComponent> avComponents = mVideoState.findComponents(AVComponent.AVComponentType.TRANSACTION, currentPts);
+            if (!avComponents.isEmpty()) {
+                AVTransaction avTransaction = (AVTransaction) avComponents.get(0);
+                ViewType viewType = new ViewType(TYPE_TRAN);
+                viewType.duration = avTransaction.getEngineDuration();
+                viewType.type = TYPE_TRAN;
+                viewType.component = avTransaction;
+                viewType.clip = 0;
+                mInfoList.add(viewType);
+                currentPts += viewType.duration;
+                continue;
+            }
+            avComponents = mVideoState.findComponents(AVComponent.AVComponentType.VIDEO, currentPts);
             if (avComponents.isEmpty()) {
                 break;
             }
@@ -186,25 +206,26 @@ public class VideoPreviewPanel extends RelativeLayout {
             mInfoList.get(mInfoList.size() - 1).imgPath = VideoUtil.getThumbJpg(getContext(), avVideo.getPath(), correctFilePts);
             //处理开头不满1s
             if (correctFilePts % 1000000 != 0) {
-                mInfoList.get(mInfoList.size() - 1).duration = 1000000 - correctFilePts % 1000000;
-                mInfoList.get(mInfoList.size() - 1).clipStart = false;
+                mInfoList.get(mInfoList.size() - 1).duration = TimeUtils.rightTime(correctFilePts) - correctFilePts;
+                mInfoList.get(mInfoList.size() - 1).clip = 1;
                 currentPts += mInfoList.get(mInfoList.size() - 1).duration;
                 continue;
             }
             //处理最后一帧不满1s
             if (currentPts + 1000000 > avVideo.getEngineEndTime()) {
                 mInfoList.get(mInfoList.size() - 1).duration = avVideo.getEngineEndTime() - currentPts;
-                mInfoList.get(mInfoList.size() - 1).clipStart = true;
+                mInfoList.get(mInfoList.size() - 1).clip = 2;
                 currentPts = avVideo.getEngineEndTime();
                 continue;
             }
             //正常
             mInfoList.get(mInfoList.size() - 1).duration = 1000000;
-            mInfoList.get(mInfoList.size() - 1).clipStart = false;
+            mInfoList.get(mInfoList.size() - 1).clip = 0;
             currentPts += 1000000;
         }
         mInfoList.add(new ViewType(TYPE_HEAD_FOOT));
         mThumbPreview.getAdapter().notifyDataSetChanged();
+
     }
 
     public void updateScroll(boolean isSmooth) {
@@ -220,6 +241,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                 mThumbPreview.scrollBy(correctScrollX - mCacheScrollX, 0);
             }
         }
+
     }
 
 
@@ -262,7 +284,7 @@ public class VideoPreviewPanel extends RelativeLayout {
         public String imgPath;
         public AVComponent component;
         public long duration;
-        public boolean clipStart;
+        public int clip;
 
         public ViewType(int type) {
             this.type = type;
@@ -271,6 +293,7 @@ public class VideoPreviewPanel extends RelativeLayout {
 
     private static final int TYPE_HEAD_FOOT = 0;
     private static final int TYPE_THUMB = 1;
+    private static final int TYPE_TRAN = 2;
 
     private static class ThumbViewHolder extends RecyclerView.ViewHolder {
 
@@ -284,6 +307,11 @@ public class VideoPreviewPanel extends RelativeLayout {
         @NonNull
         @Override
         public ThumbViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == TYPE_TRAN) {
+                VideoTranView videoTranView = new VideoTranView(parent.getContext(),
+                        new RecyclerView.LayoutParams(mThumbSize, mThumbSize));
+                return new ThumbViewHolder(videoTranView);
+            }
             ImageView view = new ImageView(parent.getContext());
             view.setScaleType(ImageView.ScaleType.FIT_XY);
             view.setLayoutParams(new RecyclerView.LayoutParams(viewType == TYPE_HEAD_FOOT ?
@@ -306,7 +334,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                                     if (toTransform.getWidth() == holder.itemView.getLayoutParams().width) {
                                         return toTransform;
                                     }
-                                    if (viewType.clipStart) {
+                                    if (viewType.clip == 2) {
                                         return Bitmap.createBitmap(toTransform, 0, 0,
                                                 (int) (toTransform.getWidth() * viewType.duration / 1000000.f), toTransform.getHeight());
                                     } else {
@@ -330,6 +358,30 @@ public class VideoPreviewPanel extends RelativeLayout {
                     public void onClick(View v) {
                         AVEngine.getVideoEngine().updateEdit(mInfoList.get(position).component, !mVideoState.isEdit);
                         updateClip();
+                    }
+                });
+            } else if (viewType.type == TYPE_TRAN) {
+                VideoTranView videoTranView = (VideoTranView) holder.itemView;
+                videoTranView.updateTransaction((AVTransaction) mInfoList.get(position).component, mThumbSize);
+                videoTranView.setAddCallback(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Map<String, Object> config = new HashMap<>();
+                        config.put("tran_type", AVTransaction.TRAN_ALPHA);
+                        config.put("tran_duration", 2000000L);
+                        config.put("tran_visible", !mInfoList.get(position).component.isVisible());
+                        AVEngine.getVideoEngine().changeComponent(mInfoList.get(position).component, config, new AVEngine.EngineCallback() {
+                            @Override
+                            public void onCallback(Object... args1) {
+                                videoTranView.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        updateData(AVEngine.getVideoEngine().getVideoState());
+                                    }
+                                });
+                            }
+                        });
+                        AVEngine.getVideoEngine().seek(AVEngine.getVideoEngine().getMainClock());
                     }
                 });
             } else {
