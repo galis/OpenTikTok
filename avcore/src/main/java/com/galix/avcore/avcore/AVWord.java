@@ -20,7 +20,7 @@ public class AVWord extends AVComponent {
 
     @Override
     public int open() {
-        setDuration(50);//TODO
+        setDuration(5000000);//TODO
         setEngineEndTime(getEngineStartTime() + getDuration());
         markOpen(true);
         return RESULT_OK;

@@ -157,7 +157,17 @@ public class VideoEditActivity extends BaseActivity {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (index == R.string.tab_text) {
                         mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(),
-                                new TextRender(mEditTextView)), null);
+                                new TextRender(mEditTextView)), new AVEngine.EngineCallback() {
+                            @Override
+                            public void onCallback(Object... args1) {
+                                mVideoPreViewPanel.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mVideoPreViewPanel.updateEffect();
+                                    }
+                                });
+                            }
+                        });
                     } else if (index == R.string.tab_ratio) {
                         ViewGroup view = findViewById(R.id.view_ratio_tablist);
                         ((RatioTabListView) view.getChildAt(0)).buildView(1920, 1080, new View.OnClickListener() {
@@ -231,7 +241,17 @@ public class VideoEditActivity extends BaseActivity {
                     public void onClick(View v) {
                         mStickerView.setVisibility(View.VISIBLE);
                         mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
-                                new ImageViewRender(mStickerView)), null);
+                                new ImageViewRender(mStickerView)), new AVEngine.EngineCallback() {
+                            @Override
+                            public void onCallback(Object... args1) {
+                                mVideoPreViewPanel.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mVideoPreViewPanel.updateEffect();
+                                    }
+                                });
+                            }
+                        });
                         mStickerRecyclerView.setVisibility(View.GONE);
                     }
                 });

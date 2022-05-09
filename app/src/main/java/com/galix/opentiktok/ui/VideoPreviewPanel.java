@@ -49,9 +49,8 @@ public class VideoPreviewPanel extends RelativeLayout {
 
     private RecyclerView mThumbPreview;//缩略图预览
     private ClipView mClipView;
-    private View mEffectPreview;//特效提示
+    private EffectView mEffectPreview;//特效提示
     private ImageView mSplitView;
-    private Button mTrans;//转场按钮
     private Button mAddBtn;//添加视频按钮
     private Size mLayoutSize = new Size(0, 0);
     private int mCacheScrollX = 0;
@@ -86,12 +85,17 @@ public class VideoPreviewPanel extends RelativeLayout {
 
         mAddBtn = new Button(getContext());
         mAddBtn.setBackgroundResource(R.drawable.icon_add);
+
+        RelativeLayout relativeLayout = new RelativeLayout(getContext());
+        relativeLayout.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, compatSize(120)));
+        addView(relativeLayout);
+
         //设置相关属性
-        addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mThumbSize));
-        addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, mThumbSize + 2 * ClipView.LINE_WIDTH));
+        relativeLayout.addView(mThumbPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, mThumbSize));
+        relativeLayout.addView(mClipView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, mThumbSize + 2 * ClipView.LINE_WIDTH));
 //        addView(mEffectPreview, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(ADD_SIZE), compatSize(ADD_SIZE)));
-        addView(mSplitView, new RelativeLayout.LayoutParams(
+        relativeLayout.addView(mAddBtn, new RelativeLayout.LayoutParams(compatSize(ADD_SIZE), compatSize(ADD_SIZE)));
+        relativeLayout.addView(mSplitView, new RelativeLayout.LayoutParams(
                 compatSize(2),
                 ViewGroup.LayoutParams.MATCH_PARENT));
         ((LayoutParams) mClipView.getLayoutParams()).addRule(CENTER_VERTICAL);
@@ -130,6 +134,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                 super.onScrolled(recyclerView, dx, dy);
                 updateCorrectScrollX();
                 updateClip();
+                updateEffect();
                 if (recyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE &&
                         AVEngine.getVideoEngine().getVideoState().status == SEEK) {
                     AVEngine.getVideoEngine().seek((long) (1000000.f / mThumbSize * mCacheScrollX));
@@ -137,6 +142,14 @@ public class VideoPreviewPanel extends RelativeLayout {
                 LogUtil.logMain("onScrolled@" + mCacheScrollX);
             }
         });
+
+
+        //文字，特效，贴纸
+        mEffectPreview = new EffectView(getContext());
+        mEffectPreview.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        RelativeLayout.LayoutParams layoutParams = (LayoutParams) mEffectPreview.getLayoutParams();
+        layoutParams.topMargin = compatSize(100);
+        addView(mEffectPreview);
     }
 
     private void updateCorrectScrollX() {
@@ -275,8 +288,8 @@ public class VideoPreviewPanel extends RelativeLayout {
         mAddBtn.setOnClickListener(onClickListener);
     }
 
-    public void setBtnTranCallback(OnClickListener onClickListener) {
-        mTrans.setOnClickListener(onClickListener);
+    public void updateEffect() {
+        mEffectPreview.update(mLayoutSize.getWidth() / 2, mCacheScrollX, mThumbSize);
     }
 
     private static class ViewType {

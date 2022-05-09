@@ -84,7 +84,7 @@
     <com.galix.opentiktok.ui.VideoPreviewPanel
         android:id="@+id/rl_video_preview_panel"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="240dp"
         android:layout_below="@id/rl_video_info" />
 
     <!--底部操作栏-->
@@ -133,8 +133,8 @@
         android:id="@+id/tv_debug_info"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:textColor="@color/theme_orangeC9"
         android:scrollbars="vertical"
+        android:textColor="@color/theme_orangeC9"
         android:visibility="gone" />
 
 

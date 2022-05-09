@@ -203,8 +203,6 @@ public class VideoTranView extends RelativeLayout {
                 }
             }
         }
-//        canvas.drawColor(Color.RED);
-
         super.onDraw(canvas);
     }
 
@@ -212,7 +210,7 @@ public class VideoTranView extends RelativeLayout {
         String path = VideoUtil.getThumbJpg(getContext(), avVideo.getPath(),
                 TimeUtils.quzheng(
                         TimeUtils.engineTime2FileTime(pts, avVideo)));
-        if (mCache.containsKey(path)) {
+        if (mCache.containsKey(path) && !mCache.get(path).isRecycled()) {
             return mCache.get(path);
         }
         Bitmap bitmap = BitmapFactory.decodeFile(path);
