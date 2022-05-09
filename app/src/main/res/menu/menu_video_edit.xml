@@ -12,6 +12,11 @@
     <!--orderInCategor:同种类菜单的排列顺序。该属性需要设置一个整数值-->
 
     <item
+        android:id="@+id/action_debug"
+        android:title="调试"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_pixel"
         android:title="1080p"
         app:showAsAction="always" />

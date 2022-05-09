@@ -347,6 +347,8 @@ public class VideoEditActivity extends BaseActivity {
                 VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
+                break;
+            case R.id.action_debug:
                 if (findViewById(R.id.tv_debug_info).getVisibility() == View.VISIBLE) {
                     findViewById(R.id.tv_debug_info).setVisibility(View.GONE);
                 } else {
