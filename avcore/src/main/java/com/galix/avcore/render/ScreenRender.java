@@ -65,6 +65,7 @@ public class ScreenRender implements IVideoRender {
         if (config.containsKey("surface_size")) {
             mSurfaceSize = (Size) config.get("surface_size");
         }
+        screenFilter.write(config);
     }
 
     @Override

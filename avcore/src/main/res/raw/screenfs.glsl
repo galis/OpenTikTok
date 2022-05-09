@@ -3,14 +3,24 @@
 precision mediump float;
 in vec2 vTextureCoord;
 out vec4 vFragColor;
+uniform vec3 bgColor;
+uniform mat3 textureMat;
+uniform bool isOes;
 uniform sampler2D inputImageTexture;
 uniform samplerExternalOES oesImageTexture;
-uniform bool isOes;
+
+vec4 filterTexture2D(sampler2D targetTexture, vec2 coord){
+    if (coord.x < 0.0||coord.x>1.0||coord.y<0.0||coord.y>1.0) {
+        return vec4(bgColor, 1.0);
+    }
+    return texture(targetTexture, coord);
+}
 
 void main(){
+    vec2 coord = (textureMat*vec3(vTextureCoord, 1.0)).xy;
     if (isOes){
-        vFragColor = texture(oesImageTexture, vec2(vTextureCoord.x, 1.0-vTextureCoord.y));
+        vFragColor = filterTexture2D(oesImageTexture, vec2(coord.x, 1.0-coord.y));
         return;
     }
-    vFragColor = texture(inputImageTexture, vTextureCoord);
+    vFragColor = filterTexture2D(inputImageTexture, coord);
 }

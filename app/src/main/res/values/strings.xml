@@ -10,8 +10,8 @@
     <string name="tab_audio">音频</string>
     <string name="tab_text">文字</string>
     <string name="tab_sticker">贴纸</string>
-    <string name="tab_inner_picture">画中画</string>
-    <string name="tab_magic">特效</string>
+    <string name="tab_pip">画中画</string>
+    <string name="tab_effect">特效</string>
     <string name="tab_filter">滤镜</string>
     <string name="tab_ratio">比例</string>
     <string name="tab_background">背景</string>

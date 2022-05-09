@@ -8,7 +8,6 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.Printer;
 import android.util.Size;
-import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -16,7 +15,6 @@ import androidx.annotation.Nullable;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVVideo;
-import com.galix.avcore.avcore.ThreadManager;
 import com.galix.avcore.util.FileUtils;
 import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.VideoUtil;
@@ -58,16 +56,16 @@ public class VideoExportActivity extends BaseActivity {
         AVVideo firstVideo = (AVVideo) mAVEngine.findComponents(AVComponent.AVComponentType.VIDEO, 0).get(0);
         String imgPath = VideoUtil.getThumbJpg(this, firstVideo.getPath(), 0);
         mBackGround = BitmapFactory.decodeFile(imgPath);
-        mAVEngine.getVideoState().mTargetGop = 30;
-        mAVEngine.getVideoState().mTargetAb = 44100;
-        mAVEngine.getVideoState().mTargetVb = (int) (2.5 * 1024 * 1024);
-        mAVEngine.getVideoState().mTargetPath = FileUtils.getCompositeDir(this) + File.separator + "composite" + System.currentTimeMillis() + ".mp4";
+        mAVEngine.getVideoState().compositeGop = 30;
+        mAVEngine.getVideoState().compositeAb = 44100;
+        mAVEngine.getVideoState().compositeVb = (int) (2.5 * 1024 * 1024);
+        mAVEngine.getVideoState().compositePath = FileUtils.getCompositeDir(this) + File.separator + "composite" + System.currentTimeMillis() + ".mp4";
         mAVEngine.getVideoState().hasAudio = true;
         mAVEngine.getVideoState().hasVideo = true;
         mAVEngine.getVideoState().readyAudio = false;
         mAVEngine.getVideoState().readyVideo = false;
-        mAVEngine.getVideoState().mTargetSize = new Size(640, 640);
-        mAVEngine.getVideoState().mBgColor = Color.RED;
+        mAVEngine.getVideoState().canvasSize = new Size(640, 640);
+        mAVEngine.getVideoState().bgColor = Color.RED;
         Looper.getMainLooper().setMessageLogging(new Printer() {
             @Override
             public void println(String x) {

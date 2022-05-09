@@ -18,6 +18,8 @@ public class ScreenFilter extends BaseFilter {
         bindTexture("inputImageTexture");
         bindTexture("oesImageTexture");
         bindBool("isOes");
+        bindMat3("textureMat");
+        bindVec3("bgColor");
     }
 
 

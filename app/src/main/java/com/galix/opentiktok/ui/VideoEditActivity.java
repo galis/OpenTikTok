@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.util.Size;
 import android.view.Menu;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
+import static android.view.View.VISIBLE;
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 
@@ -72,10 +74,10 @@ public class VideoEditActivity extends BaseActivity {
             R.drawable.icon_audio, R.string.tab_audio,
             R.drawable.icon_word, R.string.tab_text,
             R.drawable.icon_sticker, R.string.tab_sticker,
-            R.drawable.icon_pip, R.string.tab_inner_picture,
-            R.drawable.icon_effect, R.string.tab_magic,
+            R.drawable.icon_pip, R.string.tab_pip,
+            R.drawable.icon_effect, R.string.tab_effect,
             R.drawable.icon_filter, R.string.tab_filter,
-            R.drawable.icon_adjust, R.string.tab_ratio,
+            R.drawable.icon_ratio, R.string.tab_ratio,
             R.drawable.icon_background, R.string.tab_background,
             R.drawable.icon_adjust, R.string.tab_adjust
     };
@@ -166,7 +168,7 @@ public class VideoEditActivity extends BaseActivity {
                                     view.setVisibility(View.GONE);
                                     return;
                                 }
-                                mAVEngine.setCanvasSize(calCanvasSize(info.text));
+                                mAVEngine.setCanvasType(info.text);
                                 Toast.makeText(getBaseContext(), info.text, Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -286,12 +288,12 @@ public class VideoEditActivity extends BaseActivity {
         VideoPickActivity.start(this);
     }
 
-    private Size calCanvasSize(String text) {
+    private Size calCanvasSize(String text, Size videoSize) {
         int width = getWindowManager().getCurrentWindowMetrics().getBounds().width();
         int height = (int) (350 * getResources().getDisplayMetrics().density);
         if (text.equalsIgnoreCase("原始")) {
-            height = (int) (width * VideoUtil.mTargetFiles.get(0).height * 1.0f /
-                    VideoUtil.mTargetFiles.get(0).width);
+            height = (int) (width * videoSize.getHeight() * 1.0f /
+                    videoSize.getWidth());
         } else if (text.equalsIgnoreCase("4:3")) {
             height = (int) (width * 3.0f / 4.0f);
         } else if (text.equalsIgnoreCase("3:4")) {
@@ -345,6 +347,13 @@ public class VideoEditActivity extends BaseActivity {
                 VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
+                if (findViewById(R.id.tv_debug_info).getVisibility() == View.VISIBLE) {
+                    findViewById(R.id.tv_debug_info).setVisibility(View.GONE);
+                } else {
+                    findViewById(R.id.tv_debug_info).setVisibility(View.VISIBLE);
+                    ((TextView) findViewById(R.id.tv_debug_info)).setText(AVEngine.getVideoEngine().getVideoState().toString());
+                }
+                ((TextView) findViewById(R.id.tv_debug_info)).setMovementMethod(ScrollingMovementMethod.getInstance());
                 break;
             default:
                 break;
@@ -368,6 +377,7 @@ public class VideoEditActivity extends BaseActivity {
                                 mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
                             }
                         });
+                        mAVEngine.setCanvasType("原始");
                     }
                 });
                 mAVEngine.addComponent(audio, new AVEngine.EngineCallback() {
@@ -379,10 +389,10 @@ public class VideoEditActivity extends BaseActivity {
                                 mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
                             }
                         });
+                        mAVEngine.setCanvasType("原始");
                     }
                 });
             }
-            mAVEngine.setCanvasSize(calCanvasSize("原始"));
         }
         super.onActivityResult(requestCode, resultCode, data);
     }

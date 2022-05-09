@@ -6,6 +6,7 @@ import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.opengl.GLES30;
+import android.util.Size;
 import android.view.Surface;
 
 import com.galix.avcore.render.IRender;
@@ -31,6 +32,7 @@ public class AVVideo extends AVComponent {
     private MediaFormat mediaFormat;
     private Surface surface;
     private SurfaceTexture surfaceTexture;
+    private Size videoSize;
     private boolean isTextureType;
 
     //输出到surface
@@ -49,6 +51,10 @@ public class AVVideo extends AVComponent {
         this.path = path;
     }
 
+    public Size getVideoSize() {
+        return videoSize;
+    }
+
     @Override
     public int open() {
         if (isOpen()) return RESULT_FAILED;
@@ -61,6 +67,7 @@ public class AVVideo extends AVComponent {
                     mediaFormat = mediaExtractor.getTrackFormat(i);
                     mediaExtractor.selectTrack(i);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
+                    videoSize = new Size(mediaFormat.getInteger(MediaFormat.KEY_WIDTH), mediaFormat.getInteger(MediaFormat.KEY_HEIGHT));
                     long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
                     setClipStartTime(0);
                     setClipEndTime(duration);
@@ -206,16 +213,17 @@ public class AVVideo extends AVComponent {
 
     @Override
     public String toString() {
-        return "AVVideo{" +
-                ", isInputEOF=" + isInputEOF +
-                ", isOutputEOF=" + isOutputEOF +
-                ", path='" + path + '\'' +
-                ", mediaCodec=" + mediaCodec +
-                ", mediaExtractor=" + mediaExtractor +
-                ", mediaFormat=" + mediaFormat +
-                ", surface=" + surface +
-                ", surfaceTexture=" + surfaceTexture +
-                ", isTextureType=" + isTextureType +
-                "} " + super.toString();
+        return "AVVideo{\n" +
+                "\tisInputEOF=" + isInputEOF + "\n" +
+                "\tisOutputEOF=" + isOutputEOF + "\n" +
+                "\tpath='" + path + '\'' + "\n" +
+                "\tmediaCodec=" + mediaCodec + "\n" +
+                "\tmediaExtractor=" + mediaExtractor + "\n" +
+                "\tmediaFormat=" + mediaFormat + "\n" +
+                "\tsurface=" + surface + "\n" +
+                "\tsurfaceTexture=" + surfaceTexture + "\n" +
+                "\tvideoSize=" + videoSize + "\n" +
+                "\tisTextureType=" + isTextureType + "\n" +
+                "} " + super.toString() + "\n";
     }
 }

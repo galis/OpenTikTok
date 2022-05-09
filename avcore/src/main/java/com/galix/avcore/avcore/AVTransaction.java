@@ -150,4 +150,16 @@ public class AVTransaction extends AVComponent {
     public AVVideo trans2() {
         return avVideo2;
     }
+
+    @Override
+    public String toString() {
+        return "AVTransaction{\n" +
+                "\tTEST_DURATION=" + TEST_DURATION + "\n" +
+                "\tmFrameDelta=" + mFrameDelta + "\n" +
+                "\tmTransactionType=" + mTransactionType + "\n" +
+                "\tmTransactionDuration=" + mTransactionDuration + "\n" +
+                "\tavVideo1=" + avVideo1 + "\n" +
+                "\tavVideo2=" + avVideo2 + "\n" +
+                "} " + super.toString() + "\n";
+    }
 }

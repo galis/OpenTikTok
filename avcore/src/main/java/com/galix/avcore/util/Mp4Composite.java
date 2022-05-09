@@ -62,10 +62,10 @@ public class Mp4Composite {
     public Mp4Composite(AVEngine avEngine) {
         mVideoState = avEngine.getVideoState();
         mEngine = avEngine;
-        mGop = mVideoState.mTargetGop;
-        mVb = mVideoState.mTargetVb;
-        mAb = mVideoState.mTargetAb;
-        mDstPath = mVideoState.mTargetPath;
+        mGop = mVideoState.compositeGop;
+        mVb = mVideoState.compositeVb;
+        mAb = mVideoState.compositeAb;
+        mDstPath = mVideoState.compositePath;
         mAudioEncodeStream = mVideoEncodeStream = null;
     }
 
@@ -89,7 +89,7 @@ public class Mp4Composite {
         MediaFormat mediaFormat = null;
         if (isVideo) {
             mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,
-                    mVideoState.mTargetSize.getWidth(), mVideoState.mTargetSize.getHeight());
+                    mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
             int width = mediaFormat.getInteger(MediaFormat.KEY_WIDTH);
             int height = mediaFormat.getInteger(MediaFormat.KEY_HEIGHT);
             mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,
@@ -310,7 +310,7 @@ public class Mp4Composite {
         eglHelper.makeCurrent();
         ScreenRender screenRender = new ScreenRender();
         screenRender.open();
-        screenRender.write(TimeUtils.BuildMap("surface_size", mVideoState.mTargetSize));
+        screenRender.write(TimeUtils.BuildMap("surface_size", mVideoState.canvasSize));
 
         while (!mVideoEncodeStream.isInputEOF) {
             AVFrame videoFrame = readVideoFrame();

@@ -10,6 +10,7 @@ import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.ViewTreeObserver;
 
 import androidx.annotation.NonNull;
 
@@ -30,7 +31,9 @@ import org.libpag.PAGComposition;
 import org.libpag.PAGLayer;
 import org.libpag.PAGPlayer;
 import org.libpag.PAGSurface;
+import org.opencv.core.Mat;
 
+import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -84,6 +87,7 @@ public class AVEngine {
     private IVideoRender screenRender;
     private IVideoRender pagRender;
     private AVFrame screenFrame;
+    private Size mSurfaceViewSize = new Size(1080, 350);
 
     //Pag
     private GLTexture mPagTexture = new GLTexture(0, false);
@@ -134,19 +138,24 @@ public class AVEngine {
 
         @Override
         public String toString() {
-            return "Clock{" +
-                    "speed=" + speed +
-                    ", lastUpdate=" + lastUpdate +
-                    ", delta=" + delta +
-                    ", lastSeekReq=" + lastSeekReq +
-                    ", seekReq=" + seekReq +
-                    '}';
+            final StringBuilder sb = new StringBuilder("{");
+            sb.append("\"speed\":")
+                    .append(speed);
+            sb.append(",\"lastUpdate\":")
+                    .append(lastUpdate);
+            sb.append(",\"delta\":")
+                    .append(delta);
+            sb.append(",\"lastSeekReq\":")
+                    .append(lastSeekReq);
+            sb.append(",\"seekReq\":")
+                    .append(seekReq);
+            sb.append('}');
+            return sb.toString();
         }
     }
 
     //视频核心信息类
     public static class VideoState {
-
 
         public enum VideoStatus {
             INIT,
@@ -163,32 +172,33 @@ public class AVEngine {
         public long videoDuration;
         public long audioDuration;
         public long durationUS;//视频总时长 us
-        public int mBgColor;
-        public int mTargetGop;
-        public int mTargetAb;
-        public int mTargetVb;
+        public int bgColor;
+        public int compositeGop;
+        public int compositeAb;
+        public int compositeVb;
         public boolean hasAudio;
         public boolean hasVideo;
         public boolean readyAudio;//合成视频用
         public boolean readyVideo;//合成视频用
         public boolean isSurfaceReady = false;
-        public Size mTargetSize;//合成视频目标宽高
-        public String mTargetPath;//合成视频路径
+        public boolean isEdit = false;//编辑组件状态
+        public long drawClock = 0;//需要绘制video
+        public VideoStatus status;//播放状态
+        public String compositePath;//合成视频路径
+        public Size canvasSize;//合成视频目标宽高
+        public String canvasType;
         public Clock videoClock;
         public Clock extClock;
         public Clock audioClock;
-        public VideoStatus status;//播放状态
-        public boolean isEdit = false;//编辑组件状态
+        public Mat canvasMat;
         public AVComponent editComponent;
         public final ReentrantLock stateLock = new ReentrantLock();
-        public List<AVComponent> mTranComponents = new LinkedList<>();//转场
-        public List<AVComponent> mVideoComponents = new LinkedList<>();//视频轨道
-        public List<AVComponent> mAudioComponents = new LinkedList<>();//音频轨道
-
+        public List<AVComponent> tranComponents = new LinkedList<>();//转场
+        public List<AVComponent> videoComponents = new LinkedList<>();//视频轨道
+        public List<AVComponent> audioComponents = new LinkedList<>();//音频轨道
         //onDrawFrame方法用到的
-        public List<AVComponent> mDrawPagComponents = new LinkedList<>();//需要绘制pag
-        public List<AVComponent> mDrawVideoComponents = new LinkedList<>();//需要绘制video
-        public long mDrawClock = 0;//需要绘制video
+        public List<AVComponent> drawPagComponents = new LinkedList<>();//需要绘制pag
+        public List<AVComponent> drawVideoComponents = new LinkedList<>();//需要绘制video
 
         public VideoState() {
             reset();
@@ -223,7 +233,7 @@ public class AVEngine {
             mTargetComponents.clear();
             if (type == AVComponent.AVComponentType.AUDIO) {
                 lock();
-                for (AVComponent component : mAudioComponents) {
+                for (AVComponent component : audioComponents) {
                     if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                             (position == -1 || component.isValid(position)))) {
                         mTargetComponents.add(component);
@@ -232,7 +242,7 @@ public class AVEngine {
                 unlock();
             } else {
                 lock();
-                for (AVComponent component : type == AVComponent.AVComponentType.TRANSACTION ? mTranComponents : mVideoComponents) {
+                for (AVComponent component : type == AVComponent.AVComponentType.TRANSACTION ? tranComponents : videoComponents) {
                     if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                             (position == -1 || component.isValid(position)))) {
                         mTargetComponents.add(component);
@@ -245,36 +255,41 @@ public class AVEngine {
 
         @Override
         public String toString() {
-            return "VideoState{" +
-                    "isInputEOF=" + isInputEOF +
-                    ", isOutputEOF=" + isOutputEOF +
-                    ", displaySwapCount=" + displaySwapCount +
-                    ", seekPositionUS=" + seekPositionUS +
-                    ", durationUS=" + durationUS +
-                    ", mBgColor=" + mBgColor +
-                    ", mTargetGop=" + mTargetGop +
-                    ", mTargetAb=" + mTargetAb +
-                    ", mTargetVb=" + mTargetVb +
-                    ", hasAudio=" + hasAudio +
-                    ", hasVideo=" + hasVideo +
-                    ", readyAudio=" + readyAudio +
-                    ", readyVideo=" + readyVideo +
-                    ", isSurfaceReady=" + isSurfaceReady +
-                    ", mTargetSize=" + mTargetSize +
-                    ", mTargetPath='" + mTargetPath + '\'' +
-                    ", videoClock=" + videoClock +
-                    ", extClock=" + extClock +
-                    ", audioClock=" + audioClock +
-                    ", status=" + status +
-                    ", isEdit=" + isEdit +
-                    ", editComponent=" + editComponent +
-                    ", stateLock=" + stateLock +
-                    ", mVideoComponents=" + mVideoComponents +
-                    ", mAudioComponents=" + mAudioComponents +
-                    ", mDrawPagComponents=" + mDrawPagComponents +
-                    ", mDrawVideoComponents=" + mDrawVideoComponents +
-                    ", mDrawClock=" + mDrawClock +
-                    '}';
+            return "VideoState{\n" +
+                    "\tisInputEOF=" + isInputEOF + ",\n" +
+                    "\tisOutputEOF=" + isOutputEOF + ",\n" +
+                    "\tdisplaySwapCount=" + displaySwapCount + ",\n" +
+                    "\tseekPositionUS=" + seekPositionUS + ",\n" +
+                    "\tvideoDuration=" + videoDuration + ",\n" +
+                    "\taudioDuration=" + audioDuration + ",\n" +
+                    "\tdurationUS=" + durationUS + ",\n" +
+                    "\tbgColor=" + Integer.toHexString(bgColor) + ",\n" +
+                    "\tcompositeGop=" + compositeGop + ",\n" +
+                    "\tcompositeAb=" + compositeAb + ",\n" +
+                    "\tcompositeVb=" + compositeVb + ",\n" +
+                    "\thasAudio=" + hasAudio + ",\n" +
+                    "\thasVideo=" + hasVideo + ",\n" +
+                    "\treadyAudio=" + readyAudio + ",\n" +
+                    "\treadyVideo=" + readyVideo + ",\n" +
+                    "\tisSurfaceReady=" + isSurfaceReady + ",\n" +
+                    "\tisEdit=" + isEdit + ",\n" +
+                    "\tdrawClock=" + drawClock + ",\n" +
+                    "\tstatus=" + status + ",\n" +
+                    "\tcompositePath='" + compositePath + '\'' + ",\n" +
+                    "\tcanvasSize=" + canvasSize + ",\n" +
+                    "\tcanvasType='" + canvasType + '\'' + ",\n" +
+                    "\tvideoClock=" + videoClock + ",\n" +
+                    "\textClock=" + extClock + ",\n" +
+                    "\taudioClock=" + audioClock + ",\n" +
+                    "\tcanvasMat=" + canvasMat + ",\n" +
+                    "\teditComponent=" + editComponent + ",\n" +
+                    "\tstateLock=" + stateLock + ",\n" +
+                    "\ttranComponents=" + tranComponents + ",\n" +
+                    "\tvideoComponents=" + videoComponents + ",\n" +
+                    "\taudioComponents=" + audioComponents + ",\n" +
+                    "\tdrawPagComponents=" + drawPagComponents + ",\n" +
+                    "\tdrawVideoComponents=" + drawVideoComponents + ",\n" +
+                    '}' + "\n";
         }
     }
 
@@ -345,19 +360,73 @@ public class AVEngine {
                 AVEngine.this.surfaceDestroyed(holder);
             }
         });
+        mSurfaceView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                mSurfaceViewSize = new Size(mSurfaceView.getMeasuredWidth(), mSurfaceView.getMeasuredHeight());
+                mSurfaceView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+        });
+    }
+
+    private Size calCanvasSize(String text, Size videoSize) {
+        int width = mSurfaceViewSize.getWidth();
+        int height = mSurfaceViewSize.getHeight();
+        if (text.equalsIgnoreCase("原始")) {
+            height = (int) (width * videoSize.getHeight() * 1.0f /
+                    videoSize.getWidth());
+            if (height > mSurfaceViewSize.getHeight()) {
+                height = mSurfaceViewSize.getHeight();
+                width = (int) (height * videoSize.getWidth() * 1.0f / videoSize.getHeight());
+            }
+        } else if (text.equalsIgnoreCase("4:3")) {
+            height = (int) (width * 3.0f / 4.0f);
+            if (height > mSurfaceViewSize.getHeight()) {
+                height = mSurfaceViewSize.getHeight();
+                width = (int) (height * 4.f / 3.f);
+            }
+        } else if (text.equalsIgnoreCase("3:4")) {
+            width = (int) (height * 3.f / 4.0f);
+        } else if (text.equalsIgnoreCase("1:1")) {
+            width = height;
+        } else if (text.equalsIgnoreCase("16:9")) {
+            height = (int) (width * 9.0f / 16.0f);
+            if (height > mSurfaceViewSize.getHeight()) {
+                height = mSurfaceViewSize.getHeight();
+                width = (int) (height * 16.f / 9.f);
+            }
+        } else if (text.equalsIgnoreCase("9:16")) {
+            width = (int) (height * 9.0f / 16.0f);
+        }
+        return new Size(width, height);
     }
 
     /**
      * 设置画布大小
-     *
-     * @param size 画布大小
      */
-    public void setCanvasSize(Size size) {
-        if (size == null) return;
-        mSurfaceView.getLayoutParams().width = size.getWidth();
-        mSurfaceView.getLayoutParams().height = size.getHeight();
+    public void setCanvasType(String type) {
+        if (type == null) return;
+        if (mVideoState.videoComponents.isEmpty()) {
+            return;
+        }
+        Size video0Size = ((AVVideo) mVideoState.videoComponents.get(0)).getVideoSize();
+        Size targetSize = calCanvasSize(type, video0Size);
+        mSurfaceView.getLayoutParams().width = targetSize.getWidth();
+        mSurfaceView.getLayoutParams().height = targetSize.getHeight();
         mSurfaceView.requestLayout();
-        mVideoState.mTargetSize = size;
+        mVideoState.lock();
+        mVideoState.canvasSize = targetSize;
+        mVideoState.canvasType = type;
+        if (targetSize.getWidth() * video0Size.getHeight() * 1.f / video0Size.getWidth() > targetSize.getHeight()) {//高度铺满
+            int targetWidth = (int) (targetSize.getHeight() * video0Size.getWidth() * 1.f / video0Size.getHeight());
+            mVideoState.canvasMat = MathUtils.calMatrix(new Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
+                    new Rect((targetSize.getWidth() - targetWidth) / 2, 0, targetSize.getWidth() - (targetSize.getWidth() - targetWidth) / 2, targetSize.getHeight()));
+        } else {//宽度铺满
+            int targetHeight = (int) (targetSize.getWidth() * video0Size.getHeight() * 1.f / video0Size.getWidth());
+            mVideoState.canvasMat = MathUtils.calMatrix(new Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
+                    new Rect(0, (targetSize.getHeight() - targetHeight) / 2, targetSize.getWidth(), targetSize.getHeight() - (targetSize.getHeight() - targetHeight) / 2));
+        }
+        mVideoState.unlock();
     }
 
     /**
@@ -366,7 +435,9 @@ public class AVEngine {
      * @param color
      */
     public void setBgColor(int color) {
-        mVideoState.mBgColor = color;
+        mVideoState.lock();
+        mVideoState.bgColor = color;
+        mVideoState.unlock();
     }
 
     public void updateEdit(AVComponent avComponent, boolean isEdit) {
@@ -428,28 +499,28 @@ public class AVEngine {
     //seek if need 同时返回是否需要render
     private boolean checkSeekAndReadyForRender() {
         if (mVideoState.status == RELEASE ||
-                mVideoState.mVideoComponents.isEmpty()) {
+                mVideoState.videoComponents.isEmpty()) {
             return false;
         }
 
         //获取相关组件
-        long mainClk = mVideoState.mDrawClock = getMainClock();
+        long mainClk = mVideoState.drawClock = getMainClock();
         if (mainClk >= mVideoState.durationUS) {
             pauseInternal();
             return false;
         }
 
-        mVideoState.mDrawVideoComponents.clear();
+        mVideoState.drawVideoComponents.clear();
         List<AVComponent> trans = findComponents(AVComponent.AVComponentType.TRANSACTION, mainClk);
         for (AVComponent comm : trans) {
             if (comm.isVisible()) {
-                mVideoState.mDrawVideoComponents.add(comm);
+                mVideoState.drawVideoComponents.add(comm);
             }
         }
-        if (mVideoState.mDrawVideoComponents.isEmpty()) {
-            mVideoState.mDrawVideoComponents = findComponents(AVComponent.AVComponentType.VIDEO, mainClk);
+        if (mVideoState.drawVideoComponents.isEmpty()) {
+            mVideoState.drawVideoComponents = findComponents(AVComponent.AVComponentType.VIDEO, mainClk);
         }
-        if (mVideoState.mDrawVideoComponents.size() != 1) {//video transaction 在某个时间戳只存在一个组件
+        if (mVideoState.drawVideoComponents.size() != 1) {//video transaction 在某个时间戳只存在一个组件
             LogUtil.logEngine("videoComponents.size() != 1");
             return false;
         }
@@ -457,10 +528,10 @@ public class AVEngine {
         boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
         //Pag组件
         synchronized (mPagDecodeSync) {
-            mVideoState.mDrawPagComponents.clear();
-            mVideoState.mDrawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
+            mVideoState.drawPagComponents.clear();
+            mVideoState.drawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
             if (needSeek) {
-                for (AVComponent component : mVideoState.mDrawPagComponents) {
+                for (AVComponent component : mVideoState.drawPagComponents) {
                     component.lock();
                     component.seekFrame(mainClk);
                     component.unlock();
@@ -470,7 +541,7 @@ public class AVEngine {
 
         //Video组件
         if (needSeek) {//优先处理seek行为
-            for (AVComponent component : mVideoState.mDrawVideoComponents) {
+            for (AVComponent component : mVideoState.drawVideoComponents) {
                 component.lock();
                 component.seekFrame(mainClk);
                 component.unlock();
@@ -481,7 +552,7 @@ public class AVEngine {
     }
 
     private void renderVideo() {
-        AVComponent mainComponent = mVideoState.mDrawVideoComponents.get(0);
+        AVComponent mainComponent = mVideoState.drawVideoComponents.get(0);
         mainComponent.lock();
         if (!mainComponent.peekFrame().isValid()) {
             mainComponent.readFrame();
@@ -496,13 +567,13 @@ public class AVEngine {
         if (mainComponent.getRender() != null) {
             if (!mainComponent.getRender().isOpen()) {
                 mainComponent.getRender().open();
-                mainComponent.getRender().write(buildConfig("surface_size", mVideoState.mTargetSize));
+                mainComponent.getRender().write(buildConfig("surface_size", mVideoState.canvasSize));
             }
 //            mainVideoFrame.setTextureExt(lastTexture);
             mainComponent.getRender().render(mainVideoFrame);
             lastTexture = ((IVideoRender) mainComponent.getRender()).getOutTexture();
         } else {
-            mainVideoFrame.setTextColor(mVideoState.mBgColor);
+            mainVideoFrame.setTextColor(mVideoState.bgColor);
             mOesRender.render(mainVideoFrame);
             lastTexture = mOesRender.getOutTexture();
         }
@@ -517,7 +588,7 @@ public class AVEngine {
     }
 
     private void renderPag() {
-        if (mVideoState.mDrawPagComponents.isEmpty()) {
+        if (mVideoState.drawPagComponents.isEmpty()) {
             return;
         }
         //通知解码线程渲染
@@ -547,6 +618,8 @@ public class AVEngine {
             screenFrame = new AVFrame();
         }
         screenFrame.setTexture(lastTexture);
+        screenRender.write(TimeUtils.BuildMap("textureMat", mVideoState.canvasMat));
+        screenRender.write(TimeUtils.BuildMap("bgColor", MathUtils.Int2Vec3(mVideoState.bgColor)));
         screenRender.render(screenFrame);
     }
 
@@ -766,16 +839,16 @@ public class AVEngine {
         component.unlock();
         if (component.getType() == AVComponent.AVComponentType.AUDIO) {
             mVideoState.lock();
-            mVideoState.mAudioComponents.remove(component);
+            mVideoState.audioComponents.remove(component);
             reCalculate();
             mVideoState.unlock();
         } else {
             mVideoState.lock();
             if (component instanceof AVVideo) {
-                mVideoState.mVideoComponents.remove(component);
+                mVideoState.videoComponents.remove(component);
                 reCalculate();
             } else {
-                mVideoState.mTranComponents.remove(component);
+                mVideoState.tranComponents.remove(component);
             }
             mVideoState.unlock();
         }
@@ -812,17 +885,17 @@ public class AVEngine {
                 );
                 avTransaction.setVisible(false);
                 avTransaction.open();
-                mVideoState.mTranComponents.add(avTransaction);
+                mVideoState.tranComponents.add(avTransaction);
             }
         }
         if (component.getType() == AVComponent.AVComponentType.AUDIO) {
             mVideoState.lock();
-            mVideoState.mAudioComponents.add(component);
+            mVideoState.audioComponents.add(component);
             reCalculate();
             mVideoState.unlock();
         } else {
             mVideoState.lock();
-            mVideoState.mVideoComponents.add(component);
+            mVideoState.videoComponents.add(component);
             reCalculate();
             mVideoState.unlock();
         }
@@ -928,8 +1001,8 @@ public class AVEngine {
                         for (int i = 0; i < mPagComposition.numChildren(); i++) {
                             mPagComposition.getLayerAt(i).setVisible(false);
                         }
-                        LogUtil.logEngine("decode_pag#size" + mVideoState.mDrawPagComponents.size());
-                        for (AVComponent avPag : mVideoState.mDrawPagComponents) {
+                        LogUtil.logEngine("decode_pag#size" + mVideoState.drawPagComponents.size());
+                        for (AVComponent avPag : mVideoState.drawPagComponents) {
                             if (!avPag.peekFrame().isValid()) {
                                 avPag.lock();
                                 TimeUtils.RecordStart("decode_pag#avPag.readFrame");
@@ -1005,7 +1078,7 @@ public class AVEngine {
         mTargetComponents.clear();
         if (type == AVComponent.AVComponentType.AUDIO) {
             mVideoState.lock();
-            for (AVComponent component : mVideoState.mAudioComponents) {
+            for (AVComponent component : mVideoState.audioComponents) {
                 if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                         (position == -1 || component.isValid(position)))) {
                     mTargetComponents.add(component);
@@ -1014,7 +1087,7 @@ public class AVEngine {
             mVideoState.unlock();
         } else {
             mVideoState.lock();
-            for (AVComponent component : type == AVComponent.AVComponentType.TRANSACTION ? mVideoState.mTranComponents : mVideoState.mVideoComponents) {
+            for (AVComponent component : type == AVComponent.AVComponentType.TRANSACTION ? mVideoState.tranComponents : mVideoState.videoComponents) {
                 if (type == AVComponent.AVComponentType.ALL || (component.getType() == type &&
                         (position == -1 || component.isValid(position)))) {
                     mTargetComponents.add(component);
@@ -1094,7 +1167,7 @@ public class AVEngine {
         LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "reCalculate()");
         mVideoState.durationUS = 0;
         mVideoState.videoDuration = mVideoState.audioDuration = 0;
-        for (AVComponent component : mVideoState.mVideoComponents) {
+        for (AVComponent component : mVideoState.videoComponents) {
             mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
             if (component instanceof AVVideo) {
                 mVideoState.videoDuration += component.getEngineDuration();
@@ -1269,19 +1342,19 @@ public class AVEngine {
     private void destroyInternal() {
         mVideoState.status = RELEASE;
         mVideoState.lock();
-        for (AVComponent avComponent : mVideoState.mAudioComponents) {
+        for (AVComponent avComponent : mVideoState.audioComponents) {
             avComponent.lock();
             avComponent.close();
             avComponent.unlock();
         }
-        mVideoState.mAudioComponents.clear();
+        mVideoState.audioComponents.clear();
 
-        for (AVComponent avComponent : mVideoState.mVideoComponents) {
+        for (AVComponent avComponent : mVideoState.videoComponents) {
             avComponent.lock();
             avComponent.close();
             avComponent.unlock();
         }
-        mVideoState.mVideoComponents.clear();
+        mVideoState.videoComponents.clear();
         mVideoState.unlock();
     }
 

@@ -129,5 +129,13 @@
             android:layout_height="match_parent" />
     </HorizontalScrollView>
 
+    <TextView
+        android:id="@+id/tv_debug_info"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:textColor="@color/theme_orangeC9"
+        android:scrollbars="vertical"
+        android:visibility="gone" />
+
 
 </RelativeLayout>

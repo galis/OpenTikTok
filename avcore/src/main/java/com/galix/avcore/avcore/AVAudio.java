@@ -181,13 +181,14 @@ public class AVAudio extends AVComponent {
 
     @Override
     public String toString() {
-        return "AVAudio{" +
-                "isInputEOF=" + isInputEOF +
-                ", isOutputEOF=" + isOutputEOF +
-                ", path='" + path + '\'' +
-                ", mediaCodec=" + mediaCodec +
-                ", mediaExtractor=" + mediaExtractor +
-                ", mediaFormat=" + mediaFormat +
-                "} " + super.toString();
+        return "AVAudio{\n" +
+                "\tisInputEOF=" + isInputEOF + "\n" +
+                "\tisOutputEOF=" + isOutputEOF + "\n" +
+                "\tpath='" + path + '\'' + "\n" +
+                "\tmediaCodec=" + mediaCodec + "\n" +
+                "\tmediaExtractor=" + mediaExtractor + "\n" +
+                "\tmediaFormat=" + mediaFormat + "\n" +
+                "\tsampleBuffer=" + sampleBuffer + "\n" +
+                "} " + super.toString() + "\n";
     }
 }

@@ -36,6 +36,8 @@ import static android.opengl.GLES20.glGenFramebuffers;
 import static android.opengl.GLES20.glGenTextures;
 import static android.opengl.GLES20.glTexImage2D;
 import static android.opengl.GLES20.glUniform2fv;
+import static android.opengl.GLES20.glUniform3fv;
+import static android.opengl.GLES20.glUniform4fv;
 import static android.opengl.GLES20.glUniformMatrix3fv;
 import static android.opengl.GLES20.glViewport;
 import static android.opengl.GLES30.GL_ARRAY_BUFFER;
@@ -195,7 +197,6 @@ public abstract class BaseFilter implements IFilter {
         if (config.containsKey("fbo_size")) {
             mFboSize = (Size) config.get("fbo_size");
         }
-        mConfig.clear();
         mConfig.putAll(config);
         onWrite(config);
     }
@@ -297,6 +298,30 @@ public abstract class BaseFilter implements IFilter {
 
     public void bindVec2(String str, FloatBuffer byteBuffer) {
         glUniform2fv(glGetUniformLocation(mProgram, str), 1, byteBuffer);
+    }
+
+    public void bindVec3(String str) {
+        if (mConfig.containsKey(str) && mConfig.get(str) instanceof FloatBuffer) {
+            bindVec3(str, (FloatBuffer) mConfig.get(str));
+        } else {
+            bindVec3(str, GLUtil.DEFAULT_VEC3);
+        }
+    }
+
+    public void bindVec3(String str, FloatBuffer byteBuffer) {
+        glUniform3fv(glGetUniformLocation(mProgram, str), 1, byteBuffer);
+    }
+
+    public void bindVec4(String str) {
+        if (mConfig.containsKey(str) && mConfig.get(str) instanceof FloatBuffer) {
+            bindVec4(str, (FloatBuffer) mConfig.get(str));
+        } else {
+            bindVec4(str, GLUtil.DEFAULT_VEC4);
+        }
+    }
+
+    public void bindVec4(String str, FloatBuffer byteBuffer) {
+        glUniform4fv(glGetUniformLocation(mProgram, str), 1, byteBuffer);
     }
 
     public void bindFloat(String str) {

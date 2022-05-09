@@ -272,18 +272,22 @@ public abstract class AVComponent {
 
     @Override
     public String toString() {
-        return "AVComponent{" +
-                "engineStartTime=" + engineStartTime +
-                ", engineEndTime=" + engineEndTime +
-                ", fileStartTime=" + clipStartTime +
-                ", fileEndTime=" + clipEndTime +
-                ", duration=" + duration +
-                ", position=" + position +
-                ", isOpen=" + isOpen +
-                ", render=" + render +
-                ", cache=" + cache +
-                ", type=" + type +
-                ", lockLock=" + lockLock +
-                '}';
+        return "AVComponent{\n" +
+                "\tengineStartTime=" + engineStartTime + "\n" +
+                "\tengineEndTime=" + engineEndTime + "\n" +
+                "\tclipStartTime=" + clipStartTime + "\n" +
+                "\tclipEndTime=" + clipEndTime + "\n" +
+                "\tduration=" + duration + "\n" +
+                "\tposition=" + position + "\n" +
+                "\tisOpen=" + isOpen + "\n" +
+                "\tisLoop=" + isLoop + "\n" +
+                "\tisVisible=" + isVisible + "\n" +
+                "\trender=" + render + "\n" +
+                "\tcache=" + cache + "\n" +
+                "\ttype=" + type + "\n" +
+                "\tlockLock=" + lockLock + "\n" +
+                "\tdatalock=" + datalock + "\n" +
+                "\tmatrix=" + matrix + "\n" +
+                '}' + "\n";
     }
 }

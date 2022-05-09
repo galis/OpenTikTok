@@ -46,11 +46,15 @@ public final class GLUtil {
     public static final GLTexture DEFAULT_OES_TEXTURE = new GLTexture(0, true);
     public static final GLTexture DEFAULT_TEXTURE = new GLTexture(0, false);
     public static final FloatBuffer DEFAULT_VEC2;
+    public static final FloatBuffer DEFAULT_VEC3;
+    public static final FloatBuffer DEFAULT_VEC4;
     private static final String TAG = "GLUtil";
 
     static {
         DEFAULT_VEC2 = FloatBuffer.allocate(2).put(1920).put(1080);
         DEFAULT_VEC2.position(0);
+        DEFAULT_VEC3 = FloatBuffer.allocate(3);
+        DEFAULT_VEC4 = FloatBuffer.allocate(4);
     }
 
     private GLUtil() {

@@ -1,5 +1,6 @@
 package com.galix.avcore.util;
 
+import android.graphics.Color;
 import android.util.Size;
 
 import org.opencv.android.OpenCVLoader;
@@ -132,5 +133,12 @@ public class MathUtils {
         }
         cacheMatBuffer.position(0);
         return cacheMatBuffer;
+    }
+
+    public static FloatBuffer Int2Vec3(int bgColor) {
+        FloatBuffer floatBuffer = FloatBuffer.allocate(3);
+        floatBuffer.put(Color.red(bgColor) / 255.f).put(Color.green(bgColor) / 255.f).put(Color.blue(bgColor) / 255.f);
+        floatBuffer.position(0);
+        return floatBuffer;
     }
 }
