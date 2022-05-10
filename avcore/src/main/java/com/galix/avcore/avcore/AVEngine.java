@@ -442,6 +442,9 @@ public class AVEngine {
         mVideoState.lock();
         mVideoState.bgColor = color;
         mVideoState.unlock();
+        if (mVideoState.status == PAUSE) {
+            fastSeek(getMainClock());
+        }
     }
 
     public void updateEdit(AVComponent avComponent, boolean isEdit) {
