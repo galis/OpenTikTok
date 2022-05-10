@@ -141,4 +141,8 @@ public class MathUtils {
         floatBuffer.position(0);
         return floatBuffer;
     }
+
+    public static int clamp(int min, int max, int value) {
+        return Math.min(max, Math.max(value, min));
+    }
 }

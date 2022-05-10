@@ -5,6 +5,7 @@ import android.graphics.Rect;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewParent;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 
@@ -22,10 +23,11 @@ public class GestureUtils {
     private static final int POINT = R.id.tag_point;
     private static final String TAG = GestureUtils.class.getSimpleName();
 
-    public static void setupView(View view, Rect rect) {
+    public static void setupView(View view) {
         view.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
+                RelativeLayout parent = (RelativeLayout) v.getParent();
                 PointF p = (PointF) view.getTag(POINT);
                 if (p == null) {
                     p = new PointF();
@@ -57,6 +59,8 @@ public class GestureUtils {
                         Log.d(TAG, "ACTION_MOVE#x" + x + "#y" + y);
                         layoutParams.leftMargin += x;
                         layoutParams.topMargin += y;
+                        layoutParams.leftMargin = MathUtils.clamp(0, parent.getLayoutParams().width - view.getMeasuredWidth(), layoutParams.leftMargin);
+                        layoutParams.topMargin = MathUtils.clamp(0, parent.getLayoutParams().height - view.getMeasuredHeight(), layoutParams.topMargin);
                         view.setLayoutParams(layoutParams);
                         break;
                     case MotionEvent.ACTION_UP:

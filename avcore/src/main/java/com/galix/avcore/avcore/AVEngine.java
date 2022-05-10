@@ -11,6 +11,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewTreeObserver;
+import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 
@@ -404,7 +405,7 @@ public class AVEngine {
     /**
      * 设置画布大小
      */
-    public void setCanvasType(String type) {
+    public void setCanvasType(String type, EngineCallback engineCallback) {
         if (type == null) return;
         if (mVideoState.videoComponents.isEmpty()) {
             return;
@@ -427,6 +428,9 @@ public class AVEngine {
                     new Rect(0, (targetSize.getHeight() - targetHeight) / 2, targetSize.getWidth(), targetSize.getHeight() - (targetSize.getHeight() - targetHeight) / 2));
         }
         mVideoState.unlock();
+        if (engineCallback != null) {
+            engineCallback.onCallback(targetSize);
+        }
     }
 
     /**
@@ -872,6 +876,12 @@ public class AVEngine {
         }
         component.open();
         component.unlock();
+
+        //简单处理下贴纸和文字组件，不能超过视频duration,后面可以扩展
+        if (component instanceof AVSticker || component instanceof AVWord) {
+            component.setEngineEndTime(Math.min(component.getEngineEndTime(), getVideoState().durationUS));
+        }
+
         if (component instanceof AVVideo) {
             List<AVComponent> components = findComponents(AVComponent.AVComponentType.VIDEO, -1);
             if (!components.isEmpty()) {

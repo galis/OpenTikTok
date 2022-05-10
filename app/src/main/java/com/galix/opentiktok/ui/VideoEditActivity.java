@@ -59,14 +59,11 @@ public class VideoEditActivity extends BaseActivity {
     private RecyclerView mTabRecyclerView;
     private VideoPreviewPanel mVideoPreViewPanel;
     private RecyclerView mStickerRecyclerView;
-
-    private ImageView mStickerView;
-    private EditText mEditTextView;
-    private TextView mWordView;
     private TextView mTimeInfo;
     private ImageView mPlayBtn;
-    private ImageView mFullScreenBtn;
     private AVEngine mAVEngine;
+    private ImageView mFullScreenBtn;
+    private TextView mWordView;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
@@ -114,10 +111,6 @@ public class VideoEditActivity extends BaseActivity {
         setContentView(R.layout.activity_video_edit);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
 
-        mStickerView = findViewById(R.id.image_sticker);
-        GestureUtils.setupView(mStickerView, new Rect(0, 0, 1920, 1080));
-        mEditTextView = findViewById(R.id.edit_tip);
-        GestureUtils.setupView(mEditTextView, new Rect(0, 0, 1920, 1080));
         mWordView = findViewById(R.id.tv_word);
         mSurfaceView = findViewById(R.id.glsurface_preview);
         mTimeInfo = findViewById(R.id.text_duration);
@@ -156,8 +149,10 @@ public class VideoEditActivity extends BaseActivity {
                     if (index == R.string.tab_sticker) {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (index == R.string.tab_text) {
+                        EditText child = ViewUtils.createEditText(VideoEditActivity.this);
+                        bindView(child);
                         mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(),
-                                new TextRender(mEditTextView)), new AVEngine.EngineCallback() {
+                                new TextRender(child)), new AVEngine.EngineCallback() {
                             @Override
                             public void onCallback(Object... args1) {
                                 mVideoPreViewPanel.post(new Runnable() {
@@ -178,7 +173,15 @@ public class VideoEditActivity extends BaseActivity {
                                     view.setVisibility(View.GONE);
                                     return;
                                 }
-                                mAVEngine.setCanvasType(info.text);
+                                mAVEngine.setCanvasType(info.text, new AVEngine.EngineCallback() {
+                                    @Override
+                                    public void onCallback(Object... args1) {
+                                        Size size = (Size) args1[0];
+                                        findViewById(R.id.rl_view_preview).getLayoutParams().width = size.getWidth();
+                                        findViewById(R.id.rl_view_preview).getLayoutParams().height = size.getHeight();
+                                        findViewById(R.id.rl_view_preview).requestLayout();
+                                    }
+                                });
                                 Toast.makeText(getBaseContext(), info.text, Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -239,9 +242,10 @@ public class VideoEditActivity extends BaseActivity {
                 holder.itemView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        mStickerView.setVisibility(View.VISIBLE);
+                        ImageView child = ViewUtils.createImageView(VideoEditActivity.this);
+                        bindView(child);
                         mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
-                                new ImageViewRender(mStickerView)), new AVEngine.EngineCallback() {
+                                new ImageViewRender(child)), new AVEngine.EngineCallback() {
                             @Override
                             public void onCallback(Object... args1) {
                                 mVideoPreViewPanel.post(new Runnable() {
@@ -308,24 +312,10 @@ public class VideoEditActivity extends BaseActivity {
         VideoPickActivity.start(this);
     }
 
-    private Size calCanvasSize(String text, Size videoSize) {
-        int width = getWindowManager().getCurrentWindowMetrics().getBounds().width();
-        int height = (int) (350 * getResources().getDisplayMetrics().density);
-        if (text.equalsIgnoreCase("原始")) {
-            height = (int) (width * videoSize.getHeight() * 1.0f /
-                    videoSize.getWidth());
-        } else if (text.equalsIgnoreCase("4:3")) {
-            height = (int) (width * 3.0f / 4.0f);
-        } else if (text.equalsIgnoreCase("3:4")) {
-            width = (int) (height * 3.f / 4.0f);
-        } else if (text.equalsIgnoreCase("1:1")) {
-            width = height;
-        } else if (text.equalsIgnoreCase("16:9")) {
-            height = (int) (width * 9.0f / 16.0f);
-        } else if (text.equalsIgnoreCase("9:16")) {
-            width = (int) (height * 9.0f / 16.0f);
-        }
-        return new Size(width, height);
+    private void bindView(View view) {
+        ViewGroup parent = findViewById(R.id.rl_view_preview);
+        parent.addView(view);
+        GestureUtils.setupView(view);
     }
 
     @Override
@@ -399,7 +389,20 @@ public class VideoEditActivity extends BaseActivity {
                                 mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
                             }
                         });
-                        mAVEngine.setCanvasType("原始");
+                        mAVEngine.setCanvasType("原始", new AVEngine.EngineCallback() {
+                            @Override
+                            public void onCallback(Object... args1) {
+                                findViewById(R.id.rl_view_preview).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Size size = (Size) args1[0];
+                                        findViewById(R.id.rl_view_preview).getLayoutParams().width = size.getWidth();
+                                        findViewById(R.id.rl_view_preview).getLayoutParams().height = size.getHeight();
+                                        findViewById(R.id.rl_view_preview).requestLayout();
+                                    }
+                                });
+                            }
+                        });
                     }
                 });
                 mAVEngine.addComponent(audio, new AVEngine.EngineCallback() {
@@ -411,7 +414,6 @@ public class VideoEditActivity extends BaseActivity {
                                 mVideoPreViewPanel.updateData(mAVEngine.getVideoState());
                             }
                         });
-                        mAVEngine.setCanvasType("原始");
                     }
                 });
             }

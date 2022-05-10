@@ -12,31 +12,21 @@
         android:id="@+id/rl_preview"
         android:layout_width="match_parent"
         android:layout_height="350dp"
-        android:background="@color/theme_black48">
+        android:background="#FF343434">
 
-        <!--预览GlSurface-->
         <SurfaceView
             android:id="@+id/glsurface_preview"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_centerInParent="true" />
 
-        <ImageView
-            android:id="@+id/image_sticker"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:visibility="gone" />
+        <!--预览GlSurface-->
+        <RelativeLayout
+            android:id="@+id/rl_view_preview"
+            android:layout_width="match_parent"
+            android:layout_height="350dp"
+            android:layout_centerInParent="true" />
 
-        <EditText
-            android:id="@+id/edit_tip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:padding="10dp"
-            android:text="HELLO"
-            android:textColor="@color/white"
-            android:visibility="gone" />
     </RelativeLayout>
 
     <TextView
