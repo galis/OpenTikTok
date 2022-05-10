@@ -23,7 +23,7 @@ public class GestureUtils {
     private static final int POINT = R.id.tag_point;
     private static final String TAG = GestureUtils.class.getSimpleName();
 
-    public static void setupView(View view) {
+    public static void setupView(View view, View.OnClickListener onClickListener) {
         view.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -67,6 +67,9 @@ public class GestureUtils {
                         view.setBackgroundColor(0x0);
                         if (view instanceof EditText) {
                             ((EditText) view).clearFocus();
+                        }
+                        if (onClickListener != null) {
+                            onClickListener.onClick(v);
                         }
                         break;
                     case MotionEvent.ACTION_CANCEL:

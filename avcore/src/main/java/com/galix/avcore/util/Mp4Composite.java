@@ -1,10 +1,13 @@
 package com.galix.avcore.util;
 
+import android.graphics.Color;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
+import android.opengl.GLES20;
+import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -16,8 +19,12 @@ import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.avcore.AVWord;
 import com.galix.avcore.avcore.ThreadManager;
+import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.ScreenRender;
+import com.galix.avcore.render.filters.GLTexture;
+import com.galix.avcore.render.filters.TextureFilter;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +32,12 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
+import static android.opengl.GLES20.GL_DEPTH_BUFFER_BIT;
+import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.glBindFramebuffer;
+import static android.opengl.GLES20.glClear;
+import static android.opengl.GLES20.glViewport;
 
 /**
  * Mp4合成类
@@ -51,6 +64,7 @@ public class Mp4Composite {
     private AVComponent mLastVideo;
     private AVAudio mLastAudio;
     private CompositeCallback mCallback;
+
     private final Object mMediaMuxerLock = new Object();
 
 
@@ -144,6 +158,104 @@ public class Mp4Composite {
         mVideoEncodeStream.nextPts += mLastVideo.peekFrame().getDuration();
         return mLastVideo.peekFrame();
     }
+
+    private void renderVideo(TextureFilter textureFilter) {
+        AVFrame videoFrame = readVideoFrame();
+        if (videoFrame == null) {
+            mVideoEncodeStream.mediaCodec.signalEndOfInputStream();//采用surface输入的时候要注意这个了
+            LogUtil.logEngine("check#signalEndOfInputStream");
+            return;
+        }
+        LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
+        if (mLastVideo.getRender() != null) {
+            mLastVideo.getRender().render(videoFrame);
+        } else {
+            textureFilter.write(
+                    "use_fbo", false,
+                    "textureMat", mLastVideo.getMatrix(),
+                    "inputImageTexture", mLastVideo.peekFrame().getTexture(),
+                    "isOes", mLastVideo.peekFrame().getTexture().isOes(),
+                    "bgColor", mVideoState.bgColor,
+                    "isFlipVertical", true
+            );
+            textureFilter.setPreTask(new Runnable() {
+                @Override
+                public void run() {
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                    glViewport(0, 0, mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
+                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                }
+            });
+            textureFilter.render();
+        }
+    }
+
+    private void renderSticker(TextureFilter textureFilter, long pos) {
+        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.STICKER, mVideoEncodeStream.nextPts);
+        if (components.isEmpty()) {
+            return;
+        }
+        for (AVComponent component : components) {
+            component.seekFrame(pos);
+            textureFilter.write(
+                    "use_fbo", false,
+                    "textureMat", component.getMatrix(),
+                    "inputImageTexture", component.peekFrame().getTexture(),
+                    "isOes", component.peekFrame().getTexture().isOes(),
+                    "bgColor", 0,
+                    "isFlipVertical", true
+            );
+            textureFilter.setPreTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glEnable(GLES30.GL_BLEND);
+                    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA);
+                }
+            });
+            textureFilter.setPostTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glDisable(GLES30.GL_BLEND);
+                }
+            });
+            textureFilter.render();
+        }
+    }
+
+    private void renderWord(TextureFilter textureFilter, long pos) {
+        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.WORD, mVideoEncodeStream.nextPts);
+        if (components.isEmpty()) {
+            return;
+        }
+        for (AVComponent component : components) {
+            component.write(AVWord.CONFIG_USE_BITMAP, true);
+            component.seekFrame(pos);
+            textureFilter.write(
+                    "use_fbo", false,
+                    "textureMat", component.getMatrix(),
+                    "inputImageTexture", component.peekFrame().getTexture(),
+                    "isOes", component.peekFrame().getTexture().isOes(),
+                    "bgColor", 0,
+                    "isFlipVertical", true
+            );
+            textureFilter.setPreTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glEnable(GLES30.GL_BLEND);
+                    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA);
+                }
+            });
+            textureFilter.setPostTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glDisable(GLES30.GL_BLEND);
+                }
+            });
+            textureFilter.render();
+            component.write(AVWord.CONFIG_USE_BITMAP, false);
+        }
+    }
+
 
     /**
      * 读取一帧音频，返回Frame.最后一帧标志isEOF为true
@@ -308,32 +420,27 @@ public class Mp4Composite {
         EglHelper eglHelper = mEngine.getEglHelper();
         eglHelper.createSurface(mVideoEncodeStream.inputSurface);
         eglHelper.makeCurrent();
-        ScreenRender screenRender = new ScreenRender();
-        screenRender.open();
-        screenRender.write(TimeUtils.BuildMap("surface_size", mVideoState.canvasSize));
-
+        OESRender oesRender = new OESRender();
+        oesRender.open();
+        oesRender.write(TimeUtils.BuildMap("surface_size", mVideoState.canvasSize));
+        TextureFilter textureFilter = new TextureFilter();
+        textureFilter.open();
         while (!mVideoEncodeStream.isInputEOF) {
-            AVFrame videoFrame = readVideoFrame();
-            if (videoFrame == null) {
-                mVideoEncodeStream.mediaCodec.signalEndOfInputStream();//采用surface输入的时候要注意这个了
-                LogUtil.logEngine("check#signalEndOfInputStream");
-                break;
-            }
-            LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
-            if (mLastVideo.getRender() != null) {
-                mLastVideo.getRender().render(videoFrame);
-            } else {
-                screenRender.render(videoFrame);
-            }
-            mEngine.getEglHelper().setPresentationTime(videoFrame.getPts() * 1000);
+            //渲染视频
+            renderVideo(textureFilter);
+            //渲染贴纸
+            renderSticker(textureFilter, mVideoEncodeStream.nextPts - mLastVideo.peekFrame().getDuration());
+            //渲染文字
+            renderWord(textureFilter, mVideoEncodeStream.nextPts - mLastVideo.peekFrame().getDuration());
+            mEngine.getEglHelper().setPresentationTime(mLastVideo.peekFrame().getPts() * 1000);
             mEngine.getEglHelper().swap();
-            int progress = (int) (videoFrame.getPts() * 1.0f / mVideoState.durationUS * 100);
+            int progress = (int) (mLastVideo.peekFrame().getPts() * 1.0f / mVideoState.durationUS * 100);
             mCallback.handle(progress);
             LogUtil.logEngine("mCallback.handle#" + progress);
             ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_FRAME_VALID);
         }
 
-        screenRender.close();
+        textureFilter.close();
         try {
             ThreadManager.getInstance().getHandler("Composite_Audio").getLooper().quitSafely();
             ThreadManager.getInstance().getThread("Composite_Audio").join();

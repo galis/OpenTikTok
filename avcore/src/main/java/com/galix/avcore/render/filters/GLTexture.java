@@ -11,6 +11,7 @@ import java.nio.IntBuffer;
 public class GLTexture {
     private IntBuffer textureIdBuf;
     private boolean oes = false;
+    private boolean mute;//mute 无论如何都是0
     private Size mSize = new Size(0, 0);
     private String path;
     private Bitmap bitmap;
@@ -31,6 +32,9 @@ public class GLTexture {
     }
 
     public int id() {
+        if (isMute()) {
+            return 0;
+        }
         textureIdBuf.position(0);
         return textureIdBuf.get();
     }
@@ -62,6 +66,14 @@ public class GLTexture {
 
     public void setMatrix(Mat matrix) {
         this.matrix = matrix;
+    }
+
+    public boolean isMute() {
+        return mute;
+    }
+
+    public void setMute(boolean mute) {
+        this.mute = mute;
     }
 
     public void release() {

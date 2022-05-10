@@ -4,6 +4,7 @@ import com.galix.avcore.render.IRender;
 
 import org.opencv.core.Mat;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -76,6 +77,7 @@ public abstract class AVComponent {
     private AtomicBoolean lockLock;
     private ReentrantLock datalock;
     private Mat matrix;
+    private Map<String, Object> configs;
 
     public AVComponent(long engineStartTime, AVComponentType type, IRender render) {
         this.engineStartTime = engineStartTime;
@@ -92,6 +94,7 @@ public abstract class AVComponent {
         this.isVisible = true;
         this.matrix = mIdentityMat;
         this.datalock = new ReentrantLock();
+        this.configs = new HashMap<>();
     }
 
     public AVComponent() {
@@ -109,6 +112,7 @@ public abstract class AVComponent {
         this.isVisible = true;
         this.matrix = mIdentityMat;
         this.datalock = new ReentrantLock();
+        this.configs = new HashMap<>();
     }
 
     public long getEngineStartTime() {
@@ -211,6 +215,10 @@ public abstract class AVComponent {
         isVisible = visible;
     }
 
+    public Map<String, Object> getConfigs() {
+        return configs;
+    }
+
     public abstract int open();
 
     public abstract int close();
@@ -236,6 +244,22 @@ public abstract class AVComponent {
      * @return RESULT_SUCCESS/RESULT_FAILED
      */
     public int write(Map<String, Object> configs) {
+        this.configs.putAll(configs);
+        return RESULT_OK;
+    }
+
+    /**
+     * 默认空操作
+     *
+     * @return RESULT_SUCCESS/RESULT_FAILED
+     */
+    public int write(Object... configs) {
+        if (configs == null || configs.length % 2 != 0) {
+            return RESULT_FAILED;
+        }
+        for (int i = 0; i < configs.length / 2; i++) {
+            this.configs.put((String) configs[2 * i], configs[2 * i + 1]);
+        }
         return RESULT_OK;
     }
 
@@ -287,7 +311,7 @@ public abstract class AVComponent {
                 "\ttype=" + type + "\n" +
                 "\tlockLock=" + lockLock + "\n" +
                 "\tdatalock=" + datalock + "\n" +
-                "\tmatrix=" + matrix + "\n" +
+                "\tmatrix=" + matrix.dump() + "\n" +
                 '}' + "\n";
     }
 }

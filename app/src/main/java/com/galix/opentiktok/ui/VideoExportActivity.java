@@ -64,14 +64,7 @@ public class VideoExportActivity extends BaseActivity {
         mAVEngine.getVideoState().hasVideo = true;
         mAVEngine.getVideoState().readyAudio = false;
         mAVEngine.getVideoState().readyVideo = false;
-        mAVEngine.getVideoState().canvasSize = new Size(640, 640);
         mAVEngine.getVideoState().bgColor = Color.RED;
-        Looper.getMainLooper().setMessageLogging(new Printer() {
-            @Override
-            public void println(String x) {
-                LogUtil.logEngine("MainLooper#" + x);
-            }
-        });
         mAVEngine.compositeMp4(null, new AVEngine.EngineCallback() {
             @Override
             public void onCallback(Object... args1) {

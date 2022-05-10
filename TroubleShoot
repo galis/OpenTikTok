@@ -42,4 +42,5 @@ System.nanoTime() ns
 33.快速查找github.com cdn https://ipaddress.com/website/github.com
 34.brew 改源https://www.jianshu.com/p/bea984d27cd2 https://zhuanlan.zhihu.com/p/354427909
 35.MediaMuxer合成视频时长不对，由于PKT时间戳不连续
+36.getmeausewidth,layout.width
 

@@ -1,8 +1,11 @@
 package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
+import android.opengl.GLUtils;
 
 import com.galix.avcore.render.IRender;
+import com.galix.avcore.render.filters.GLTexture;
+import com.galix.avcore.util.GLUtil;
 import com.galix.avcore.util.GifDecoder;
 
 import java.io.InputStream;
@@ -62,6 +65,13 @@ public class AVSticker extends AVComponent {
         frameIdx = frameIdx % frameCount;
         peekFrame().setBitmap(gifDecoder.getFrame(frameIdx));
         peekFrame().setValid(true);
+        if (peekFrame().getTexture().id() != 0) {
+            peekFrame().setTexture(GLUtil.loadTexture(peekFrame().getBitmap()));
+        } else {
+            GLUtil.loadTexture(peekFrame().getTexture().id(), peekFrame().getBitmap());
+        }
+        peekFrame().getTexture().setOes(false);
+        peekFrame().getTexture().setSize(peekFrame().getBitmap().getWidth(), peekFrame().getBitmap().getHeight());
         return RESULT_OK;
     }
 
@@ -71,12 +81,14 @@ public class AVSticker extends AVComponent {
         if (position < getEngineStartTime() || (position - getEngineStartTime() > getDuration())) {
             peekFrame().setBitmap(null);
             peekFrame().setValid(true);
+            peekFrame().getTexture().setMute(true);
             return RESULT_FAILED;
         }
         long correctPos = (position - getEngineStartTime()) % getEffectDuration();
         if (correctPos < 0) {
             peekFrame().setBitmap(null);
             peekFrame().setValid(true);
+            peekFrame().getTexture().setMute(true);
             return RESULT_FAILED;
         }
         long delayUS = 0;
@@ -86,6 +98,15 @@ public class AVSticker extends AVComponent {
                 frameIdx = i;
                 peekFrame().setBitmap(gifDecoder.getFrame(frameIdx));
                 peekFrame().setValid(true);
+                peekFrame().getTexture().setMute(false);
+                peekFrame().getTexture().setOes(false);
+                peekFrame().getTexture().setSize(peekFrame().getBitmap().getWidth(),
+                        peekFrame().getBitmap().getHeight());
+                if (peekFrame().getTexture().id() == 0) {
+                    peekFrame().setTexture(GLUtil.loadTexture(peekFrame().getBitmap()));
+                } else {
+                    GLUtil.loadTexture(peekFrame().getTexture().id(), peekFrame().getBitmap());
+                }
                 return RESULT_OK;
             }
         }

@@ -27,7 +27,7 @@ public class ViewUtils {
                         ViewGroup.LayoutParams.WRAP_CONTENT);
         layoutParams.addRule(CENTER_IN_PARENT);
         editText.setPadding(10, 10, 10, 10);
-        editText.setTextColor(Color.WHITE);
+        editText.setTextColor(Color.RED);
         editText.setLayoutParams(layoutParams);
         editText.setText("OpenTitok");
         return editText;

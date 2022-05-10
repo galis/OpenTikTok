@@ -12,8 +12,10 @@ import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.galix.avcore.avcore.AVAudio;
+import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVSticker;
 import com.galix.avcore.avcore.AVVideo;
@@ -34,6 +37,7 @@ import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.TextRender;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
@@ -41,7 +45,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
-import static android.view.View.VISIBLE;
 import static androidx.recyclerview.widget.RecyclerView.HORIZONTAL;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
 
@@ -63,7 +66,6 @@ public class VideoEditActivity extends BaseActivity {
     private ImageView mPlayBtn;
     private AVEngine mAVEngine;
     private ImageView mFullScreenBtn;
-    private TextView mWordView;
 
     //底部ICON info
     private static final int[] TAB_INFO_LIST = {
@@ -111,7 +113,6 @@ public class VideoEditActivity extends BaseActivity {
         setContentView(R.layout.activity_video_edit);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
 
-        mWordView = findViewById(R.id.tv_word);
         mSurfaceView = findViewById(R.id.glsurface_preview);
         mTimeInfo = findViewById(R.id.text_duration);
         mPlayBtn = findViewById(R.id.image_play);
@@ -150,9 +151,9 @@ public class VideoEditActivity extends BaseActivity {
                         mStickerRecyclerView.setVisibility(View.VISIBLE);
                     } else if (index == R.string.tab_text) {
                         EditText child = ViewUtils.createEditText(VideoEditActivity.this);
-                        bindView(child);
-                        mAVEngine.addComponent(new AVWord(mAVEngine.getMainClock(),
-                                new TextRender(child)), new AVEngine.EngineCallback() {
+                        AVWord word = new AVWord(mAVEngine.getMainClock(), child, new TextRender(child));
+                        bindView(child, word);
+                        mAVEngine.addComponent(word, new AVEngine.EngineCallback() {
                             @Override
                             public void onCallback(Object... args1) {
                                 mVideoPreViewPanel.post(new Runnable() {
@@ -243,19 +244,15 @@ public class VideoEditActivity extends BaseActivity {
                     @Override
                     public void onClick(View v) {
                         ImageView child = ViewUtils.createImageView(VideoEditActivity.this);
-                        bindView(child);
-                        mAVEngine.addComponent(new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
-                                new ImageViewRender(child)), new AVEngine.EngineCallback() {
+                        AVSticker sticker = new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
+                                new ImageViewRender(child));
+                        bindView(child, sticker);
+                        mAVEngine.addComponent(sticker, args1 -> mVideoPreViewPanel.post(new Runnable() {
                             @Override
-                            public void onCallback(Object... args1) {
-                                mVideoPreViewPanel.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        mVideoPreViewPanel.updateEffect();
-                                    }
-                                });
+                            public void run() {
+                                mVideoPreViewPanel.updateEffect();
                             }
-                        });
+                        }));
                         mStickerRecyclerView.setVisibility(View.GONE);
                     }
                 });
@@ -312,10 +309,47 @@ public class VideoEditActivity extends BaseActivity {
         VideoPickActivity.start(this);
     }
 
-    private void bindView(View view) {
+    private void bindView(View view, AVComponent component) {
         ViewGroup parent = findViewById(R.id.rl_view_preview);
         parent.addView(view);
-        GestureUtils.setupView(view);
+        view.setTag(component);
+        view.requestLayout();
+        view.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                updateMatrix(view);
+                view.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+        });
+        //抬起手时候就设置matrix
+        GestureUtils.setupView(view, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                v.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        updateMatrix(v);
+                        v.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    }
+                });
+            }
+        });
+    }
+
+    private static final int[] locations = new int[2];
+
+    private void updateMatrix(View view) {
+        view.getLocationInWindow(locations);
+        AVComponent avComponent = (AVComponent) view.getTag();
+        avComponent.lock();
+        avComponent.setMatrix(
+                MathUtils.calMatrix(
+                        new Rect(0, 0, mSurfaceView.getMeasuredWidth(), mSurfaceView.getMeasuredHeight()),
+                        new Rect(view.getLeft(), view.getTop(), view.getRight(), view.getBottom())
+
+                )
+        );
+        avComponent.unlock();
     }
 
     @Override

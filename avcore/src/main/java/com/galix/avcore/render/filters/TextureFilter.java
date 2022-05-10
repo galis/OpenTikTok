@@ -2,15 +2,13 @@ package com.galix.avcore.render.filters;
 
 import com.galix.avcore.R;
 
-import java.util.Map;
-
 /**
  * 屏幕渲染
  */
-public class ScreenFilter extends BaseFilter {
+public class TextureFilter extends BaseFilter {
 
-    public ScreenFilter() {
-        super(R.raw.screenvs, R.raw.screenfs);
+    public TextureFilter() {
+        super(R.raw.texture_vs, R.raw.texture_fs);
     }
 
     @Override
@@ -19,11 +17,8 @@ public class ScreenFilter extends BaseFilter {
         bindTexture("oesImageTexture");
         bindBool("isOes");
         bindMat3("textureMat");
-        bindVec3("bgColor");
+        bindVec4("bgColor");
+        bindBool("isFlipVertical");
     }
 
-
-    @Override
-    public void onWrite(Map<String, Object> config) {
-    }
 }

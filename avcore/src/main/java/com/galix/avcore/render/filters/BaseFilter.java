@@ -84,6 +84,7 @@ public abstract class BaseFilter implements IFilter {
     private int mProgram = -1;
     private IntBuffer mVAO, mVBO, mEBO;
     private List<Runnable> mTasks = new LinkedList<>();
+    private List<Runnable> mPostTasks = new LinkedList<>();
     private Rect mViewPort = new Rect(0, 0, 0, 0);
     private Map<String, Object> mConfig = new HashMap<>();
 
@@ -204,9 +205,14 @@ public abstract class BaseFilter implements IFilter {
     @Override
     public void write(Object... configs) {
         if (configs == null) return;
-        mConfig.clear();
         for (int i = 0; i < configs.length / 2; i++) {
             mConfig.put((String) configs[2 * i], configs[2 * i + 1]);
+        }
+        if (mConfig.containsKey("use_fbo")) {
+            mUseFbo = (boolean) mConfig.get("use_fbo");
+        }
+        if (mConfig.containsKey("fbo_size")) {
+            mFboSize = (Size) mConfig.get("fbo_size");
         }
         onWrite(mConfig);
     }
@@ -217,19 +223,31 @@ public abstract class BaseFilter implements IFilter {
     public abstract void onRenderPre();
 
     public void onRenderPost() {
+        for (Runnable task : mPostTasks) {
+            task.run();
+        }
+        mPostTasks.clear();
+    }
+
+    public void onWrite(Map<String, Object> config) {
 
     }
 
-    public abstract void onWrite(Map<String, Object> config);
-
-    public void setTask(Runnable runnable) {
+    public void setPreTask(Runnable runnable) {//draw之前
         if (runnable != null) {
             mTasks.add(runnable);
         }
     }
 
+    public void setPostTask(Runnable runnable) {//draw之后
+        if (runnable != null) {
+            mPostTasks.add(runnable);
+        }
+    }
+
     public void clearTask() {
         mTasks.clear();
+        mPostTasks.clear();
     }
 
     public int getProgram() {

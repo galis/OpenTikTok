@@ -658,8 +658,7 @@ public class AVEngine {
         long extClk = getMainClock();
         //处理文字特效
         List<AVComponent> wordsComponents = findComponents(AVComponent.AVComponentType.WORD, -1);
-        for (
-                AVComponent component : wordsComponents) {
+        for (AVComponent component : wordsComponents) {
             if (component.getRender() != null) {
                 AVFrame wordFrame = component.peekFrame();
                 if (component.isValid(extClk)) {
