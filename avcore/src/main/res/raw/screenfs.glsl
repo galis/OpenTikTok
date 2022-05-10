@@ -9,25 +9,15 @@ uniform bool isOes;
 uniform sampler2D inputImageTexture;
 uniform samplerExternalOES oesImageTexture;
 
-vec4 filterTexture2D(sampler2D targetTexture, vec2 coord){
-    if (coord.x < 0.0||coord.x>1.0||coord.y<0.0||coord.y>1.0) {
-        return vec4(bgColor, 1.0);
-    }
-    return texture(targetTexture, coord);
-}
-
-vec4 filterTexture2DOes(samplerExternalOES targetTexture, vec2 coord){
-    if (coord.x < 0.0||coord.x>1.0||coord.y<0.0||coord.y>1.0) {
-        return vec4(bgColor, 1.0);
-    }
-    return texture(targetTexture, coord);
-}
-
 void main(){
-    vec2 coord = (textureMat*vec3(vTextureCoord, 1.0)).xy;
-    if (isOes){
-        vFragColor = filterTexture2DOes(oesImageTexture, vec2(coord.x, 1.0-coord.y));
+    vec3 coord = textureMat*vec3(vTextureCoord, 1.0);
+    if (coord.x < 0.0||coord.x>1.0||coord.y<0.0||coord.y>1.0) {
+        vFragColor = vec4(bgColor, 1.0);
         return;
     }
-    vFragColor = filterTexture2D(inputImageTexture, coord);
+    if(isOes){
+        vFragColor = texture(oesImageTexture, vec2(coord.x, 1.0-coord.y));
+        return;
+    }
+    vFragColor = texture(inputImageTexture, coord.xy);
 }
