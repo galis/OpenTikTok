@@ -29,18 +29,19 @@ public class AVVideo extends AVComponent {
     private String path;
     private MediaCodec mediaCodec;
     private MediaExtractor mediaExtractor;
+    private int gop = 0;
     private MediaFormat mediaFormat;
     private Surface surface;
     private SurfaceTexture surfaceTexture;
     private Size videoSize;
     private boolean isTextureType;
+    private int frameRate = 0;
 
     //输出到surface
     public AVVideo(boolean isTextureType, long engineStartTime, String path, IRender render) {
         super(engineStartTime, AVComponentType.VIDEO, render);
         this.isTextureType = isTextureType;
         this.path = path;
-//        this.textureId = 0;
     }
 
     public String getPath() {
@@ -55,6 +56,10 @@ public class AVVideo extends AVComponent {
         return videoSize;
     }
 
+    public int getFrameRate() {
+        return frameRate;
+    }
+
     @Override
     public int open() {
         if (isOpen()) return RESULT_FAILED;
@@ -67,6 +72,7 @@ public class AVVideo extends AVComponent {
                     mediaFormat = mediaExtractor.getTrackFormat(i);
                     mediaExtractor.selectTrack(i);
                     mediaCodec = MediaCodec.createDecoderByType(mediaExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
+                    frameRate = mediaFormat.getInteger(MediaFormat.KEY_FRAME_RATE);
                     videoSize = new Size(mediaFormat.getInteger(MediaFormat.KEY_WIDTH), mediaFormat.getInteger(MediaFormat.KEY_HEIGHT));
                     long duration = mediaFormat.getLong(MediaFormat.KEY_DURATION);
                     setClipStartTime(0);
@@ -135,9 +141,49 @@ public class AVVideo extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen() || isOutputEOF) return RESULT_FAILED;
+        int outputBufIdx = -1;
+        int inputBufIdx = -1;
         while (!isInputEOF || !isOutputEOF) {
+            if (!isOutputEOF) {
+                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                try {
+                    outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                if (outputBufIdx >= 0) {
+                    peekFrame().setValid(true);
+                    if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
+                        isOutputEOF = true;
+                        peekFrame().setEof(true);
+                        peekFrame().setPts(getClipDuration() + getEngineStartTime());
+                    } else {
+                        peekFrame().setEof(false);
+                        peekFrame().setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());
+                        LogUtil.logEngine("AVVideo#bufferInfo.presentationTimeUs#" + bufferInfo.presentationTimeUs);
+                    }
+                    peekFrame().setDuration(33333L);//TODO 无效
+                    if (!isTextureType) {//no output surface texture
+                        ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
+                        peekFrame().getByteBuffer().put(byteBuffer);
+                        byteBuffer.position(0);
+                        peekFrame().getByteBuffer().position(0);
+                        mediaCodec.releaseOutputBuffer(outputBufIdx, false);
+                    } else {
+                        mediaCodec.releaseOutputBuffer(outputBufIdx, true);
+                        surfaceTexture.updateTexImage();
+                    }
+                    break;
+                } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    LogUtil.logEngine(LogUtil.ENGINE_TAG + "readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
+                } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                    LogUtil.logEngine(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
+                } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    LogUtil.logEngine(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
+                }
+            }
             if (!isInputEOF) {
-                int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
+                inputBufIdx = mediaCodec.dequeueInputBuffer(0);
                 if (inputBufIdx >= 0) {
                     int sampleSize = mediaExtractor.readSampleData(peekFrame().getByteBuffer(), 0);
                     if (sampleSize < 0) {
@@ -151,40 +197,11 @@ public class AVVideo extends AVComponent {
                             mediaExtractor.getSampleTime(),
                             isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
                     mediaExtractor.advance();
+                    LogUtil.logEngine("mediaExtractor.getSampleTime()#" + mediaExtractor.getSampleTime());
                 }
             }
-            if (!isOutputEOF) {
-                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-                int outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
-                if (outputBufIdx >= 0) {
-                    peekFrame().setValid(true);
-                    if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
-                        isOutputEOF = true;
-                        peekFrame().setEof(true);
-                        peekFrame().setPts(getClipDuration() + getEngineStartTime());
-                    } else {
-                        peekFrame().setEof(false);
-                        peekFrame().setPts(bufferInfo.presentationTimeUs - getClipStartTime() + getEngineStartTime());
-                    }
-                    peekFrame().setDuration((long) (1000000.f / 30));//TODO
-                    if (!isTextureType) {//no output surface texture
-                        ByteBuffer byteBuffer = mediaCodec.getOutputBuffer(outputBufIdx);
-                        peekFrame().getByteBuffer().put(byteBuffer);
-                        byteBuffer.position(0);
-                        peekFrame().getByteBuffer().position(0);
-                        mediaCodec.releaseOutputBuffer(outputBufIdx, false);
-                    } else {
-                        mediaCodec.releaseOutputBuffer(outputBufIdx, true);
-                        surfaceTexture.updateTexImage();
-                    }
-                    break;
-                } else if (outputBufIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_TRY_AGAIN_LATER:" + bufferInfo.presentationTimeUs);
-                } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_BUFFERS_CHANGED:" + bufferInfo.presentationTimeUs);
-                } else if (outputBufIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
-                }
+            if (outputBufIdx == -1 && inputBufIdx == -1) {
+                LogUtil.logEngine("Something#Error!");
             }
         }
         return RESULT_OK;
@@ -193,37 +210,46 @@ public class AVVideo extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
+        LogUtil.logEngine("seekFrame#start#" + position);
         long correctPosition = position - getEngineStartTime();//engine position => file position
         if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getEngineDuration()) {
             return RESULT_FAILED;
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
-        mediaCodec.flush();
+        if (position < getPosition()) {
+            LogUtil.logEngine("seekFrame#SEEK SYNC#" + position + "#" + getPosition());
+            mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+            mediaCodec.flush();
+        }
         peekFrame().setPts(Long.MIN_VALUE);
         while (peekFrame().getPts() < position) {
+            LogUtil.logEngine("seekFrame#readFrame#" + peekFrame().getPts() + "#" + position);
             TimeUtils.RecordStart("seekFrame");
             readFrame();
             TimeUtils.RecordEnd("seekFrame");
             LogUtil.log(LogUtil.ENGINE_TAG + "AVVideo#seekframe()" + peekFrame().getPts());
         }
+        setPosition(position);
+        LogUtil.logEngine("seekFrame#end");
         return RESULT_OK;
     }
 
     @Override
     public String toString() {
         return "AVVideo{\n" +
-                "\tisInputEOF=" + isInputEOF + "\n" +
-                "\tisOutputEOF=" + isOutputEOF + "\n" +
-                "\tpath='" + path + '\'' + "\n" +
-                "\tmediaCodec=" + mediaCodec + "\n" +
-                "\tmediaExtractor=" + mediaExtractor + "\n" +
-                "\tmediaFormat=" + mediaFormat + "\n" +
-                "\tsurface=" + surface + "\n" +
-                "\tsurfaceTexture=" + surfaceTexture + "\n" +
-                "\tvideoSize=" + videoSize + "\n" +
-                "\tisTextureType=" + isTextureType + "\n" +
+                "\tisInputEOF=" + isInputEOF + ",\n" +
+                "\tisOutputEOF=" + isOutputEOF + ",\n" +
+                "\tpath='" + path + '\'' + ",\n" +
+                "\tmediaCodec=" + mediaCodec + ",\n" +
+                "\tmediaExtractor=" + mediaExtractor + ",\n" +
+                "\tgop=" + gop + ",\n" +
+                "\tmediaFormat=" + mediaFormat + ",\n" +
+                "\tsurface=" + surface + ",\n" +
+                "\tsurfaceTexture=" + surfaceTexture + ",\n" +
+                "\tvideoSize=" + videoSize + ",\n" +
+                "\tisTextureType=" + isTextureType + ",\n" +
+                "\tframeRate=" + frameRate + ",\n" +
                 "} " + super.toString() + "\n";
     }
 }

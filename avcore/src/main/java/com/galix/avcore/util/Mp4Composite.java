@@ -19,12 +19,15 @@ import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.avcore.AVTransaction;
 import com.galix.avcore.avcore.AVWord;
 import com.galix.avcore.avcore.ThreadManager;
+import com.galix.avcore.render.IVideoRender;
 import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.ScreenRender;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.TextureFilter;
+import com.galix.avcore.render.filters.TranAlphaFilter;
 
 import java.io.File;
 import java.io.IOException;
@@ -86,6 +89,7 @@ public class Mp4Composite {
     public static class Stream {
         public int trackIdx = -1;
         public long nextPts = 0;
+        public long currentPts = 0;
         public long duration = 0;
         public long thumbPos = -1;
         public boolean isInputEOF = false;
@@ -148,14 +152,19 @@ public class Mp4Composite {
         if (components.isEmpty()) {
             components = mEngine.findComponents(AVComponent.AVComponentType.VIDEO, mVideoEncodeStream.nextPts);
         }
-        AVComponent video = components.get(0);
-        if (mLastVideo != video) {
-            video.seekFrame(mVideoEncodeStream.nextPts);
-        } else {
-            video.readFrame();
+        if (components.isEmpty()) {
+            LogUtil.logEngine("readVideoFrame#" + mVideoEncodeStream.nextPts + "#" + mVideoState.durationUS);
+            return null;
         }
+        AVComponent video = components.get(0);
+//        if (mLastVideo != video) {
+        video.seekFrame(mVideoEncodeStream.nextPts);
+//        } else {
+//            video.readFrame();
+//        }
         mLastVideo = video;
-        mVideoEncodeStream.nextPts += mLastVideo.peekFrame().getDuration();
+        mVideoEncodeStream.currentPts = mVideoEncodeStream.nextPts;
+        mVideoEncodeStream.nextPts += 1000000.f / mVideoState.compositeFrameRate;
         return mLastVideo.peekFrame();
     }
 
@@ -166,37 +175,44 @@ public class Mp4Composite {
             LogUtil.logEngine("check#signalEndOfInputStream");
             return;
         }
-        LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
-        if (mLastVideo.getRender() != null) {
-            mLastVideo.getRender().render(videoFrame);
+        GLTexture lastTexture;
+        boolean isFlipVertical = true;
+        if (mLastVideo instanceof AVTransaction) {
+            if (mLastVideo.getRender() != null) {
+                mLastVideo.getRender().render(videoFrame);
+            }
+            lastTexture = ((IVideoRender) mLastVideo.getRender()).getOutTexture();
+            isFlipVertical = false;
         } else {
-            textureFilter.write(
-                    "use_fbo", false,
-                    "textureMat", mLastVideo.getMatrix(),
-                    "inputImageTexture", mLastVideo.peekFrame().getTexture(),
-                    "isOes", mLastVideo.peekFrame().getTexture().isOes(),
-                    "bgColor", mVideoState.bgColor,
-                    "isFlipVertical", true
-            );
-            textureFilter.setPreTask(new Runnable() {
-                @Override
-                public void run() {
-                    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                    glViewport(0, 0, mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
-                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                }
-            });
-            textureFilter.render();
+            lastTexture = mLastVideo.peekFrame().getTexture();
         }
+        LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
+        textureFilter.write(
+                "use_fbo", false,
+                "textureMat", lastTexture.getMatrix(),
+                "inputImageTexture", lastTexture,
+                "isOes", lastTexture.isOes(),
+                "bgColor", mVideoState.bgColor,
+                "isFlipVertical", isFlipVertical
+        );
+        textureFilter.setPreTask(new Runnable() {
+            @Override
+            public void run() {
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glViewport(0, 0, mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            }
+        });
+        textureFilter.render();
     }
 
-    private void renderSticker(TextureFilter textureFilter, long pos) {
-        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.STICKER, mVideoEncodeStream.nextPts);
+    private void renderSticker(TextureFilter textureFilter) {
+        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.STICKER, mVideoEncodeStream.currentPts);
         if (components.isEmpty()) {
             return;
         }
         for (AVComponent component : components) {
-            component.seekFrame(pos);
+            component.seekFrame(mVideoEncodeStream.currentPts);
             textureFilter.write(
                     "use_fbo", false,
                     "textureMat", component.getMatrix(),
@@ -222,14 +238,15 @@ public class Mp4Composite {
         }
     }
 
-    private void renderWord(TextureFilter textureFilter, long pos) {
-        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.WORD, mVideoEncodeStream.nextPts);
+    private void renderWord(TextureFilter textureFilter) {
+        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.WORD, mVideoEncodeStream.currentPts);
         if (components.isEmpty()) {
             return;
         }
         for (AVComponent component : components) {
             component.write(AVWord.CONFIG_USE_BITMAP, true);
-            component.seekFrame(pos);
+            component.seekFrame(mVideoEncodeStream.currentPts);
+            component.write(AVWord.CONFIG_USE_BITMAP, false);
             textureFilter.write(
                     "use_fbo", false,
                     "textureMat", component.getMatrix(),
@@ -252,7 +269,6 @@ public class Mp4Composite {
                 }
             });
             textureFilter.render();
-            component.write(AVWord.CONFIG_USE_BITMAP, false);
         }
     }
 
@@ -429,14 +445,17 @@ public class Mp4Composite {
             //渲染视频
             renderVideo(textureFilter);
             //渲染贴纸
-            renderSticker(textureFilter, mVideoEncodeStream.nextPts - mLastVideo.peekFrame().getDuration());
+            renderSticker(textureFilter);
             //渲染文字
-            renderWord(textureFilter, mVideoEncodeStream.nextPts - mLastVideo.peekFrame().getDuration());
-            mEngine.getEglHelper().setPresentationTime(mLastVideo.peekFrame().getPts() * 1000);
+            renderWord(textureFilter);
+            mEngine.getEglHelper().setPresentationTime(mVideoEncodeStream.currentPts * 1000);
             mEngine.getEglHelper().swap();
-            int progress = (int) (mLastVideo.peekFrame().getPts() * 1.0f / mVideoState.durationUS * 100);
+            int progress = (int) (mVideoEncodeStream.currentPts * 1.0f / mVideoState.durationUS * 100);
             mCallback.handle(progress);
-            LogUtil.logEngine("mCallback.handle#" + progress);
+            LogUtil.logEngine("mCallback.handle#" + progress
+                    + "#" + mVideoEncodeStream.currentPts
+                    + "#" + mVideoEncodeStream.nextPts
+                    + "#" + mLastVideo.peekFrame().getPts());
             ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_FRAME_VALID);
         }
 

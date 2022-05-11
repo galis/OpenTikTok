@@ -2,16 +2,11 @@ package com.galix.avcore.avcore;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
-import android.graphics.Typeface;
 import android.widget.EditText;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.GLUtil;
-
-import java.util.Map;
 
 /**
  * 文字特效组件
@@ -55,25 +50,24 @@ public class AVWord extends AVComponent {
 
     @Override
     public int readFrame() {
-        if (getConfigs().containsKey(CONFIG_USE_BITMAP) && (Boolean) getConfigs().get(CONFIG_USE_BITMAP)) {
-            if (bitmap == null || bitmap.getWidth() != editText.getWidth()) {
-                if (bitmap != null) {
-                    bitmap.recycle();
-                }
-                bitmap = Bitmap.createBitmap(editText.getWidth(), editText.getHeight(), Bitmap.Config.ARGB_8888);
-                canvas.setBitmap(bitmap);
+        if (needFreshBitmap()) {
+            if (bitmap != null) {
+                bitmap.recycle();
             }
+            bitmap = Bitmap.createBitmap(editText.getWidth(), editText.getHeight(), Bitmap.Config.ARGB_8888);
+            canvas.setBitmap(bitmap);
             paint.setTypeface(editText.getTypeface());
             paint.setTextSize(editText.getTextSize());
             paint.setColor(editText.getCurrentTextColor());
             canvas.drawText(editText.getText().toString(), 0, bitmap.getHeight() - editText.getTextSize(), paint);
-            if (peekFrame().getTexture().id() == 0) {
+            if (peekFrame().getTexture().id() != 0) {
                 peekFrame().getTexture().release();
             }
             peekFrame().getTexture().idAsBuf().put(GLUtil.loadTexture(bitmap));
             peekFrame().getTexture().setOes(false);
             peekFrame().getTexture().setSize(bitmap.getWidth(), bitmap.getHeight());
             peekFrame().setBitmap(bitmap);
+            text = editText.getText().toString();
         }
         peekFrame().setValid(true);
         peekFrame().setText(text);
@@ -85,4 +79,10 @@ public class AVWord extends AVComponent {
         setPosition(position);
         return readFrame();
     }
+
+    private boolean needFreshBitmap() {
+        boolean useBitmap = getConfigs().containsKey(CONFIG_USE_BITMAP) && (Boolean) getConfigs().get(CONFIG_USE_BITMAP);
+        return useBitmap && !text.equals(editText.getText().toString());
+    }
+
 }

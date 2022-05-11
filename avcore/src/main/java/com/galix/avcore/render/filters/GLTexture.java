@@ -4,11 +4,16 @@ import android.graphics.Bitmap;
 import android.opengl.GLES30;
 import android.util.Size;
 
+import com.galix.avcore.avcore.AVComponent;
+
 import org.opencv.core.Mat;
 
 import java.nio.IntBuffer;
 
+import static org.opencv.core.CvType.CV_32F;
+
 public class GLTexture {
+    private static final Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
     private IntBuffer textureIdBuf;
     private boolean oes = false;
     private boolean mute;//mute 无论如何都是0
@@ -16,7 +21,7 @@ public class GLTexture {
     private String path;
     private Bitmap bitmap;
     private Object dirty;
-    private Mat matrix;
+    private Mat matrix = mIdentityMat;
 
     public GLTexture() {
     }

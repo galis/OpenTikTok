@@ -43,4 +43,6 @@ System.nanoTime() ns
 34.brew 改源https://www.jianshu.com/p/bea984d27cd2 https://zhuanlan.zhihu.com/p/354427909
 35.MediaMuxer合成视频时长不对，由于PKT时间戳不连续
 36.getmeausewidth,layout.width
+37.mp4结构 https://www.codenong.com/cs110499149/ http://www.360doc.com/content/20/0902/20/49586_933661079.shtml
+38.微软 opengl api注释 https://docs.microsoft.com/zh-cn/windows/win32/opengl/glcopyteximage2d
 

@@ -79,6 +79,9 @@ import static com.galix.avcore.util.GLUtil.DRAW_ORDER;
  */
 public abstract class BaseFilter implements IFilter {
 
+    public static final String USE_FBO = "use_fbo";
+    public static final String FBO_SIZE = "fbo_size";
+
     private String mVs;
     private String mFs;
     private int mProgram = -1;

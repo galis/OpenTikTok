@@ -175,6 +175,7 @@ public class AVEngine {
         public long durationUS;//视频总时长 us
         public int bgColor;
         public int compositeGop;
+        public int compositeFrameRate;
         public int compositeAb;
         public int compositeVb;
         public boolean hasAudio;
@@ -219,6 +220,11 @@ public class AVEngine {
             seekPositionUS = Long.MAX_VALUE;
             status = VideoStatus.INIT;
             isSurfaceReady = false;
+            drawPagComponents.clear();
+            drawVideoComponents.clear();
+            tranComponents.clear();
+            videoComponents.clear();
+            audioComponents.clear();
         }
 
         public void lock() {

@@ -56,7 +56,8 @@ public class VideoExportActivity extends BaseActivity {
         AVVideo firstVideo = (AVVideo) mAVEngine.findComponents(AVComponent.AVComponentType.VIDEO, 0).get(0);
         String imgPath = VideoUtil.getThumbJpg(this, firstVideo.getPath(), 0);
         mBackGround = BitmapFactory.decodeFile(imgPath);
-        mAVEngine.getVideoState().compositeGop = 30;
+        mAVEngine.getVideoState().compositeGop = 10;
+        mAVEngine.getVideoState().compositeFrameRate = 30;
         mAVEngine.getVideoState().compositeAb = 44100;
         mAVEngine.getVideoState().compositeVb = (int) (2.5 * 1024 * 1024);
         mAVEngine.getVideoState().compositePath = FileUtils.getCompositeDir(this) + File.separator + "composite" + System.currentTimeMillis() + ".mp4";
