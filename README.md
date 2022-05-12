@@ -2,8 +2,9 @@
 
 >初衷:就是想模仿一个类似剪映编辑的项目，自己在音视频干了一段时间，想沉淀一下。
 raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.opentiktok/cache测试.
+目前基于testfile.mp4的两段视频，功能基本验证完毕，后续持续修复bug.
 
-## 现况:目前是v1.0版本，v1.0版本会是实现以下功能:
+## 现况:目前是v0.99版本，v1.0版本会是实现以下功能:
 
 ### 1.逐帧预览 (完成)
 
@@ -37,7 +38,7 @@ raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.open
 
 ## 效果图如下:
 
-![image](https://github.com/galis/OpenTikTok/blob/master/screen.gif)
+![image](https://github.com/galis/OpenTikTok/blob/master/demo.gif)
 
 
 
