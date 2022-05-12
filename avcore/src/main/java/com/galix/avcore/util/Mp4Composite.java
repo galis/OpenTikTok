@@ -177,8 +177,11 @@ public class Mp4Composite {
             }
             lastTexture = ((IVideoRender) mLastVideo.getRender()).getOutTexture();
             isFlipVertical = false;
+            mLastVideo.peekFrame().getSurfaceTexture().updateTexImage();
+            mLastVideo.peekFrame().getSurfaceTextureExt().updateTexImage();
         } else {
             lastTexture = mLastVideo.peekFrame().getTexture();
+            mLastVideo.peekFrame().getSurfaceTexture().updateTexImage();//TODO 为什么要在这里updateTex？
         }
         LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
         textureFilter.write(

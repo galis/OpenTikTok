@@ -32,6 +32,7 @@ import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
+import static android.opengl.GLES20.GL_UNPACK_ALIGNMENT;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
 import static android.opengl.GLES20.glActiveTexture;
 import static android.opengl.GLES20.glBindTexture;
@@ -206,17 +207,16 @@ public final class GLUtil {
         return textureId;
     }
 
-    public static Bitmap dumpTexture(GLTexture texture, int width, int height) {
+    public static Bitmap dumpTexture(GLTexture texture) {
         IntBuffer lastBuf = IntBuffer.allocate(1);
         IntBuffer newFboBuf = IntBuffer.allocate(1);
         GLES30.glGetIntegerv(GL_FRAMEBUFFER_BINDING, lastBuf);
         GLES30.glGenFramebuffers(1, newFboBuf);
         GLES30.glBindFramebuffer(1, newFboBuf.get());
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        ByteBuffer byteBuffer = ByteBuffer.allocate(width * height * 4);
-        GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                texture.id(), 0);
-        GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
+        Bitmap bitmap = Bitmap.createBitmap(texture.size().getWidth(), texture.size().getHeight(), Bitmap.Config.ARGB_8888);
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(texture.size().getWidth() * texture.size().getHeight() * 4);
+        GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.isOes() ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D, texture.id(), 0);
+        GLES30.glReadPixels(0, 0, texture.size().getWidth(), texture.size().getHeight(), GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
         bitmap.copyPixelsFromBuffer(byteBuffer);
         GLES30.glBindFramebuffer(1, lastBuf.get());
         newFboBuf.position(0);

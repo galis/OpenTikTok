@@ -223,7 +223,7 @@ public final class EglCore {
     public void releaseSurface(EGLSurface eglSurface) {
         EGL14.eglMakeCurrent(mEGLDisplay, EGL14.EGL_NO_SURFACE,
                 EGL14.EGL_NO_SURFACE,
-                EGL14.EGL_NO_CONTEXT);
+                mEGLContext);//TODO
         if (eglSurface != EGL14.EGL_NO_SURFACE) {
             EGL14.eglDestroySurface(mEGLDisplay, eglSurface);
         }

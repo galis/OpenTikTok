@@ -15,6 +15,7 @@ import com.galix.avcore.util.TimeUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
 
@@ -36,6 +37,8 @@ public class AVVideo extends AVComponent {
     private Size videoSize;
     private boolean isTextureType;
     private int frameRate = 0;
+    private AtomicBoolean mIsOk = new AtomicBoolean(false);
+
 
     //输出到surface
     public AVVideo(boolean isTextureType, long engineStartTime, String path, IRender render) {
@@ -121,6 +124,7 @@ public class AVVideo extends AVComponent {
             mediaExtractor = null;
         }
         if (surfaceTexture != null) {
+            surfaceTexture.setOnFrameAvailableListener(null);
             surfaceTexture.release();
             surfaceTexture = null;
         }
@@ -209,6 +213,7 @@ public class AVVideo extends AVComponent {
         isInputEOF = false;
         isOutputEOF = false;
         if (position == getPosition()) {
+            peekFrame().setValid(true);
             return RESULT_OK;
         }
         if (position < getPosition()) {
