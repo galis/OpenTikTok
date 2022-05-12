@@ -200,9 +200,9 @@ public class AVVideo extends AVComponent {
                     LogUtil.logEngine("mediaExtractor.getSampleTime()#" + mediaExtractor.getSampleTime());
                 }
             }
-            if (outputBufIdx == -1 && inputBufIdx == -1) {
-                LogUtil.logEngine("Something#Error!");
-            }
+//            if (outputBufIdx == -1 && inputBufIdx == -1) {
+//                LogUtil.logEngine("Something#Error!");
+//            }
         }
         return RESULT_OK;
     }
@@ -221,8 +221,8 @@ public class AVVideo extends AVComponent {
             LogUtil.logEngine("seekFrame#SEEK SYNC#" + position + "#" + getPosition());
             mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
             mediaCodec.flush();
+            peekFrame().setPts(Long.MIN_VALUE);
         }
-        peekFrame().setPts(Long.MIN_VALUE);
         while (peekFrame().getPts() < position) {
             LogUtil.logEngine("seekFrame#readFrame#" + peekFrame().getPts() + "#" + position);
             TimeUtils.RecordStart("seekFrame");
