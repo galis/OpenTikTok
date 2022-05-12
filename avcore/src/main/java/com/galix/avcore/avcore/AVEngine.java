@@ -552,13 +552,10 @@ public class AVEngine {
             }
         }
 
-        //Video组件
-        if (needSeek) {//优先处理seek行为
-            for (AVComponent component : mVideoState.drawVideoComponents) {
-                component.lock();
-                component.seekFrame(mainClk);
-                component.unlock();
-            }
+        for (AVComponent component : mVideoState.drawVideoComponents) {
+            component.lock();
+            component.seekFrame(mainClk);
+            component.unlock();
         }
         mVideoState.videoClock.lastSeekReq = mVideoState.videoClock.seekReq;
         return true;
@@ -566,11 +563,6 @@ public class AVEngine {
 
     private void renderVideo() {
         AVComponent mainComponent = mVideoState.drawVideoComponents.get(0);
-        mainComponent.lock();
-        if (!mainComponent.peekFrame().isValid()) {
-            mainComponent.readFrame();
-        }
-        mainComponent.unlock();
         AVFrame mainVideoFrame = mainComponent.peekFrame();
         if (!mainVideoFrame.isValid()) {
             LogUtil.log("VIDEO#WTF???Something I don't understand!");
@@ -582,7 +574,6 @@ public class AVEngine {
                 mainComponent.getRender().open();
                 mainComponent.getRender().write(buildConfig("surface_size", mVideoState.canvasSize));
             }
-//            mainVideoFrame.setTextureExt(lastTexture);
             mainComponent.getRender().render(mainVideoFrame);
             lastTexture = ((IVideoRender) mainComponent.getRender()).getOutTexture();
         } else {
@@ -939,37 +930,31 @@ public class AVEngine {
                             continue;
                         }
                         List<AVComponent> components = findComponents(AVComponent.AVComponentType.AUDIO, extClk);
-                        for (AVComponent audio : components) {
-                            if (!audio.isOpen()) continue;
-                            audio.lock();
-                            boolean needSeek = mVideoState.audioClock.seekReq != mVideoState.audioClock.lastSeekReq
-                                    || (mLastAudioComponent != audio);
-                            if (needSeek) {
-                                audio.seekFrame(extClk);
-                                mVideoState.audioClock.lastSeekReq = mVideoState.audioClock.seekReq;
-                            } else {
-                                audio.readFrame();
-                            }
-                            audio.unlock();
-                            AVFrame audioFrame = audio.peekFrame();
-                            if (!audioFrame.isValid()) {
-                                LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#WTF???Something I don't understand!");
-                                continue;
-                            }
-                            if (Math.abs(audioFrame.getPts() - extClk) > 100000) {
-                                audioFrame.markRead();//掉帧
-                                LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#Drop Audio Frame#" + audioFrame.toString());
-                                continue;
-                            }
-                            if (audio.getRender() != null) {
-                                audio.getRender().render(audioFrame);
-                            } else {
-                                mAudioRender.render(audioFrame);
-                            }
-                            setClock(mVideoState.audioClock, audioFrame.getPts());
-                            audioFrame.markRead();
-                            mLastAudioComponent = audio;
+                        if (components.isEmpty()) continue;
+                        AVComponent audio = components.get(0);
+                        if (!audio.isOpen()) continue;
+                        audio.lock();
+                        audio.seekFrame(extClk);
+                        audio.unlock();
+                        AVFrame audioFrame = audio.peekFrame();
+                        LogUtil.logEngine(audio.toString());
+                        if (!audioFrame.isValid()) {
+                            LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#WTF???Something I don't understand!");
+                            continue;
                         }
+                        if (Math.abs(audioFrame.getPts() - extClk) > 100000) {
+                            audioFrame.markRead();//掉帧
+                            LogUtil.log(LogUtil.ENGINE_TAG + "#AudioThread#Drop Audio Frame#" + audioFrame.toString());
+                            continue;
+                        }
+                        if (audio.getRender() != null) {
+                            audio.getRender().render(audioFrame);
+                        } else {
+                            mAudioRender.render(audioFrame);
+                        }
+                        setClock(mVideoState.audioClock, audioFrame.getPts());
+                        audioFrame.markRead();
+                        mLastAudioComponent = audio;
                     } else {
                         try {
                             Thread.sleep(PLAY_GAP);//TODO
@@ -1191,6 +1176,9 @@ public class AVEngine {
             if (component instanceof AVVideo) {
                 mVideoState.videoDuration += component.getEngineDuration();
             }
+        }
+        for (AVComponent component : mVideoState.audioComponents) {
+            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
             if (component instanceof AVAudio) {
                 mVideoState.audioDuration += component.getEngineDuration();
             }
@@ -1198,9 +1186,6 @@ public class AVEngine {
         if (getMainClock() > mVideoState.durationUS) {
             setMainClock(mVideoState.durationUS);
         }
-//        for (AVComponent component : mVideoState.mAudioComponents) {
-//            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
-//        }
     }
 
     private void surfaceCreated(Surface surface) {

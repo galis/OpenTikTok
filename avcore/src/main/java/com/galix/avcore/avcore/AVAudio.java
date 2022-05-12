@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.TimeUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -158,16 +159,28 @@ public class AVAudio extends AVComponent {
     @Override
     public int seekFrame(long position) {
         if (!isOpen()) return RESULT_FAILED;
-        LogUtil.log(LogUtil.ENGINE_TAG + "seekFrame()");
+        LogUtil.log(LogUtil.ENGINE_TAG + "AVAudio#seekFrame()");
         long correctPosition = position - getEngineStartTime();
         if (position < getEngineStartTime() || position > getEngineEndTime() || correctPosition > getDuration()) {
             return RESULT_FAILED;
         }
         isInputEOF = false;
         isOutputEOF = false;
-        mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
-        mediaCodec.flush();
-        return readFrame();
+        if (position < getPosition()) {
+            LogUtil.logEngine("AVAudio#seekFrame#SEEK SYNC#" + position + "#" + getPosition());
+            mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+            mediaCodec.flush();
+            peekFrame().setPts(Long.MIN_VALUE);
+        }
+        while (peekFrame().getPts() < position) {
+            LogUtil.logEngine("AVAudio#seekFrame#readFrame#" + peekFrame().getPts() + "#" + position);
+            TimeUtils.RecordStart("AVAudio#seekFrame");
+            readFrame();
+            TimeUtils.RecordEnd("AVAudio#seekFrame");
+            LogUtil.log(LogUtil.ENGINE_TAG + "AVAudio#seekframe()" + peekFrame().getPts());
+        }
+        setPosition(position);
+        return RESULT_OK;
     }
 
     private void retry(long position) {
