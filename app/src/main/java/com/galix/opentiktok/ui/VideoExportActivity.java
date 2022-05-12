@@ -17,10 +17,13 @@ import com.galix.avcore.avcore.AVEngine;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.util.FileUtils;
 import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
 
 import java.io.File;
+
+import static com.galix.avcore.util.MathUtils.calMat;
 
 /**
  * 视频导出Activity
@@ -56,6 +59,8 @@ public class VideoExportActivity extends BaseActivity {
         AVVideo firstVideo = (AVVideo) mAVEngine.findComponents(AVComponent.AVComponentType.VIDEO, 0).get(0);
         String imgPath = VideoUtil.getThumbJpg(this, firstVideo.getPath(), 0);
         mBackGround = BitmapFactory.decodeFile(imgPath);
+        mAVEngine.getVideoState().lock();
+        AVVideo video = (AVVideo) mAVEngine.getVideoState().videoComponents.get(0);
         mAVEngine.getVideoState().compositeGop = 10;
         mAVEngine.getVideoState().compositeFrameRate = 30;
         mAVEngine.getVideoState().compositeAb = 44100;
@@ -65,7 +70,10 @@ public class VideoExportActivity extends BaseActivity {
         mAVEngine.getVideoState().hasVideo = true;
         mAVEngine.getVideoState().readyAudio = false;
         mAVEngine.getVideoState().readyVideo = false;
-        mAVEngine.getVideoState().bgColor = Color.RED;
+        mAVEngine.getVideoState().compositeSize = MathUtils.calCompositeSize(mAVEngine.getVideoState().canvasType,
+                video.getVideoSize(), mAVEngine.getVideoState().compositeHeight);
+        mAVEngine.getVideoState().compositeMat = calMat(video.getVideoSize(), mAVEngine.getVideoState().compositeSize);
+        mAVEngine.getVideoState().unlock();
         mAVEngine.compositeMp4(null, new AVEngine.EngineCallback() {
             @Override
             public void onCallback(Object... args1) {

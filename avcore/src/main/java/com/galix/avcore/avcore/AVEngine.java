@@ -63,6 +63,7 @@ import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.PAUSE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.RELEASE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.SEEK;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.START;
+import static com.galix.avcore.util.MathUtils.calMat;
 
 /**
  * 视频引擎
@@ -182,17 +183,20 @@ public class AVEngine {
         public boolean hasVideo;
         public boolean readyAudio;//合成视频用
         public boolean readyVideo;//合成视频用
-        public boolean isSurfaceReady = false;
-        public boolean isEdit = false;//编辑组件状态
-        public long drawClock = 0;//需要绘制video
-        public VideoStatus status;//播放状态
+        public boolean isSurfaceReady;
+        public boolean isEdit;//编辑组件状态
+        public long drawClock;//需要绘制video
+        public int compositeHeight;//默认1080p 可以选择720 360
         public String compositePath;//合成视频路径
-        public Size canvasSize;//合成视频目标宽高
+        public Size compositeSize;//合成视频目标宽高
+        public Size canvasSize;//surface size
+        public VideoStatus status;//播放状态
         public String canvasType;
         public Clock videoClock;
         public Clock extClock;
         public Clock audioClock;
         public Mat canvasMat;
+        public Mat compositeMat;
         public AVComponent editComponent;
         public final ReentrantLock stateLock = new ReentrantLock();
         public List<AVComponent> tranComponents = new LinkedList<>();//转场
@@ -210,11 +214,13 @@ public class AVEngine {
             videoClock = new Clock();
             audioClock = new Clock();
             extClock = new Clock();
+            drawClock = 0;
             durationUS = 0;
             videoDuration = 0;
             audioDuration = 0;
             isInputEOF = false;
             isOutputEOF = false;
+            compositeHeight = 1080;
             displaySwapCount = 0;
             isEdit = false;
             seekPositionUS = Long.MAX_VALUE;
@@ -270,8 +276,9 @@ public class AVEngine {
                     "\tvideoDuration=" + videoDuration + ",\n" +
                     "\taudioDuration=" + audioDuration + ",\n" +
                     "\tdurationUS=" + durationUS + ",\n" +
-                    "\tbgColor=" + Integer.toHexString(bgColor) + ",\n" +
+                    "\tbgColor=" + bgColor + ",\n" +
                     "\tcompositeGop=" + compositeGop + ",\n" +
+                    "\tcompositeFrameRate=" + compositeFrameRate + ",\n" +
                     "\tcompositeAb=" + compositeAb + ",\n" +
                     "\tcompositeVb=" + compositeVb + ",\n" +
                     "\thasAudio=" + hasAudio + ",\n" +
@@ -281,14 +288,16 @@ public class AVEngine {
                     "\tisSurfaceReady=" + isSurfaceReady + ",\n" +
                     "\tisEdit=" + isEdit + ",\n" +
                     "\tdrawClock=" + drawClock + ",\n" +
-                    "\tstatus=" + status + ",\n" +
                     "\tcompositePath='" + compositePath + '\'' + ",\n" +
+                    "\tcompositeSize=" + compositeSize + ",\n" +
                     "\tcanvasSize=" + canvasSize + ",\n" +
+                    "\tstatus=" + status + ",\n" +
                     "\tcanvasType='" + canvasType + '\'' + ",\n" +
                     "\tvideoClock=" + videoClock + ",\n" +
                     "\textClock=" + extClock + ",\n" +
                     "\taudioClock=" + audioClock + ",\n" +
-                    "\tcanvasMat=" + canvasMat + ",\n" +
+                    "\tcanvasMat=" + canvasMat.dump() + ",\n" +
+                    "\tcompositeMat=" + compositeMat.dump() + ",\n" +
                     "\teditComponent=" + editComponent + ",\n" +
                     "\tstateLock=" + stateLock + ",\n" +
                     "\ttranComponents=" + tranComponents + ",\n" +
@@ -422,17 +431,11 @@ public class AVEngine {
         mSurfaceView.getLayoutParams().height = targetSize.getHeight();
         mSurfaceView.requestLayout();
         mVideoState.lock();
-        mVideoState.canvasSize = targetSize;
         mVideoState.canvasType = type;
-        if (targetSize.getWidth() * video0Size.getHeight() * 1.f / video0Size.getWidth() > targetSize.getHeight()) {//高度铺满
-            int targetWidth = (int) (targetSize.getHeight() * video0Size.getWidth() * 1.f / video0Size.getHeight());
-            mVideoState.canvasMat = MathUtils.calMatrix(new Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
-                    new Rect((targetSize.getWidth() - targetWidth) / 2, 0, targetSize.getWidth() - (targetSize.getWidth() - targetWidth) / 2, targetSize.getHeight()));
-        } else {//宽度铺满
-            int targetHeight = (int) (targetSize.getWidth() * video0Size.getHeight() * 1.f / video0Size.getWidth());
-            mVideoState.canvasMat = MathUtils.calMatrix(new Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
-                    new Rect(0, (targetSize.getHeight() - targetHeight) / 2, targetSize.getWidth(), targetSize.getHeight() - (targetSize.getHeight() - targetHeight) / 2));
-        }
+        mVideoState.canvasSize = targetSize;
+        mVideoState.canvasMat = calMat(video0Size, mVideoState.canvasSize);
+        mVideoState.compositeSize = MathUtils.calCompositeSize(mVideoState.canvasType, video0Size, mVideoState.compositeHeight);
+        mVideoState.compositeMat = calMat(video0Size, mVideoState.compositeSize);
         mVideoState.unlock();
         if (engineCallback != null) {
             engineCallback.onCallback(targetSize);

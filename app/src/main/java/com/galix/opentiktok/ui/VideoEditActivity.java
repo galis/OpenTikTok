@@ -406,6 +406,15 @@ public class VideoEditActivity extends BaseActivity {
                 VideoExportActivity.start(this, VideoExportActivity.class);
                 break;
             case R.id.action_pixel:
+                mAVEngine.getVideoState().lock();
+                if (item.getTitle().toString().equalsIgnoreCase("1080p")) {
+                    item.setTitle("720P");
+                    mAVEngine.getVideoState().compositeHeight = 720;
+                } else {
+                    item.setTitle("1080P");
+                    mAVEngine.getVideoState().compositeHeight = 1080;
+                }
+                mAVEngine.getVideoState().unlock();
                 break;
             case R.id.action_debug:
                 if (findViewById(R.id.tv_debug_info).getVisibility() == View.VISIBLE) {

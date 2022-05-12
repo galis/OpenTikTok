@@ -195,11 +195,11 @@ public abstract class BaseFilter implements IFilter {
     @Override
     public void write(Map<String, Object> config) {
         if (config == null) return;
-        if (config.containsKey("use_fbo")) {
-            mUseFbo = (boolean) config.get("use_fbo");
+        if (config.containsKey(USE_FBO)) {
+            mUseFbo = (boolean) config.get(USE_FBO);
         }
-        if (config.containsKey("fbo_size")) {
-            mFboSize = (Size) config.get("fbo_size");
+        if (config.containsKey(FBO_SIZE)) {
+            mFboSize = (Size) config.get(FBO_SIZE);
         }
         mConfig.putAll(config);
         onWrite(config);
@@ -211,11 +211,11 @@ public abstract class BaseFilter implements IFilter {
         for (int i = 0; i < configs.length / 2; i++) {
             mConfig.put((String) configs[2 * i], configs[2 * i + 1]);
         }
-        if (mConfig.containsKey("use_fbo")) {
-            mUseFbo = (boolean) mConfig.get("use_fbo");
+        if (mConfig.containsKey(USE_FBO)) {
+            mUseFbo = (boolean) mConfig.get(USE_FBO);
         }
-        if (mConfig.containsKey("fbo_size")) {
-            mFboSize = (Size) mConfig.get("fbo_size");
+        if (mConfig.containsKey(FBO_SIZE)) {
+            mFboSize = (Size) mConfig.get(FBO_SIZE);
         }
         onWrite(mConfig);
     }

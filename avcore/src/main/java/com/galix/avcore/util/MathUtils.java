@@ -145,4 +145,34 @@ public class MathUtils {
     public static int clamp(int min, int max, int value) {
         return Math.min(max, Math.max(value, min));
     }
+
+    public static Size calCompositeSize(String type, Size videoSize, int targetHeight) {
+        int width = 0;
+        if (type.equalsIgnoreCase("原始")) {
+            width = (int) (targetHeight * videoSize.getWidth() * 1.f / videoSize.getHeight());
+        } else if (type.equalsIgnoreCase("4:3")) {
+            width = targetHeight * 4 / 3;
+        } else if (type.equalsIgnoreCase("3:4")) {
+            width = targetHeight * 3 / 4;
+        } else if (type.equalsIgnoreCase("1:1")) {
+            width = targetHeight;
+        } else if (type.equalsIgnoreCase("16:9")) {
+            width = targetHeight * 16 / 9;
+        } else if (type.equalsIgnoreCase("9:16")) {
+            width = targetHeight * 9 / 16;
+        }
+        return new Size(width, targetHeight);
+    }
+
+    public static Mat calMat(Size src, Size targetSize) {
+        if (targetSize.getWidth() * src.getHeight() * 1.f / src.getWidth() > targetSize.getHeight()) {//高度铺满
+            int targetWidth = (int) (targetSize.getHeight() * src.getWidth() * 1.f / src.getHeight());
+            return MathUtils.calMatrix(new android.graphics.Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
+                    new android.graphics.Rect((targetSize.getWidth() - targetWidth) / 2, 0, targetSize.getWidth() - (targetSize.getWidth() - targetWidth) / 2, targetSize.getHeight()));
+        } else {//宽度铺满
+            int targetHeight = (int) (targetSize.getWidth() * src.getHeight() * 1.f / src.getWidth());
+            return MathUtils.calMatrix(new android.graphics.Rect(0, 0, targetSize.getWidth(), targetSize.getHeight()),
+                    new android.graphics.Rect(0, (targetSize.getHeight() - targetHeight) / 2, targetSize.getWidth(), targetSize.getHeight() - (targetSize.getHeight() - targetHeight) / 2));
+        }
+    }
 }

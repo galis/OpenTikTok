@@ -106,10 +106,8 @@ public class Mp4Composite {
         Stream stream = new Stream();
         MediaFormat mediaFormat = null;
         if (isVideo) {
-            mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,
-                    mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
-            int width = mediaFormat.getInteger(MediaFormat.KEY_WIDTH);
-            int height = mediaFormat.getInteger(MediaFormat.KEY_HEIGHT);
+            int width = mVideoState.compositeSize.getWidth();
+            int height = mVideoState.compositeSize.getHeight();
             mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,
                     width, height);
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420PackedPlanar);
@@ -143,7 +141,6 @@ public class Mp4Composite {
      */
     private AVFrame readVideoFrame() {
         if (mVideoEncodeStream.nextPts >= mVideoState.durationUS) {
-            mVideoEncodeStream.isInputEOF = true;
             return null;
         }
         mVideoEncodeStream.isInputEOF = false;
@@ -167,6 +164,7 @@ public class Mp4Composite {
     private void renderVideo(TextureFilter textureFilter) {
         AVFrame videoFrame = readVideoFrame();
         if (videoFrame == null) {
+            mVideoEncodeStream.isInputEOF = true;
             mVideoEncodeStream.mediaCodec.signalEndOfInputStream();//采用surface输入的时候要注意这个了
             LogUtil.logEngine("check#signalEndOfInputStream");
             return;
@@ -185,17 +183,17 @@ public class Mp4Composite {
         LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
         textureFilter.write(
                 "use_fbo", false,
-                "textureMat", lastTexture.getMatrix(),
+                "textureMat", mVideoState.compositeMat,
                 "inputImageTexture", lastTexture,
                 "isOes", lastTexture.isOes(),
-                "bgColor", mVideoState.bgColor,
+                "bgColor", MathUtils.Int2Vec3(mVideoState.bgColor),
                 "isFlipVertical", isFlipVertical
         );
         textureFilter.setPreTask(new Runnable() {
             @Override
             public void run() {
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                glViewport(0, 0, mVideoState.canvasSize.getWidth(), mVideoState.canvasSize.getHeight());
+                glViewport(0, 0, mVideoState.compositeSize.getWidth(), mVideoState.compositeSize.getHeight());
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
         });
@@ -276,18 +274,16 @@ public class Mp4Composite {
      */
     private AVFrame readAudioFrame() {
         if (mAudioEncodeStream.nextPts > mVideoState.durationUS) {
-            mAudioEncodeStream.isInputEOF = true;
             return null;
         }
         mAudioEncodeStream.isInputEOF = false;
         List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.AUDIO, mAudioEncodeStream.nextPts);
+        if (components.isEmpty()) {
+            return null;
+        }
         AVAudio audio = (AVAudio) components.get(0);
         LogUtil.logEngine("readAudioFrame111#");
-        if (mLastAudio != audio) {
-            audio.seekFrame(mAudioEncodeStream.nextPts);
-        } else {
-            audio.readFrame();
-        }
+        audio.seekFrame(mAudioEncodeStream.nextPts);
         mLastAudio = audio;
         mAudioEncodeStream.nextPts += mLastAudio.peekFrame().getDuration();
         LogUtil.logEngine("readAudioFrame#" + mLastAudio.peekFrame().getPts());
@@ -408,6 +404,7 @@ public class Mp4Composite {
                     if (status >= 0) {
                         AVFrame audioFrame = readAudioFrame();
                         if (audioFrame == null) {
+                            mAudioEncodeStream.isInputEOF = true;
                             Log.d(TAG, "check#audioFrame null");
                             mAudioEncodeStream.mediaCodec.queueInputBuffer(status, 0, 0,
                                     mVideoState.durationUS, BUFFER_FLAG_END_OF_STREAM);
@@ -432,9 +429,6 @@ public class Mp4Composite {
         EglHelper eglHelper = mEngine.getEglHelper();
         eglHelper.createSurface(mVideoEncodeStream.inputSurface);
         eglHelper.makeCurrent();
-        OESRender oesRender = new OESRender();
-        oesRender.open();
-        oesRender.write(TimeUtils.BuildMap("surface_size", mVideoState.canvasSize));
         TextureFilter textureFilter = new TextureFilter();
         textureFilter.open();
         while (!mVideoEncodeStream.isInputEOF) {
