@@ -65,17 +65,15 @@ public class ExportProgressView extends androidx.appcompat.widget.AppCompatImage
     protected void onDraw(Canvas canvas) {
         int width = getMeasuredWidth();
         int height = getMeasuredHeight();
-        if (mIsFirst) {
-            mPath.addRect(0, 0, width, height, Path.Direction.CCW);
-            mIsFirst = true;
-        }
-        super.onDraw(canvas);
-//        int color = Color.argb((int) ((100 - mProgress) / 100.f * 255), 0, 255, 255);
-//        canvas.drawColor(color, PorterDuff.Mode.ADD);
 
+        super.onDraw(canvas);
+        mPath.reset();
+        mPath.moveTo(0,0);
+        mPath.addRect(0, 0, width, height, Path.Direction.CCW);
+        mPath.close();
         mPaint.setColor(Color.GRAY);
         canvas.drawPath(mPath, mPaint);
-
+//
         mCurrentPath.reset();
         mCurrentX = mCurrentY = 0;
         mCurrentPath.moveTo(mCurrentX, mCurrentY);

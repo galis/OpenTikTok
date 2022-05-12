@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.util.Size;
@@ -152,18 +154,29 @@ public class VideoEditActivity extends BaseActivity {
                     } else if (index == R.string.tab_text) {
                         EditText child = ViewUtils.createEditText(VideoEditActivity.this);
                         AVWord word = new AVWord(mAVEngine.getMainClock(), child, new TextRender(child));
-                        bindView(child, word);
-                        mAVEngine.addComponent(word, new AVEngine.EngineCallback() {
+                        mAVEngine.addComponent(word, args1 -> mVideoPreViewPanel.post(new Runnable() {
                             @Override
-                            public void onCallback(Object... args1) {
-                                mVideoPreViewPanel.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        mVideoPreViewPanel.updateEffect();
-                                    }
-                                });
+                            public void run() {
+                                mVideoPreViewPanel.updateEffect();
+                                bindView(child, word);
+//                                child.addTextChangedListener(new TextWatcher() {
+//                                    @Override
+//                                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+//
+//                                    }
+//
+//                                    @Override
+//                                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+//
+//                                    }
+//
+//                                    @Override
+//                                    public void afterTextChanged(Editable s) {
+//                                        updateMatrix(child);
+//                                    }
+//                                });
                             }
-                        });
+                        }));
                     } else if (index == R.string.tab_ratio) {
                         ViewGroup view = findViewById(R.id.view_ratio_tablist);
                         ((RatioTabListView) view.getChildAt(0)).buildView(1920, 1080, new View.OnClickListener() {
@@ -246,11 +259,13 @@ public class VideoEditActivity extends BaseActivity {
                         ImageView child = ViewUtils.createImageView(VideoEditActivity.this);
                         AVSticker sticker = new AVSticker(mAVEngine.getMainClock(), getResources().openRawResource(mStickerList.get(position)),
                                 new ImageViewRender(child));
-                        bindView(child, sticker);
                         mAVEngine.addComponent(sticker, args1 -> mVideoPreViewPanel.post(new Runnable() {
                             @Override
                             public void run() {
                                 mVideoPreViewPanel.updateEffect();
+                                child.getLayoutParams().width = sticker.getSize().getWidth();
+                                child.getLayoutParams().height = sticker.getSize().getHeight();
+                                bindView(child, sticker);
                             }
                         }));
                         mStickerRecyclerView.setVisibility(View.GONE);

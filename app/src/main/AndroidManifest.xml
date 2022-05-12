@@ -47,8 +47,7 @@
             android:launchMode="singleTop" />
 
         <activity
-            android:name=".ui.VideoExportActivity"
-            android:launchMode="singleTop" />
+            android:name=".ui.VideoExportActivity" />
     </application>
 
 </manifest>

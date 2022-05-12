@@ -157,11 +157,7 @@ public class Mp4Composite {
             return null;
         }
         AVComponent video = components.get(0);
-//        if (mLastVideo != video) {
         video.seekFrame(mVideoEncodeStream.nextPts);
-//        } else {
-//            video.readFrame();
-//        }
         mLastVideo = video;
         mVideoEncodeStream.currentPts = mVideoEncodeStream.nextPts;
         mVideoEncodeStream.nextPts += 1000000.f / mVideoState.compositeFrameRate;
@@ -459,16 +455,11 @@ public class Mp4Composite {
             ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_FRAME_VALID);
         }
 
+        ThreadManager.getInstance().destroyThread("Composite_Audio");
+        ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_DESTROY);
+        ThreadManager.getInstance().destroyThread("Composite_Muxer");
+        //销毁OpenGL资源
         textureFilter.close();
-        try {
-            ThreadManager.getInstance().getHandler("Composite_Audio").getLooper().quitSafely();
-            ThreadManager.getInstance().getThread("Composite_Audio").join();
-            ThreadManager.getInstance().getHandler("Composite_Muxer").sendEmptyMessage(COMPOSITE_DESTROY);
-            ThreadManager.getInstance().getHandler("Composite_Muxer").getLooper().quitSafely();
-            ThreadManager.getInstance().getThread("Composite_Muxer").join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         eglHelper.destroySurface();
         eglHelper.makeCurrent();
         LogUtil.logEngine("Composite finish");

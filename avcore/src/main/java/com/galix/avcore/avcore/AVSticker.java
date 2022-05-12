@@ -2,6 +2,7 @@ package com.galix.avcore.avcore;
 
 import android.graphics.Rect;
 import android.opengl.GLUtils;
+import android.util.Size;
 
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -24,6 +25,7 @@ public class AVSticker extends AVComponent {
     private InputStream inputStream;
     private int frameCount = 0;
     private int frameIdx = -1;
+    private Size size = new Size(0, 0);
 
     public AVSticker(long srcStartTime, InputStream inputStream, IRender render) {
         super(srcStartTime, AVComponentType.STICKER, render);
@@ -38,11 +40,16 @@ public class AVSticker extends AVComponent {
         return delayUS;
     }
 
+    public Size getSize() {
+        return size;
+    }
+
     @Override
     public int open() {
         gifDecoder = new GifDecoder();
         gifDecoder.read(inputStream);
         frameCount = gifDecoder.getFrameCount();
+        size = new Size(gifDecoder.getFrame(0).getWidth(), gifDecoder.getFrame(0).getHeight());
         setDuration(5000000);
         setEngineEndTime(getEngineStartTime() + getDuration());
         markOpen(true);

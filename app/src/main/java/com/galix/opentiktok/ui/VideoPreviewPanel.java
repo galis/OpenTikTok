@@ -394,7 +394,7 @@ public class VideoPreviewPanel extends RelativeLayout {
                                 });
                             }
                         });
-                        AVEngine.getVideoEngine().seek(AVEngine.getVideoEngine().getMainClock());
+                        AVEngine.getVideoEngine().fastSeek(AVEngine.getVideoEngine().getMainClock());
                     }
                 });
             } else {

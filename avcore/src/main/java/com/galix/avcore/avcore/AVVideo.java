@@ -141,16 +141,28 @@ public class AVVideo extends AVComponent {
     @Override
     public int readFrame() {
         if (!isOpen() || isOutputEOF) return RESULT_FAILED;
-        int outputBufIdx = -1;
-        int inputBufIdx = -1;
         while (!isInputEOF || !isOutputEOF) {
+            if (!isInputEOF) {
+                int inputBufIdx = mediaCodec.dequeueInputBuffer(0);
+                if (inputBufIdx >= 0) {
+                    int sampleSize = mediaExtractor.readSampleData(peekFrame().getByteBuffer(), 0);
+                    if (sampleSize < 0) {
+                        sampleSize = 0;
+                        isInputEOF = true;
+                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#isInputEOF");
+                    }
+                    mediaCodec.getInputBuffer(inputBufIdx).put(peekFrame().getByteBuffer());
+                    mediaCodec.queueInputBuffer(inputBufIdx, 0,
+                            sampleSize,
+                            mediaExtractor.getSampleTime(),
+                            isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
+                    mediaExtractor.advance();
+                    LogUtil.logEngine("mediaExtractor.getSampleTime()#" + mediaExtractor.getSampleTime());
+                }
+            }
             if (!isOutputEOF) {
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-                try {
-                    outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                int outputBufIdx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
                 if (outputBufIdx >= 0) {
                     peekFrame().setValid(true);
                     if (bufferInfo.flags == BUFFER_FLAG_END_OF_STREAM) {
@@ -182,27 +194,6 @@ public class AVVideo extends AVComponent {
                     LogUtil.logEngine(LogUtil.ENGINE_TAG + "readFrame()#INFO_OUTPUT_FORMAT_CHANGED:" + bufferInfo.presentationTimeUs);
                 }
             }
-            if (!isInputEOF) {
-                inputBufIdx = mediaCodec.dequeueInputBuffer(0);
-                if (inputBufIdx >= 0) {
-                    int sampleSize = mediaExtractor.readSampleData(peekFrame().getByteBuffer(), 0);
-                    if (sampleSize < 0) {
-                        sampleSize = 0;
-                        isInputEOF = true;
-                        LogUtil.log(LogUtil.ENGINE_TAG + "readFrame()#isInputEOF");
-                    }
-                    mediaCodec.getInputBuffer(inputBufIdx).put(peekFrame().getByteBuffer());
-                    mediaCodec.queueInputBuffer(inputBufIdx, 0,
-                            sampleSize,
-                            mediaExtractor.getSampleTime(),
-                            isInputEOF ? BUFFER_FLAG_END_OF_STREAM : 0);
-                    mediaExtractor.advance();
-                    LogUtil.logEngine("mediaExtractor.getSampleTime()#" + mediaExtractor.getSampleTime());
-                }
-            }
-//            if (outputBufIdx == -1 && inputBufIdx == -1) {
-//                LogUtil.logEngine("Something#Error!");
-//            }
         }
         return RESULT_OK;
     }
@@ -217,6 +208,9 @@ public class AVVideo extends AVComponent {
         }
         isInputEOF = false;
         isOutputEOF = false;
+        if (position == getPosition()) {
+            return RESULT_OK;
+        }
         if (position < getPosition()) {
             LogUtil.logEngine("seekFrame#SEEK SYNC#" + position + "#" + getPosition());
             mediaExtractor.seekTo(correctPosition + getClipStartTime(), MediaExtractor.SEEK_TO_PREVIOUS_SYNC);

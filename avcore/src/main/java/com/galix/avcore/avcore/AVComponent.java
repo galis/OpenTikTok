@@ -85,7 +85,7 @@ public abstract class AVComponent {
         this.clipStartTime = -1;
         this.clipEndTime = -1;
         this.type = type;
-        this.position = -1;
+        this.position = Long.MAX_VALUE;
         this.isOpen = false;
         this.cache = new AVFrame();
         this.render = render;
@@ -103,7 +103,7 @@ public abstract class AVComponent {
         this.clipStartTime = -1;
         this.clipEndTime = -1;
         this.type = type;
-        this.position = -1;
+        this.position = Long.MAX_VALUE;
         this.isOpen = false;
         this.cache = new AVFrame();
         this.render = null;
