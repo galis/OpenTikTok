@@ -15,6 +15,7 @@ int slar::ARContext::create() {
 //    mFilter->init();
     mCameraFilter.reset(new slfilter::FilterOES);
     mCameraFilter->init();
+    map<string,int> m;
     return 0;
 }
 

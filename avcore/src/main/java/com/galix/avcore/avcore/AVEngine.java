@@ -1172,20 +1172,18 @@ public class AVEngine {
      */
     private void reCalculate() {
         LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "reCalculate()");
-        mVideoState.durationUS = 0;
         mVideoState.videoDuration = mVideoState.audioDuration = 0;
         for (AVComponent component : mVideoState.videoComponents) {
-            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
             if (component instanceof AVVideo) {
-                mVideoState.videoDuration += component.getEngineDuration();
+                mVideoState.videoDuration = Math.max(component.getEngineEndTime(), mVideoState.videoDuration);
             }
         }
         for (AVComponent component : mVideoState.audioComponents) {
-            mVideoState.durationUS = Math.max(component.getEngineEndTime(), mVideoState.durationUS);
             if (component instanceof AVAudio) {
-                mVideoState.audioDuration += component.getEngineDuration();
+                mVideoState.audioDuration = Math.max(component.getEngineEndTime(), mVideoState.audioDuration);
             }
         }
+        mVideoState.durationUS = mVideoState.videoDuration;
         if (getMainClock() > mVideoState.durationUS) {
             setMainClock(mVideoState.durationUS);
         }

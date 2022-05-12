@@ -484,7 +484,7 @@ public class VideoEditActivity extends BaseActivity {
             AVEngine.VideoState mVideoState = AVEngine.getVideoEngine().getVideoState();
             if (mVideoState != null) {
                 long positionInMS = (AVEngine.getVideoEngine().getMainClock() + 999) / 1000;
-                long durationInMS = (mVideoState.durationUS + 999) / 1000;
+                long durationInMS = (mVideoState.videoDuration + 999) / 1000;
                 mTimeInfo.setText(String.format("%02d:%02d:%03d / %02d:%02d:%03d",
                         positionInMS / 1000 / 60 % 60, positionInMS / 1000 % 60, positionInMS % 1000,
                         durationInMS / 1000 / 60 % 60, durationInMS / 1000 % 60, durationInMS % 1000));
