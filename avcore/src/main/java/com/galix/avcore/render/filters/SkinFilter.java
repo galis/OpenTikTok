@@ -7,75 +7,76 @@ import java.util.Map;
 
 /**
  * 磨皮滤镜
+ * USE_FBO:boolean
+ * FBO_SIZE:Size
+ * INPUT_IMAGE:GLTexture
+ * SKIN_ALPHA:float
  *
  * @Author: Galis
  * @Date:2022.04.01
  */
 public class SkinFilter extends BaseFilterGroup {
 
-    private GaussFilter mSrcBlurFilter = new GaussFilter();
-    private GaussFilter mDiffBlurFilter = new GaussFilter();
-    private SkinFilter.DiffFilter mDiffFilter = new SkinFilter.DiffFilter();
-    private SkinCompositeFilter mSkinCompositeFilter = new SkinCompositeFilter();
-    private Map<String, Object> mConfig = new HashMap<>();
-    //参数
-    private GLTexture mSkinInput;
-    private float mSkinAlpha = 1.0f;
+    public static final String INPUT_IMAGE = "skin_input";
+    public static final String SKIN_ALPHA = "skin_alpha";
+
+    private Map<String, Object> mTempConfig = new HashMap<>();
 
     public SkinFilter() {
-        addFilter(mSrcBlurFilter);
-        addFilter(mDiffBlurFilter);
-        addFilter(mDiffFilter);
-        addFilter(mSkinCompositeFilter);
+        addFilter("srcBlur", GaussFilter.class);
+        addFilter("diffBlur", GaussFilter.class);
+        addFilter("diff", DiffFilter.class);
+        addFilter("skinComposite", SkinCompositeFilter.class);
     }
 
-    @Override
-    public void onWrite(Map<String, Object> config) {
-        if (config.containsKey("skin_input")) {
-            mSkinInput = (GLTexture) config.get("skin_input");
-        }
-        if (config.containsKey("skin_alpha")) {
-            mSkinAlpha = (float) config.get("skin_alpha");
-        }
-    }
 
     @Override
     public void onRender() {
         //原图模糊
-        mConfig.clear();
-        mConfig.put("gauss_input", mSkinInput);
-        mSrcBlurFilter.write(mConfig);
-        mSrcBlurFilter.render();
+        mTempConfig.clear();
+        mTempConfig.put(GaussFilter.USE_FBO, true);
+        mTempConfig.put(GaussFilter.FBO_SIZE, getConfig(SkinFilter.FBO_SIZE));
+        mTempConfig.put(GaussFilter.INPUT_IMAGE, getConfig(SkinFilter.INPUT_IMAGE));
+        getFilter("srcBlur").write(mTempConfig);
+        getFilter("srcBlur").render();
 
         //高反差diff
-        mConfig.clear();
-        mConfig.put("inputImageTexture", mSkinInput);
-        mConfig.put("blurImageTexture", mSrcBlurFilter.getOutputTexture());
-        mDiffFilter.write(mConfig);
-        mDiffFilter.render();
-
+        mTempConfig.clear();
+        mTempConfig.put(DiffFilter.USE_FBO, true);
+        mTempConfig.put(DiffFilter.FBO_SIZE, getConfig(SkinFilter.FBO_SIZE));
+        mTempConfig.put(DiffFilter.INPUT_IMAGE, getConfig(SkinFilter.INPUT_IMAGE));
+        mTempConfig.put(DiffFilter.BLUR_IMAGE, getFilter("srcBlur").getOutputTexture());
+        getFilter("diff").write(mTempConfig);
+        getFilter("diff").render();
         //高反差模糊diff_blur
-        mConfig.clear();
-        mConfig.put("gauss_input", mDiffFilter.getOutputTexture());
-        mDiffBlurFilter.write(mConfig);
-        mDiffBlurFilter.render();
-
+        mTempConfig.clear();
+        mTempConfig.put(GaussFilter.USE_FBO, true);
+        mTempConfig.put(GaussFilter.FBO_SIZE, getConfig(SkinFilter.FBO_SIZE));
+        mTempConfig.put(GaussFilter.INPUT_IMAGE, getFilter("diff").getOutputTexture());
+        getFilter("diffBlur").write(mTempConfig);
+        getFilter("diffBlur").render();
         //磨皮合成
-        mConfig.clear();
-        mConfig.put("inputImageTexture", mSkinInput);
-        mConfig.put("srcBlurImageTexture", mSrcBlurFilter.getOutputTexture());
-        mConfig.put("diffBlurImageTexture", mDiffBlurFilter.getOutputTexture());
-        mConfig.put("skin_alpha", mSkinAlpha);
-        mSkinCompositeFilter.write(mConfig);
-        mSkinCompositeFilter.render();
+        mTempConfig.clear();
+        mTempConfig.put(SkinCompositeFilter.USE_FBO, true);
+        mTempConfig.put(SkinCompositeFilter.FBO_SIZE, getConfig(SkinFilter.FBO_SIZE));
+        mTempConfig.put(SkinCompositeFilter.INPUT_IMAGE, getConfig(SkinFilter.INPUT_IMAGE));
+        mTempConfig.put(SkinCompositeFilter.SRC_BLUR_IMAGE, getFilter("srcBlur").getOutputTexture());
+        mTempConfig.put(SkinCompositeFilter.DIFF_BLUR_IMAGE, getFilter("diffBlur").getOutputTexture());
+        mTempConfig.put(SkinCompositeFilter.SKIN_ALPHA, getConfig(SkinFilter.SKIN_ALPHA));
+        getFilter("skinComposite").write(mTempConfig);
+        getFilter("skinComposite").render();
     }
 
-    @Override
-    public void write(Object... config) {
-
-    }
-
+    /**
+     * 接收参数：
+     * USE_FBO:Boolean
+     * FBO_SIZE:Size
+     * INPUT_IMAGE:GLTexture
+     * BLUR_IMAGE:GLTexture
+     */
     private static class DiffFilter extends BaseFilter {
+
+        public static final String BLUR_IMAGE = "blurImageTexture";
 
         public DiffFilter() {
             super(R.raw.diff_vs, R.raw.diff_fs);
@@ -83,16 +84,25 @@ public class SkinFilter extends BaseFilterGroup {
 
         @Override
         public void onRenderPre() {
-            bindTexture("inputImageTexture");
-            bindTexture("blurImageTexture");
-        }
-
-        @Override
-        public void onWrite(Map<String, Object> config) {
+            bindTexture(DiffFilter.INPUT_IMAGE);
+            bindTexture(DiffFilter.BLUR_IMAGE);
         }
     }
 
-    private class SkinCompositeFilter extends BaseFilter {
+    /**
+     * 接收参数：
+     * USE_FBO:Boolean
+     * FBO_SIZE:Size
+     * INPUT_IMAGE:GLTexture
+     * SRC_BLUR_IMAGE:GLTexture
+     * DIFF_BLUR_IMAGE:GLTexture
+     * SKIN_ALPHA:float
+     */
+    private static class SkinCompositeFilter extends BaseFilter {
+
+        public static final String SRC_BLUR_IMAGE = "srcBlurImageTexture";
+        public static final String DIFF_BLUR_IMAGE = "diffBlurImageTexture";
+        public static final String SKIN_ALPHA = "skin_alpha";
 
         public SkinCompositeFilter() {
             super(R.raw.skin_vs, R.raw.skin_fs);
@@ -100,15 +110,10 @@ public class SkinFilter extends BaseFilterGroup {
 
         @Override
         public void onRenderPre() {
-            bindTexture("inputImageTexture");
-            bindTexture("srcBlurImageTexture");
-            bindTexture("diffBlurImageTexture");
-            bindFloat("skin_alpha");
-        }
-
-        @Override
-        public void onWrite(Map<String, Object> config) {
-
+            bindTexture(SkinCompositeFilter.INPUT_IMAGE);
+            bindTexture(SkinCompositeFilter.SRC_BLUR_IMAGE);
+            bindTexture(SkinCompositeFilter.DIFF_BLUR_IMAGE);
+            bindFloat(SkinCompositeFilter.SKIN_ALPHA);
         }
     }
 }

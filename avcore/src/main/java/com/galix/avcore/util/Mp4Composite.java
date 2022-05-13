@@ -26,6 +26,7 @@ import com.galix.avcore.render.IVideoRender;
 import com.galix.avcore.render.OESRender;
 import com.galix.avcore.render.ScreenRender;
 import com.galix.avcore.render.filters.GLTexture;
+import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.TextureFilter;
 import com.galix.avcore.render.filters.TranAlphaFilter;
 
@@ -185,7 +186,7 @@ public class Mp4Composite {
         }
         LogUtil.logEngine("readVideoFrame#" + videoFrame.getPts());
         textureFilter.write(
-                "use_fbo", false,
+                TextureFilter.USE_FBO, false,
                 "textureMat", mVideoState.compositeMat,
                 "inputImageTexture", lastTexture,
                 "isOes", lastTexture.isOes(),

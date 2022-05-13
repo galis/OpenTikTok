@@ -17,7 +17,7 @@ out vec4 vFragColor;
 uniform sampler2D inputImageTexture;
 uniform samplerExternalOES inputImageOesTexture;
 uniform sampler2D lutTexture;
-uniform float alpha;
+uniform float lutAlpha;
 uniform bool isOes;
 
 void main(){
@@ -41,5 +41,5 @@ void main(){
     highp vec4 newColor1 = texture(lutTexture, texPos1);
     highp vec4 newColor2 = texture(lutTexture, texPos2);
     highp vec4 newColor = mix(newColor1, newColor2, fract(blueColor));
-    vFragColor = vec4(newColor.rgb,src.a);
+    vFragColor = vec4(newColor.rgb, src.a);
 }

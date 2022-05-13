@@ -79,9 +79,6 @@ import static com.galix.avcore.util.GLUtil.DRAW_ORDER;
  */
 public abstract class BaseFilter implements IFilter {
 
-    public static final String USE_FBO = "use_fbo";
-    public static final String FBO_SIZE = "fbo_size";
-
     private String mVs;
     private String mFs;
     private int mProgram = -1;
@@ -90,6 +87,7 @@ public abstract class BaseFilter implements IFilter {
     private List<Runnable> mPostTasks = new LinkedList<>();
     private Rect mViewPort = new Rect(0, 0, 0, 0);
     private Map<String, Object> mConfig = new HashMap<>();
+    private Map<String, Object> mTempConfig = new HashMap<>();
 
     //FBO相关
     private boolean mUseFbo = true;//是否启用FBO
@@ -201,23 +199,25 @@ public abstract class BaseFilter implements IFilter {
         if (config.containsKey(FBO_SIZE)) {
             mFboSize = (Size) config.get(FBO_SIZE);
         }
-        mConfig.putAll(config);
         onWrite(config);
+        mConfig.putAll(config);
     }
 
     @Override
     public void write(Object... configs) {
         if (configs == null) return;
+        mTempConfig.clear();
         for (int i = 0; i < configs.length / 2; i++) {
-            mConfig.put((String) configs[2 * i], configs[2 * i + 1]);
+            mTempConfig.put((String) configs[2 * i], configs[2 * i + 1]);
         }
-        if (mConfig.containsKey(USE_FBO)) {
-            mUseFbo = (boolean) mConfig.get(USE_FBO);
+        if (mTempConfig.containsKey(USE_FBO)) {
+            mUseFbo = (boolean) mTempConfig.get(USE_FBO);
         }
-        if (mConfig.containsKey(FBO_SIZE)) {
-            mFboSize = (Size) mConfig.get(FBO_SIZE);
+        if (mTempConfig.containsKey(FBO_SIZE)) {
+            mFboSize = (Size) mTempConfig.get(FBO_SIZE);
         }
-        onWrite(mConfig);
+        onWrite(mTempConfig);
+        mConfig.putAll(mTempConfig);
     }
 
     /**
@@ -301,7 +301,7 @@ public abstract class BaseFilter implements IFilter {
         bindTexture(str, texture.id(), texture.isOes());
     }
 
-    public void bindTexture(String str) {
+    public void bindTexture(String str) {//按照名字索引..
         if (mConfig.containsKey(str) && mConfig.get(str) instanceof GLTexture) {
             bindTexture(str, (GLTexture) mConfig.get(str));
         } else {
@@ -403,4 +403,15 @@ public abstract class BaseFilter implements IFilter {
         return mColorTexture;
     }
 
+    @Override
+    public Map<String, Object> getConfig() {
+        return mConfig;
+    }
+
+    public Object getConfig(String key) {
+        if (mConfig.containsKey(key)) {
+            return mConfig.get(key);
+        }
+        return null;
+    }
 }

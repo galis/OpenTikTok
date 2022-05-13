@@ -425,11 +425,16 @@ public class AVEngine {
         if (mVideoState.videoComponents.isEmpty()) {
             return;
         }
-        Size video0Size = ((AVVideo) mVideoState.videoComponents.get(0)).getVideoSize();
+        Size video0Size = ((IVideo) mVideoState.videoComponents.get(0)).getVideoSize();
         Size targetSize = calCanvasSize(type, video0Size);
         mSurfaceView.getLayoutParams().width = targetSize.getWidth();
         mSurfaceView.getLayoutParams().height = targetSize.getHeight();
-        mSurfaceView.requestLayout();
+        mSurfaceView.post(new Runnable() {
+            @Override
+            public void run() {
+                mSurfaceView.requestLayout();
+            }
+        });
         mVideoState.lock();
         mVideoState.canvasType = type;
         mVideoState.canvasSize = targetSize;
@@ -1174,9 +1179,7 @@ public class AVEngine {
         LogUtil.log(LogUtil.ENGINE_TAG + LogUtil.MAIN_TAG + "reCalculate()");
         mVideoState.videoDuration = mVideoState.audioDuration = 0;
         for (AVComponent component : mVideoState.videoComponents) {
-            if (component instanceof AVVideo) {
-                mVideoState.videoDuration = Math.max(component.getEngineEndTime(), mVideoState.videoDuration);
-            }
+            mVideoState.videoDuration = Math.max(component.getEngineEndTime(), mVideoState.videoDuration);
         }
         for (AVComponent component : mVideoState.audioComponents) {
             if (component instanceof AVAudio) {

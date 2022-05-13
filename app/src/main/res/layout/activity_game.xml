@@ -10,7 +10,7 @@
     <SurfaceView
         android:id="@+id/glsurface_game"
         android:layout_width="match_parent"
-        android:layout_height="180dp" />
+        android:layout_height="350dp" />
 
     <Button
         android:id="@+id/btn_toggle_play_pause"
@@ -30,7 +30,7 @@
         android:layout_width="100dp"
         android:layout_height="50dp"
         android:layout_below="@id/btn_toggle_reset"
-        android:checked="true"
+        android:checked="false"
         android:text="美颜" />
 
     <!--    <Switch-->

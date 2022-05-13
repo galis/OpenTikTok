@@ -32,6 +32,9 @@ import static android.opengl.GLES20.glDeleteTextures;
 import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
 import static android.opengl.GLES20.glViewport;
+import static com.galix.avcore.render.filters.IFilter.FBO_SIZE;
+import static com.galix.avcore.render.filters.IFilter.INPUT_IMAGE;
+import static com.galix.avcore.render.filters.IFilter.USE_FBO;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -43,11 +46,6 @@ import java.util.Map;
 public class GameRender implements IVideoRender {
 
     private static final String TAG = GameRender.class.getSimpleName();
-    //滤镜
-//    private LutFilter mLutFilter;
-//    private GameFilter mGameFilter;
-//    private OesFilter mOesFilter;
-//    private BeautyFilter mBeautyFilter;
     private HashMap<Class<?>, IFilter> mFilters;
 
     //参数
@@ -95,19 +93,19 @@ public class GameRender implements IVideoRender {
 
         //先用OesFilter把EglImage内容复制一份。。为了让Lut滤镜不有坑.
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mCacheGameInfo.videoSize);
-        mConfig.put("inputImageTexture", mCacheGameInfo.playerTexture);
+        mConfig.put(USE_FBO, true);
+        mConfig.put(FBO_SIZE, mCacheGameInfo.videoSize);
+        mConfig.put(INPUT_IMAGE, mCacheGameInfo.playerTexture);
         mFilters.get(OesFilter.class).write(mConfig);
         mFilters.get(OesFilter.class).render();
         lastFilter = mFilters.get(OesFilter.class);
 
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mCacheGameInfo.videoSize);
-        mConfig.put("inputImageTexture", lastFilter.getOutputTexture());
-        mConfig.put("playerMaskTexture", mCacheGameInfo.playerMaskTexture);
-        mConfig.put("playerMaskMat", mCacheGameInfo.playerMaskMat);
+        mConfig.put(USE_FBO, true);
+        mConfig.put(FBO_SIZE, mCacheGameInfo.videoSize);
+        mConfig.put(INPUT_IMAGE, lastFilter.getOutputTexture());
+        mConfig.put(PlayerFilter.PLAYER_MASK_TEXTURE, mCacheGameInfo.playerMaskTexture);
+        mConfig.put(PlayerFilter.PLAYER_MASK_MAT, mCacheGameInfo.playerMaskMat);
         mFilters.get(PlayerFilter.class).write(mConfig);
         mFilters.get(PlayerFilter.class).render();
         lastFilter = mFilters.get(PlayerFilter.class);
@@ -115,36 +113,28 @@ public class GameRender implements IVideoRender {
         if (mCacheGameInfo.useBeauty) {
             //美颜
             mConfig.clear();
-            mConfig.put("use_fbo", true);
-            mConfig.put("fbo_size", mBeautySize);
-            mConfig.put("beauty_input", lastFilter.getOutputTexture());
-            mConfig.put("beauty_lut", mCacheGameInfo.beautyLut);
-            mConfig.put("beauty_alpha", 1.0f);
+            mConfig.put(BeautyFilter.USE_FBO, true);
+            mConfig.put(BeautyFilter.FBO_SIZE, mBeautySize);
+            mConfig.put(BeautyFilter.INPUT_IMAGE, lastFilter.getOutputTexture());
+            mConfig.put(BeautyFilter.BEAUTY_LUT, mCacheGameInfo.beautyLut);
+            mConfig.put(BeautyFilter.BEAUTY_ALPHA, 1.0f);
             mFilters.get(BeautyFilter.class).write(mConfig);
             mFilters.get(BeautyFilter.class).render();
             lastFilter = mFilters.get(BeautyFilter.class);
         }
 
-//        mConfig.clear();
-//        mConfig.put("use_fbo", true);
-//        mConfig.put("fbo_size", mCacheGameInfo.videoSize);
-//        mConfig.put("inputImageTexture", lastFilter.getOutputTexture());
-//        mFilters.get(LightOuterFilter.class).write(mConfig);
-//        mFilters.get(LightOuterFilter.class).render();
-//        lastFilter = mFilters.get(LightOuterFilter.class);
-//
-//        //用户lut变换.
+        //用户lut变换.
         mConfig.clear();
-        mConfig.put("use_fbo", true);
-        mConfig.put("fbo_size", mCacheGameInfo.videoSize);
-        mConfig.put("lut_src", mCacheGameInfo.playerLut);
-        mConfig.put("lut_input", lastFilter.getOutputTexture());
-        mConfig.put("lut_alpha", 1.0f);
+        mConfig.put(USE_FBO, true);
+        mConfig.put(FBO_SIZE, mCacheGameInfo.videoSize);
+        mConfig.put(INPUT_IMAGE, lastFilter.getOutputTexture());
+        mConfig.put(LutFilter.LUT_BITMAP, mCacheGameInfo.playerLut);
+        mConfig.put(LutFilter.LUT_ALPHA, 1.0f);
         mFilters.get(LutFilter.class).write(mConfig);
         mFilters.get(LutFilter.class).render();
         lastFilter = mFilters.get(LutFilter.class);
-//
-//        //游戏画面合成.
+
+        //游戏画面合成.
         mConfig.clear();
         mConfig.put("use_fbo", true);
         mConfig.put("fbo_size", mCacheGameInfo.videoSize);
@@ -152,9 +142,6 @@ public class GameRender implements IVideoRender {
         mConfig.put("playerTexture", lastFilter.getOutputTexture());
         mConfig.put("playerEffectTexture", mCacheGameInfo.playerEffectTexture);
         mConfig.put("playerEffectMat", mCacheGameInfo.playerEffectMat);
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//        glViewport(0, 0, mSurfaceSize.getWidth(), mSurfaceSize.getHeight());
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         mFilters.get(GameFilter.class).write(mConfig);
         mFilters.get(GameFilter.class).render();
     }
@@ -187,21 +174,20 @@ public class GameRender implements IVideoRender {
 
     public static class PlayerFilter extends BaseFilter {
 
+        public static final String PLAYER_MASK_TEXTURE = "playerMaskTexture";
+        public static final String PLAYER_MASK_MAT = "playerMaskMat";
+
         public PlayerFilter() {
             super(R.raw.player_vs, R.raw.player_fs);
         }
 
         @Override
         public void onRenderPre() {
-            bindTexture("inputImageTexture");
-            bindTexture("playerMaskTexture");
-            bindMat3("playerMaskMat");
+            bindTexture(INPUT_IMAGE);
+            bindTexture(PLAYER_MASK_TEXTURE);
+            bindMat3(PLAYER_MASK_MAT);
         }
 
-        @Override
-        public void onWrite(Map<String, Object> config) {
-
-        }
     }
 
     public static class LightOuterFilter extends BaseFilter {
@@ -218,10 +204,6 @@ public class GameRender implements IVideoRender {
             bindFloat("alpha", 1.0f);
         }
 
-        @Override
-        public void onWrite(Map<String, Object> config) {
-
-        }
     }
 
     private void registerFilter(Class... filterClass) {

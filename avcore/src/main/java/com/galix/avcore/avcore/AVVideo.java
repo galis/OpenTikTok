@@ -22,7 +22,7 @@ import static android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM;
 /**
  * 视频组件
  */
-public class AVVideo extends AVComponent {
+public class AVVideo extends AVComponent implements IVideo {
     private static final String TAG = AVVideo.class.getSimpleName();
     //    private int textureId;
     private boolean isInputEOF;
@@ -47,18 +47,17 @@ public class AVVideo extends AVComponent {
         this.path = path;
     }
 
+    @Override
     public String getPath() {
         return path;
     }
 
-    public void setPath(String path) {
-        this.path = path;
-    }
-
+    @Override
     public Size getVideoSize() {
         return videoSize;
     }
 
+    @Override
     public int getFrameRate() {
         return frameRate;
     }

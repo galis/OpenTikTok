@@ -1,46 +1,29 @@
 package com.galix.avcore.render.filters;
 
-import android.graphics.Bitmap;
-
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 美颜滤镜
  * 接收:
- * beauty_input:GLTexture
- * beauty_alpha:float
- * beauty_lut:Bitmap
+ * INPUT_IMAGE:GLTexture
+ * BEAUTY_ALPHA:float
+ * BEAUTY_LUT:Bitmap
  *
  * @Author: Galis
  * @Date:2022.03.31
  */
 public class BeautyFilter extends BaseFilterGroup {
 
-    private GLTexture mBeautyInput;
-    private SkinFilter mSkinFilter = new SkinFilter();
-    private LutFilter mWhiteFilter = new LutFilter();
+    public static final String INPUT_IMAGE = "beauty_input";
+    public static final String BEAUTY_ALPHA = "beauty_alpha";
+    public static final String BEAUTY_LUT = "beauty_lut";
+
     private Map<String, Object> mConfig = new HashMap<>();
-    private Bitmap mLut;
-    //参数
-    private float mBeautyAlpha = 1.0f;//美颜程度
 
     public BeautyFilter() {
-        addFilter(mSkinFilter);
-        addFilter(mWhiteFilter);
-    }
-
-    @Override
-    public void onWrite(Map<String, Object> config) {
-        if (config.containsKey("beauty_alpha")) {
-            mBeautyAlpha = (float) config.get("beauty_alpha");
-        }
-        if (config.containsKey("beauty_input")) {
-            mBeautyInput = (GLTexture) config.get("beauty_input");
-        }
-        if (config.containsKey("beauty_lut")) {
-            mLut = (Bitmap) config.get("beauty_lut");
-        }
+        addFilter(SkinFilter.class);
+        addFilter(LutFilter.class);
     }
 
     @Override
@@ -48,24 +31,23 @@ public class BeautyFilter extends BaseFilterGroup {
 
         //磨皮
         mConfig.clear();
-        mConfig.put("skin_input", mBeautyInput);
-        mConfig.put("skin_alpha", mBeautyAlpha);
-        mSkinFilter.write(mConfig);
-        mSkinFilter.render();
+        mConfig.put(SkinFilter.USE_FBO, true);
+        mConfig.put(SkinFilter.FBO_SIZE, getConfig(FBO_SIZE));
+        mConfig.put(SkinFilter.INPUT_IMAGE, getConfig(INPUT_IMAGE));
+        mConfig.put(SkinFilter.SKIN_ALPHA, getConfig(BEAUTY_ALPHA));
+        getFilter(SkinFilter.class).write(mConfig);
+        getFilter(SkinFilter.class).render();
 
         //美白
         mConfig.clear();
-        mConfig.put("lut_input", mSkinFilter.getOutputTexture());
-        mConfig.put("lut_src", mLut);
-        mConfig.put("lut_alpha", mBeautyAlpha);
-        mWhiteFilter.write(mConfig);
-        mWhiteFilter.render();
+        mConfig.put(LutFilter.USE_FBO, true);
+        mConfig.put(LutFilter.FBO_SIZE, getConfig(FBO_SIZE));
+        mConfig.put(LutFilter.INPUT_IMAGE, getFilter(SkinFilter.class).getOutputTexture());
+        mConfig.put(LutFilter.LUT_BITMAP, getConfig(BEAUTY_LUT));
+        mConfig.put(LutFilter.LUT_ALPHA, getConfig(BEAUTY_ALPHA));
+        getFilter(LutFilter.class).write(mConfig);
+        getFilter(LutFilter.class).render();
 
     }
 
-
-    @Override
-    public void write(Object... config) {
-
-    }
 }

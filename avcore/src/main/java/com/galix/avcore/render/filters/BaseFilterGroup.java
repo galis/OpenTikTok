@@ -1,5 +1,9 @@
 package com.galix.avcore.render.filters;
 
+import com.galix.avcore.util.LogUtil;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +16,11 @@ import java.util.Map;
  */
 public abstract class BaseFilterGroup implements IFilter {
 
-    private List<IFilter> mFilters = new LinkedList<>();
+    private LinkedHashMap<String, IFilter> mFilters = new LinkedHashMap<>();
     private boolean mIsOpen = false;
+    private Map<String, Object> mConfig = new HashMap<>();
+    private Map<String, Object> mTempConfig = new HashMap<>();
+    private IFilter mLastFilter;
 
     @Override
     public boolean isOpen() {
@@ -22,26 +29,33 @@ public abstract class BaseFilterGroup implements IFilter {
 
     @Override
     public void open() {
-        for (IFilter filter : mFilters) {
-            filter.open();
+        for (String tag : mFilters.keySet()) {
+            mFilters.get(tag).open();
         }
         markOpen(true);
     }
 
     @Override
     public void close() {
-        for (IFilter filter : mFilters) {
-            filter.close();
-        }
+        clearFilters();
         markOpen(false);
     }
 
     @Override
     public void write(Map<String, Object> config) {
-        for (IFilter filter : mFilters) {
-            filter.write(config);
-        }
         onWrite(config);
+        mConfig.putAll(config);
+    }
+
+    @Override
+    public void write(Object... config) {
+        if (config == null) return;
+        mTempConfig.clear();
+        for (int i = 0; i < config.length / 2; i++) {
+            mTempConfig.put((String) config[2 * i], config[2 * i + 1]);
+        }
+        onWrite(mTempConfig);
+        mConfig.putAll(mTempConfig);
     }
 
     @Override
@@ -49,22 +63,57 @@ public abstract class BaseFilterGroup implements IFilter {
         onRender();
     }
 
-    public abstract void onWrite(Map<String, Object> config);
+    public void onWrite(Map<String, Object> config) {
+    }
 
     public abstract void onRender();
 
     //以下是滤镜方法
-    public void addFilter(IFilter filter) {
-        mFilters.add(filter);
+    public void addFilter(String tag, IFilter filter) {
+        mFilters.put(tag, filter);
+        mLastFilter = filter;
+    }
+
+    public void addFilter(Class filter) {
+        try {
+            String tag = filter.getName();
+            if (mFilters.containsKey(tag)) {
+                LogUtil.logEngine("addFilter#" + tag + "#exit!!!");
+                return;
+            }
+            addFilter(tag, (IFilter) filter.newInstance());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addFilter(String tag, Class filter) {
+        try {
+            addFilter(tag, (IFilter) filter.newInstance());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
     }
 
     public void removeFilter(BaseFilter filter) {
         mFilters.remove(filter);
     }
 
+    public IFilter getFilter(String tag) {
+        return mFilters.get(tag);
+    }
+
+    public IFilter getFilter(Class filter) {
+        return getFilter(filter.getName());
+    }
+
     public void clearFilters() {
-        for (IFilter filter : mFilters) {
-            filter.close();
+        for (String tag : mFilters.keySet()) {
+            mFilters.get(tag).close();
         }
         mFilters.clear();
     }
@@ -79,7 +128,18 @@ public abstract class BaseFilterGroup implements IFilter {
         if (mFilters.isEmpty()) {
             return null;
         }
-        return mFilters.get(mFilters.size() - 1).getOutputTexture();
+        return mLastFilter.getOutputTexture();
     }
 
+    @Override
+    public Map<String, Object> getConfig() {
+        return mConfig;
+    }
+
+    public Object getConfig(String key) {
+        if (mConfig.containsKey(key)) {
+            return mConfig.get(key);
+        }
+        return null;
+    }
 }

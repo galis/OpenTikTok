@@ -4,6 +4,14 @@ import java.util.Map;
 
 public interface IFilter {
 
+    String USE_FBO = "use_fbo";
+
+    String FBO_SIZE = "fbo_size";
+
+    String INPUT_IMAGE = "inputImageTexture";
+
+    String INPUT_IMAGE_OES = "inputImageOesTexture";
+
     boolean isOpen();
 
     void open();
@@ -17,5 +25,7 @@ public interface IFilter {
     void render();
 
     GLTexture getOutputTexture();
+
+    Map<String, Object> getConfig();
 
 }

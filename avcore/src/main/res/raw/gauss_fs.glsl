@@ -18,7 +18,8 @@ in vec4 textureShift_4;
 out vec4 vFragColor;
 uniform sampler2D inputImageTexture;
 void main() {
-    mediump vec3 sum = texture(inputImageTexture, vTextureCoord).rgb;
+    vec4 src = texture(inputImageTexture, vTextureCoord).rgba;
+    vec3 sum = src.rgb;
     sum += texture(inputImageTexture, textureShift_1.xy).rgb;
     sum += texture(inputImageTexture, textureShift_1.zw).rgb;
     sum += texture(inputImageTexture, textureShift_2.xy).rgb;
@@ -27,5 +28,5 @@ void main() {
     sum += texture(inputImageTexture, textureShift_3.zw).rgb;
     sum += texture(inputImageTexture, textureShift_4.xy).rgb;
     sum += texture(inputImageTexture, textureShift_4.zw).rgb;
-    vFragColor = vec4(sum * 0.1111, 1.0);
+    vFragColor = vec4(sum * 0.1111, src.a);
 }

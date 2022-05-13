@@ -8,76 +8,67 @@ import com.galix.avcore.R;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.galix.avcore.render.filters.BaseFilter.INPUT_IMAGE;
+
 /**
  * 高斯模糊滤镜,默认启动fbo,接收一下参数
- * gauss_input:GLTexture
- * fbo_size:Size
+ * USE_FBO:Boolean
+ * FBO_SIZE:Size
+ * INPUT_IMAGE:GLTexture
  *
  * @Author: Galis
  * @Date:2022.04.01
  */
 public class GaussFilter extends BaseFilterGroup {
 
+    public static final String INPUT_IMAGE = "gauss_input";
     private static final float SKIN_RADIUS = 4.5f;//磨皮范围
     private Map<String, Object> mConfig = new HashMap<>();
-    private ChildFilter mChildFilterX;
-    private ChildFilter mChildFilterY;
     private SizeF mOffset1;
     private SizeF mOffset2;
-    private GLTexture mGaussInput;
-    private Size mFboSize;
 
     public GaussFilter() {
-        mChildFilterX = new ChildFilter();
-        mChildFilterY = new ChildFilter();
-        addFilter(mChildFilterX);
-        addFilter(mChildFilterY);
+        addFilter("childX", ChildFilter.class);
+        addFilter("childY", ChildFilter.class);
     }
 
-    @Override
-    public void onWrite(Map<String, Object> config) {
-        if (config.containsKey("gauss_input")) {
-            mGaussInput = (GLTexture) config.get("gauss_input");
-        }
-        if (config.containsKey("fbo_size")) {
-            mFboSize = (Size) config.get("fbo_size");
-        }
-    }
 
     @Override
     public void onRender() {
 
-        if (mFboSize == null) {
-            mFboSize = mGaussInput.size();
-        }
+        Size fboSize = (Size) getConfig().get(BaseFilter.FBO_SIZE);
+        GLTexture gaussInput = (GLTexture) getConfig().get(INPUT_IMAGE);
+
         if (mOffset1 == null) {
-            mOffset1 = new SizeF(SKIN_RADIUS * (mFboSize.getWidth() / 1920.f) / mFboSize.getWidth(), 0);
-            mOffset2 = new SizeF(0, SKIN_RADIUS * (mFboSize.getHeight() / 1080.f) / mFboSize.getHeight());
+            mOffset1 = new SizeF(SKIN_RADIUS * (fboSize.getWidth() / 1920.f) / fboSize.getWidth(), 0);
+            mOffset2 = new SizeF(0, SKIN_RADIUS * (fboSize.getHeight() / 1080.f) / fboSize.getHeight());
         }
 
         //x方向滤波
         mConfig.clear();
-        mConfig.put("inputImageTexture", mGaussInput);
-        mConfig.put("texelWidthOffset", mOffset1.getWidth());
-        mConfig.put("texelHeightOffset", mOffset1.getHeight());
-        mChildFilterX.write(mConfig);
-        mChildFilterX.render();
+        mConfig.put(USE_FBO, true);
+        mConfig.put(FBO_SIZE, fboSize);
+        mConfig.put(ChildFilter.INPUT_IMAGE, gaussInput);
+        mConfig.put(ChildFilter.TEX_WIDTH_OFFSET, mOffset1.getWidth());
+        mConfig.put(ChildFilter.TEX_HEIGHT_OFFSET, mOffset1.getHeight());
+        getFilter("childX").write(mConfig);
+        getFilter("childX").render();
 
         //y方向滤波
         mConfig.clear();
-        mConfig.put("inputImageTexture", mChildFilterX.getOutputTexture());
-        mConfig.put("texelWidthOffset", mOffset2.getWidth());
-        mConfig.put("texelHeightOffset", mOffset2.getHeight());
-        mChildFilterY.write(mConfig);
-        mChildFilterY.render();
-    }
-
-    @Override
-    public void write(Object... config) {
-
+        mConfig.put(USE_FBO, true);
+        mConfig.put(FBO_SIZE, fboSize);
+        mConfig.put(ChildFilter.INPUT_IMAGE, getFilter("childX").getOutputTexture());
+        mConfig.put(ChildFilter.TEX_WIDTH_OFFSET, mOffset2.getWidth());
+        mConfig.put(ChildFilter.TEX_HEIGHT_OFFSET, mOffset2.getHeight());
+        getFilter("childY").write(mConfig);
+        getFilter("childY").render();
     }
 
     private static class ChildFilter extends BaseFilter {
+
+        public static final String TEX_WIDTH_OFFSET = "texelWidthOffset";
+        public static final String TEX_HEIGHT_OFFSET = "texelHeightOffset";
 
         public ChildFilter() {
             super(R.raw.gauss_vs, R.raw.gauss_fs);
@@ -85,13 +76,10 @@ public class GaussFilter extends BaseFilterGroup {
 
         @Override
         public void onRenderPre() {
-            bindFloat("texelWidthOffset");
-            bindFloat("texelHeightOffset");
-            bindTexture("inputImageTexture");
+            bindTexture(INPUT_IMAGE);
+            bindFloat(TEX_WIDTH_OFFSET);
+            bindFloat(TEX_HEIGHT_OFFSET);
         }
 
-        @Override
-        public void onWrite(Map<String, Object> config) {
-        }
     }
 }

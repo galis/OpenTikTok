@@ -11,6 +11,7 @@ import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVFrame;
 import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.avcore.AVVideo;
+import com.galix.avcore.avcore.IVideo;
 import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.util.IOUtils;
@@ -41,10 +42,10 @@ import static android.opengl.GLES20.glDeleteTextures;
 import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
 
-public class GameComponent extends AVComponent {
+public class GameComponent extends AVComponent implements IVideo {
 
     private AVVideo mCoachVideo;
-    private AVComponent mPlayerComponent;
+    private AVVideo mPlayerComponent;
     //    private AVPag mPlayerEffect;
     private String mCoachPath;
     private String mPlayerTestPath;
@@ -119,7 +120,7 @@ public class GameComponent extends AVComponent {
     public GameComponent(Context context,
                          long engineStartTime,
                          String coachPath,
-                         AVComponent dpComponent,
+                         AVVideo dpComponent,
                          String playerEffectPath,
                          Bitmap beautyLut,
                          Bitmap playerLut,
@@ -164,6 +165,20 @@ public class GameComponent extends AVComponent {
         setClipEndTime(getDuration());
         markOpen(true);
         return RESULT_OK;
+    }
+
+    @Override
+    public String getPath() {
+        return mCoachVideo.getPath() + "#" + mPlayerComponent.getPath();
+    }
+
+    public Size getVideoSize() {
+        return mCoachVideo.getVideoSize();
+    }
+
+    @Override
+    public int getFrameRate() {
+        return mCoachVideo.getFrameRate();
     }
 
     @Override

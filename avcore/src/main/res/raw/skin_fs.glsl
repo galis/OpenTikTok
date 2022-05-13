@@ -19,14 +19,14 @@ uniform sampler2D diffBlurImageTexture;
 uniform float skin_alpha;
 
 void main() {
-    vec3 srcColor = texture(inputImageTexture, vTextureCoord).rgb;
-    vec3 srcBlurColor = texture(srcBlurImageTexture, vTextureCoord).rgb;
-    vec3 diffBlurColor = texture(diffBlurImageTexture, vTextureCoord).rgb;
+    vec4 srcColor = texture(inputImageTexture, vTextureCoord);
+    vec4 srcBlurColor = texture(srcBlurImageTexture, vTextureCoord);
+    vec4 diffBlurColor = texture(diffBlurImageTexture, vTextureCoord);
 
     float p = clamp((min(srcColor.r, srcBlurColor.r - 0.1) - 0.2) * 4.0, 0.0, 1.0);
     float meanVar = (diffBlurColor.r + diffBlurColor.g + diffBlurColor.b) / 3.0;
     float theta = 0.2;
     float kMin = (1.0 - meanVar / (meanVar + theta)) * skin_alpha;
-    vec3 resultColor = mix(srcColor, srcBlurColor, max(p, kMin));
-    vFragColor = vec4(resultColor.rgb, 1.0);
+    vec3 resultColor = mix(srcColor.rgb, srcBlurColor.rgb, max(p, kMin));
+    vFragColor = vec4(resultColor, srcColor.a);
 }

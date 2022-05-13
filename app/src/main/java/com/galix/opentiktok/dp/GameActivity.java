@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -47,19 +48,10 @@ public class GameActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         LogUtil.log("Game#onCreate()");
         setContentView(R.layout.activity_game);
-        mGLSurfaceView = findViewById(R.id.glsurface_game);
-        mGLSurfaceView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                mGLSurfaceView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                mGLSurfaceView.getLayoutParams().width = mGLSurfaceView.getMeasuredWidth();
-                mGLSurfaceView.getLayoutParams().height = (int) (mGLSurfaceView.getMeasuredWidth() * 1080.f / 1920.f);
-                mGLSurfaceView.requestLayout();
-            }
-        });
         LogUtil.setLogLevel(LogUtil.LogLevel.NONE);
         mAVEngine = AVEngine.getVideoEngine();
-        mAVEngine.configure(mGLSurfaceView);
+        mAVEngine.configure(findViewById(R.id.glsurface_game));
+        mAVEngine.setCanvasType("原始", null);
         mAVEngine.create();
         mGameRender = new GameRender();
         try {
@@ -76,7 +68,25 @@ public class GameActivity extends AppCompatActivity {
             e.printStackTrace();
         }
         AVAudio audio = new AVAudio(0, "/sdcard/coach.mp4", null);
-        mAVEngine.addComponent(mGameComponent, null);
+        mAVEngine.addComponent(mGameComponent, new AVEngine.EngineCallback() {
+            @Override
+            public void onCallback(Object... args1) {
+                mAVEngine.setCanvasType("原始", new AVEngine.EngineCallback() {
+                    @Override
+                    public void onCallback(Object... args1) {
+                        findViewById(R.id.glsurface_game).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                Size size = (Size) args1[0];
+                                findViewById(R.id.glsurface_game).getLayoutParams().width = size.getWidth();
+                                findViewById(R.id.glsurface_game).getLayoutParams().height = size.getHeight();
+                                findViewById(R.id.glsurface_game).requestLayout();
+                            }
+                        });
+                    }
+                });
+            }
+        });
         mAVEngine.addComponent(audio, null);
         GLManager.getManager().installContext(this);
 
@@ -99,24 +109,25 @@ public class GameActivity extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 mIsBeauty = isChecked;
                 mGameComponent.write(TimeUtils.BuildMap("use_beauty", mIsBeauty));
+//                mAVEngine.fastSeek(mAVEngine.getMainClock());
                 Log.d(TAG, "check#" + isChecked);
             }
         });
 
         mEngineInfo = findViewById(R.id.tv_engine_info);
 
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/animation_border.pag");
-        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-
-
-        mAVEngine.playPag(this, "pag/screen_effect.pag");
-        mAVEngine.playPag(this, "pag/animation_border.pag");
-        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
-
-        AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
-        AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
-        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/animation_border.pag");
+//        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//
+//
+//        mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        mAVEngine.playPag(this, "pag/animation_border.pag");
+//        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
+//
+//        AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
+//        AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
+//        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
 //                1920 / 2 - 1280 / 2,
 //                1080 / 2 - 720 / 2,
@@ -124,16 +135,16 @@ public class GameActivity extends AppCompatActivity {
 //                1080 / 2 + 720 / 2
 //        )));
 //
-        for (int i = 1; i < 20; i++) {
-            mBeautyButton.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mAVEngine.playPag(testPag1);
-                    mAVEngine.playPag(testPag2);
-                    mAVEngine.playPag(testPag3);
-                }
-            }, i * 10000);
-        }
+//        for (int i = 1; i < 20; i++) {
+//            mBeautyButton.postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    mAVEngine.playPag(testPag1);
+//                    mAVEngine.playPag(testPag2);
+//                    mAVEngine.playPag(testPag3);
+//                }
+//            }, i * 10000);
+//        }
 
         mAVEngine.setOnFrameUpdateCallback(new AVEngine.EngineCallback() {
             @Override

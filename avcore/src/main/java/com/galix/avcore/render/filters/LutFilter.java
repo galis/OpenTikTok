@@ -21,22 +21,20 @@ import static android.opengl.GLES20.glTexParameteri;
 
 /**
  * LUT Filter
- * <p>
  * 接收参数:
- * lut_src:GLTexture
- * lut_input:GLTexture
- * lut_alpha:float
+ * USE_FBO:Boolean
+ * FBO_SIZE:Size
+ * INPUT_IMAGE:GLTexture
+ * LUT_ALPHA:float
+ * LUT_BITMAP:Bitmap
  */
 public class LutFilter extends BaseFilter {
 
-    private final LutConfig mLutConfig = new LutConfig();
-
-    public static class LutConfig {
-        Bitmap lut;
-        GLTexture lutTexture;
-        GLTexture inputImage;
-        float alpha = 0;
-    }
+    public static final String LUT_BITMAP = "lut_bitmap";
+    public static final String LUT_ALPHA = "lut_alpha";
+    private static final String IS_OES = "isOes";
+    private static final String LUT_TEXTURE = "lutTexture";
+    private GLTexture mLutTexture = new GLTexture();
 
     public LutFilter() {
         super(R.raw.lut_vs, R.raw.lut_fs);
@@ -44,48 +42,37 @@ public class LutFilter extends BaseFilter {
 
     @Override
     public void onRenderPre() {
-        bindBool("isOes", mLutConfig.inputImage.isOes());
-        bindFloat("alpha", mLutConfig.alpha);
-        bindTexture("lutTexture", mLutConfig.lutTexture);
-        if (mLutConfig.inputImage.isOes()) {
-            bindTexture("inputImageOesTexture", mLutConfig.inputImage);
-            bindTexture("inputImageTexture", GLUtil.DEFAULT_TEXTURE);
+        GLTexture inputImage = (GLTexture) getConfig(LutFilter.INPUT_IMAGE);
+        bindBool(IS_OES, inputImage.isOes());
+        bindFloat(LUT_ALPHA);
+        bindTexture(LUT_TEXTURE, mLutTexture);
+        if (inputImage.isOes()) {
+            bindTexture(LutFilter.INPUT_IMAGE_OES, inputImage);
+            bindTexture(LutFilter.INPUT_IMAGE, GLUtil.DEFAULT_TEXTURE);
         } else {
-            bindTexture("inputImageOesTexture", GLUtil.DEFAULT_OES_TEXTURE);
-            bindTexture("inputImageTexture", mLutConfig.inputImage);
+            bindTexture(LutFilter.INPUT_IMAGE_OES, GLUtil.DEFAULT_OES_TEXTURE);
+            bindTexture(LutFilter.INPUT_IMAGE, inputImage);
         }
     }
 
     @Override
     public void onWrite(Map<String, Object> config) {
-        if (config.isEmpty()) return;
-        for (String key : config.keySet()) {
-            if (key.equalsIgnoreCase("lut_src")) {
-                if (mLutConfig.lut != config.get("lut_src")) {
-                    mLutConfig.lut = (Bitmap) config.get("lut_src");
-                    if (mLutConfig.lutTexture == null) {
-                        IntBuffer lutTextureIntBuf = IntBuffer.allocate(1);
-                        GLES30.glGenTextures(lutTextureIntBuf.limit(), lutTextureIntBuf);
-                        mLutConfig.lutTexture = new GLTexture(lutTextureIntBuf.get(), false);
-                        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutConfig.lutTexture.id());
-                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                        GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, mLutConfig.lut, 0);
-                    } else {
-                        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutConfig.lutTexture.id());
-                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                        glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                        GLUtils.texSubImage2D(GLES30.GL_TEXTURE_2D, 0, 0, 0, mLutConfig.lut);
-                    }
-                }
-            } else if (key.equalsIgnoreCase("lut_input")) {
-                mLutConfig.inputImage = (GLTexture) config.get("lut_input");
-            } else if (key.equalsIgnoreCase("lut_alpha")) {
-                mLutConfig.alpha = (float) config.get("lut_alpha");
+        if (config.containsKey(LUT_BITMAP) && getConfig(LUT_BITMAP) != config.get(LUT_BITMAP)) {
+            if (mLutTexture.id() == 0) {
+                GLES30.glGenTextures(1, mLutTexture.idAsBuf());
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutTexture.id());
+                glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, (Bitmap) config.get(LUT_BITMAP), 0);
+            } else {
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mLutTexture.id());
+                glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameterf(GLES30.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GLES30.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                GLUtils.texSubImage2D(GLES30.GL_TEXTURE_2D, 0, 0, 0, (Bitmap) config.get(LUT_BITMAP));
             }
         }
     }

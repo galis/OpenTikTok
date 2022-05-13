@@ -5,6 +5,7 @@ import android.opengl.GLES30;
 import android.util.Size;
 
 import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.util.GLUtil;
 
 import org.opencv.core.Mat;
 
@@ -14,7 +15,7 @@ import static org.opencv.core.CvType.CV_32F;
 
 public class GLTexture {
     private static final Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
-    private IntBuffer textureIdBuf;
+    private IntBuffer textureIdBuf = IntBuffer.allocate(1);
     private boolean oes = false;
     private boolean mute;//mute 无论如何都是0
     private Size mSize = new Size(0, 0);
@@ -24,12 +25,13 @@ public class GLTexture {
     private Mat matrix = mIdentityMat;
 
     public GLTexture() {
+        textureIdBuf.position(0);
+        textureIdBuf.put(0);
+        textureIdBuf.position(0);
+        oes = false;
     }
 
     public GLTexture(int textureId, boolean oes) {
-        if (textureIdBuf == null) {
-            textureIdBuf = IntBuffer.allocate(1);
-        }
         textureIdBuf.position(0);
         textureIdBuf.put(textureId);
         textureIdBuf.position(0);
@@ -87,6 +89,10 @@ public class GLTexture {
             idAsBuf().put(0);
         }
         setSize(0, 0);
+    }
+
+    public Bitmap asBitmap() {
+        return GLUtil.dumpTexture(this);
     }
 
 }
