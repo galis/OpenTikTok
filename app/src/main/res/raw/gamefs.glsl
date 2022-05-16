@@ -29,5 +29,5 @@ void main(){
     vec4 playerEffectColor = texture(playerEffectTexture, vec2(playerEffectCoord.x, 1.0-playerEffectCoord.y));//用户特效
     //开始合并
     vec3 dstColor = mix(coachColor.rgb, playerColor.rgb+ playerEffectColor.rgb, playerColor.a);//合并教练画面
-    vFragColor = vec4(dstColor, 1.0);
+    vFragColor = vec4(dstColor.rgb, 1.0);
 }

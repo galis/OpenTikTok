@@ -10,6 +10,8 @@ import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.IFilter;
 import com.galix.avcore.render.filters.LutFilter;
 import com.galix.avcore.render.filters.OesFilter;
+import com.galix.avcore.util.LogUtil;
+import com.galix.avcore.util.TimeUtils;
 import com.galix.opentiktok.R;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
@@ -51,7 +53,7 @@ public class GameRender implements IVideoRender {
     //参数
     private boolean mIsOpen = false;
     private Size mSurfaceSize = new Size(1920, 1080);
-    private Size mBeautySize = new Size(1920 / 2, 1080 / 2);
+    private Size mBeautySize = new Size(1920 / 4, 1080 / 4);
     private Map<String, Object> mConfig = new HashMap<>();
     private GameComponent.GameInfo mCacheGameInfo;
 
@@ -119,7 +121,9 @@ public class GameRender implements IVideoRender {
             mConfig.put(BeautyFilter.BEAUTY_LUT, mCacheGameInfo.beautyLut);
             mConfig.put(BeautyFilter.BEAUTY_ALPHA, 1.0f);
             mFilters.get(BeautyFilter.class).write(mConfig);
+            TimeUtils.RecordStart("beauty_use_time");
             mFilters.get(BeautyFilter.class).render();
+            TimeUtils.RecordEnd("beauty_use_time");
             lastFilter = mFilters.get(BeautyFilter.class);
         }
 

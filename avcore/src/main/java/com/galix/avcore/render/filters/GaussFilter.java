@@ -22,7 +22,7 @@ import static com.galix.avcore.render.filters.BaseFilter.INPUT_IMAGE;
 public class GaussFilter extends BaseFilterGroup {
 
     public static final String INPUT_IMAGE = "gauss_input";
-    private static final float SKIN_RADIUS = 4.5f;//磨皮范围
+    private static final float SKIN_RADIUS = 0.1f;//磨皮范围
     private Map<String, Object> mConfig = new HashMap<>();
     private SizeF mOffset1;
     private SizeF mOffset2;
@@ -40,8 +40,8 @@ public class GaussFilter extends BaseFilterGroup {
         GLTexture gaussInput = (GLTexture) getConfig().get(INPUT_IMAGE);
 
         if (mOffset1 == null) {
-            mOffset1 = new SizeF(SKIN_RADIUS * (fboSize.getWidth() / 1920.f) / fboSize.getWidth(), 0);
-            mOffset2 = new SizeF(0, SKIN_RADIUS * (fboSize.getHeight() / 1080.f) / fboSize.getHeight());
+            mOffset1 = new SizeF(SKIN_RADIUS /   fboSize.getWidth(), 0);
+            mOffset2 = new SizeF(0, SKIN_RADIUS / fboSize.getHeight());
         }
 
         //x方向滤波

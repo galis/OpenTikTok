@@ -23,7 +23,7 @@ public class BeautyFilter extends BaseFilterGroup {
 
     public BeautyFilter() {
         addFilter(SkinFilter.class);
-        addFilter(LutFilter.class);
+//        addFilter(LutFilter.class);
     }
 
     @Override
@@ -38,15 +38,15 @@ public class BeautyFilter extends BaseFilterGroup {
         getFilter(SkinFilter.class).write(mConfig);
         getFilter(SkinFilter.class).render();
 
-        //美白
-        mConfig.clear();
-        mConfig.put(LutFilter.USE_FBO, true);
-        mConfig.put(LutFilter.FBO_SIZE, getConfig(FBO_SIZE));
-        mConfig.put(LutFilter.INPUT_IMAGE, getFilter(SkinFilter.class).getOutputTexture());
-        mConfig.put(LutFilter.LUT_BITMAP, getConfig(BEAUTY_LUT));
-        mConfig.put(LutFilter.LUT_ALPHA, getConfig(BEAUTY_ALPHA));
-        getFilter(LutFilter.class).write(mConfig);
-        getFilter(LutFilter.class).render();
+//        //美白
+//        mConfig.clear();
+//        mConfig.put(LutFilter.USE_FBO, true);
+//        mConfig.put(LutFilter.FBO_SIZE, getConfig(FBO_SIZE));
+//        mConfig.put(LutFilter.INPUT_IMAGE, getFilter(SkinFilter.class).getOutputTexture());
+//        mConfig.put(LutFilter.LUT_BITMAP, getConfig(BEAUTY_LUT));
+//        mConfig.put(LutFilter.LUT_ALPHA, getConfig(BEAUTY_ALPHA));
+//        getFilter(LutFilter.class).write(mConfig);
+//        getFilter(LutFilter.class).render();
 
     }
 

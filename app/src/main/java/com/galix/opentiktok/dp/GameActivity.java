@@ -48,7 +48,7 @@ public class GameActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         LogUtil.log("Game#onCreate()");
         setContentView(R.layout.activity_game);
-        LogUtil.setLogLevel(LogUtil.LogLevel.NONE);
+        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(findViewById(R.id.glsurface_game));
         mAVEngine.setCanvasType("原始", null);
@@ -58,6 +58,7 @@ public class GameActivity extends AppCompatActivity {
             mGameComponent = new GameComponent(this,
                     0,
                     "/sdcard/coach.mp4",
+//                    "/data/data/com.galix.opentiktok/cache/test2.mp4",
                     "/sdcard/testplayer.mp4",
                     "pag/player_effect.pag",
                     BitmapFactory.decodeStream(getAssets().open("lut/beauty_lut.png")),
@@ -125,7 +126,7 @@ public class GameActivity extends AppCompatActivity {
 //        mAVEngine.playPag(this, "pag/animation_border.pag");
 //        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //
-//        AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
+        AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
 //        AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
 //        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
@@ -135,16 +136,14 @@ public class GameActivity extends AppCompatActivity {
 //                1080 / 2 + 720 / 2
 //        )));
 //
-//        for (int i = 1; i < 20; i++) {
-//            mBeautyButton.postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    mAVEngine.playPag(testPag1);
-//                    mAVEngine.playPag(testPag2);
-//                    mAVEngine.playPag(testPag3);
-//                }
-//            }, i * 10000);
-//        }
+        for (int i = 1; i < 20; i++) {
+            mBeautyButton.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mAVEngine.playPag(testPag1);
+                }
+            }, i * 10000);
+        }
 
         mAVEngine.setOnFrameUpdateCallback(new AVEngine.EngineCallback() {
             @Override
