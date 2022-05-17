@@ -72,9 +72,7 @@ public class AVPag extends AVComponent {
         boolean isInValid = mPagPts < 0 || mPagPts >= getClipDuration() || !isVisible();
         TimeUtils.RecordStart("avpag#setProgress#" + pagPath);
         double progress = isInValid ? 1.1f : mPagPts * 1.0 / getClipDuration();
-        if (pagFile.getProgress() != progress) {
-            pagFile.setProgress(progress);
-        }
+        pagFile.setProgress(progress);
         TimeUtils.RecordEnd("avpag#setProgress#" + pagPath);
         peekFrame().setExt(pagFile);
         peekFrame().setPts(mPagPts + getEngineStartTime());

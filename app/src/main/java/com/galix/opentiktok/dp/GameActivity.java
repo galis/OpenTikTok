@@ -48,7 +48,7 @@ public class GameActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         LogUtil.log("Game#onCreate()");
         setContentView(R.layout.activity_game);
-        LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
+        LogUtil.setLogLevel(LogUtil.LogLevel.MAIN);
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(findViewById(R.id.glsurface_game));
         mAVEngine.setCanvasType("原始", null);
@@ -127,7 +127,7 @@ public class GameActivity extends AppCompatActivity {
 //        mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //
         AVPag testPag1 = mAVEngine.playPag(this, "pag/screen_effect.pag");
-//        AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
+        AVPag testPag2 = mAVEngine.playPag(this, "pag/animation_border.pag");
 //        AVPag testPag3 = mAVEngine.playPag(this, "pag/sport_scoring_perfect.pag");
 //        testPag2.setMatrix(MathUtils.calMatrix(new Rect(0, 0, 1920, 1080), new Rect(
 //                1920 / 2 - 1280 / 2,
@@ -141,6 +141,7 @@ public class GameActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     mAVEngine.playPag(testPag1);
+                    mAVEngine.playPag(testPag2);
                 }
             }, i * 10000);
         }
@@ -151,7 +152,7 @@ public class GameActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mEngineInfo.setText(TimeUtils.LogStr("pag"));
+                        mEngineInfo.setText(TimeUtils.LogStr("pag", "use_time"));
                     }
                 });
             }

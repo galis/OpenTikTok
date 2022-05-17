@@ -214,7 +214,7 @@ public class VideoUtil {
                 nowPts += 1000000L;
                 saveBitmapFile(thumb, dstJpg);
             }
-            mediaMetadataRetriever.close();
+            mediaMetadataRetriever.release();
             if (callback != null) {
                 callback.handleMessage(null);
             }
@@ -241,7 +241,7 @@ public class VideoUtil {
                 tasks.add(new ThumbTask(context, video.path, curPts, Math.min(curPts + 6000000, duration), null));
                 curPts += 6000000;
             }
-            mediaMetadataRetriever.close();
+            mediaMetadataRetriever.release();
         }
         tasks.get(0).callback = callback;
         VideoUtil.mTargetFiles = videos;

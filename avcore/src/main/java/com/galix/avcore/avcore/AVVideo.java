@@ -45,6 +45,7 @@ public class AVVideo extends AVComponent implements IVideo {
         super(engineStartTime, AVComponentType.VIDEO, render);
         this.isTextureType = isTextureType;
         this.path = path;
+        this.videoSize = new Size(0, 0);
     }
 
     @Override

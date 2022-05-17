@@ -1,5 +1,8 @@
 package com.galix.avcore.util;
 
+import android.os.Build;
+
+import com.galix.avcore.BuildConfig;
 import com.galix.avcore.avcore.AVComponent;
 
 import java.io.FileNotFoundException;
@@ -35,33 +38,37 @@ public class TimeUtils {
     }
 
     public static void RecordStart(String tag) {
-        if (!mTimeRecordMap.containsKey(tag)) {
-            RecordTag recordTag = new RecordTag();
-            recordTag.recordStart = System.currentTimeMillis();
-            mTimeRecordMap.put(tag, recordTag);
-        } else {
-            RecordTag recordTag = mTimeRecordMap.get(tag);
-            recordTag.recordStart = System.currentTimeMillis();
+        if (BuildConfig.DEBUG) {
+            if (!mTimeRecordMap.containsKey(tag)) {
+                RecordTag recordTag = new RecordTag();
+                recordTag.recordStart = System.currentTimeMillis();
+                mTimeRecordMap.put(tag, recordTag);
+            } else {
+                RecordTag recordTag = mTimeRecordMap.get(tag);
+                recordTag.recordStart = System.currentTimeMillis();
+            }
         }
     }
 
     public static void RecordEnd(String tag) {
-        if (!mTimeRecordMap.containsKey(tag)) {
-            return;
+        if (BuildConfig.DEBUG) {
+            if (!mTimeRecordMap.containsKey(tag)) {
+                return;
+            }
+            RecordTag recordTag = mTimeRecordMap.get(tag);
+            recordTag.recordEnd = System.currentTimeMillis();
+            recordTag.num++;
+            recordTag.lastDuration = recordTag.recordEnd - recordTag.recordStart;
+            recordTag.recordTotal += recordTag.lastDuration;
+            recordTag.recordMax = Math.max(recordTag.lastDuration, recordTag.recordMax);
+            recordTag.recordHistoryMax = Math.max(recordTag.lastDuration, recordTag.recordHistoryMax);
+            if (recordTag.num == MAX_FRAME_COUNT) {
+                recordTag.recordTotal = 0;
+                recordTag.num = 0;
+                recordTag.recordMax = 0;
+            }
+            LogUtil.logMain("record_time#" + tag + "#" + (recordTag.recordEnd - recordTag.recordStart));
         }
-        RecordTag recordTag = mTimeRecordMap.get(tag);
-        recordTag.recordEnd = System.currentTimeMillis();
-        recordTag.num++;
-        recordTag.lastDuration = recordTag.recordEnd - recordTag.recordStart;
-        recordTag.recordTotal += recordTag.lastDuration;
-        recordTag.recordMax = Math.max(recordTag.lastDuration, recordTag.recordMax);
-        recordTag.recordHistoryMax = Math.max(recordTag.lastDuration, recordTag.recordHistoryMax);
-        if (recordTag.num == MAX_FRAME_COUNT) {
-            recordTag.recordTotal = 0;
-            recordTag.num = 0;
-            recordTag.recordMax = 0;
-        }
-        LogUtil.log("record_time#" + tag + "#" + (recordTag.recordEnd - recordTag.recordStart));
     }
 
     //log日志拼接

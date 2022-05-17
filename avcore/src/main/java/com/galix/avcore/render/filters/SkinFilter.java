@@ -48,6 +48,7 @@ public class SkinFilter extends BaseFilterGroup {
         mTempConfig.put(DiffFilter.BLUR_IMAGE, getFilter("srcBlur").getOutputTexture());
         getFilter("diff").write(mTempConfig);
         getFilter("diff").render();
+
         //高反差模糊diff_blur
         mTempConfig.clear();
         mTempConfig.put(GaussFilter.USE_FBO, true);
@@ -55,6 +56,7 @@ public class SkinFilter extends BaseFilterGroup {
         mTempConfig.put(GaussFilter.INPUT_IMAGE, getFilter("diff").getOutputTexture());
         getFilter("diffBlur").write(mTempConfig);
         getFilter("diffBlur").render();
+
         //磨皮合成
         mTempConfig.clear();
         mTempConfig.put(SkinCompositeFilter.USE_FBO, true);

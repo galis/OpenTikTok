@@ -8,8 +8,6 @@ import com.galix.avcore.R;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.galix.avcore.render.filters.BaseFilter.INPUT_IMAGE;
-
 /**
  * 高斯模糊滤镜,默认启动fbo,接收一下参数
  * USE_FBO:Boolean
@@ -22,7 +20,7 @@ import static com.galix.avcore.render.filters.BaseFilter.INPUT_IMAGE;
 public class GaussFilter extends BaseFilterGroup {
 
     public static final String INPUT_IMAGE = "gauss_input";
-    private static final float SKIN_RADIUS = 0.1f;//磨皮范围
+    private static final float SKIN_RADIUS = 0.25f;//磨皮范围
     private Map<String, Object> mConfig = new HashMap<>();
     private SizeF mOffset1;
     private SizeF mOffset2;

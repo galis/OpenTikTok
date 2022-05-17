@@ -916,7 +916,9 @@ public class AVEngine {
             reCalculate();
             mVideoState.unlock();
         }
-        fastSeek(getMainClock());
+        if (mVideoState.status == PAUSE) {
+            fastSeek(getMainClock());
+        }
         if (command.args1 != null) {
             EngineCallback callback = (EngineCallback) command.args1;
             callback.onCallback("");
