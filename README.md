@@ -4,6 +4,8 @@
 raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.opentiktok/cache测试.
 目前基于testfile.mp4的两段视频，功能基本验证完毕，后续持续修复bug.
 
+##感谢到大家对项目认可，项目在8月份会持续更新，和大家一起进步。
+
 ## 现况:目前是v0.99版本，v1.0版本会是实现以下功能:
 
 ### 1.逐帧预览 (完成)
@@ -39,6 +41,4 @@ raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.open
 ## 效果图如下:
 
 ![image](https://github.com/galis/OpenTikTok/blob/master/demo.gif)
-
-
 
