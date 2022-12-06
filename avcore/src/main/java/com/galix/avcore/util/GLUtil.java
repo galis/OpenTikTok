@@ -3,12 +3,12 @@ package com.galix.avcore.util;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.GLES30;
+import android.graphics.Matrix;
 import android.opengl.GLES30;
 import android.opengl.GLUtils;
 import android.util.Log;
+import android.util.Size;
 
-import com.galix.avcore.R;
 import com.galix.avcore.render.filters.GLTexture;
 
 import java.io.ByteArrayInputStream;
@@ -23,24 +23,16 @@ import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
 import static android.opengl.GLES20.GL_FRAMEBUFFER;
-import static android.opengl.GLES20.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME;
 import static android.opengl.GLES20.GL_FRAMEBUFFER_BINDING;
 import static android.opengl.GLES20.GL_LINEAR;
-import static android.opengl.GLES20.GL_TEXTURE0;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
 import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
 import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
-import static android.opengl.GLES20.GL_UNPACK_ALIGNMENT;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
-import static android.opengl.GLES20.glActiveTexture;
-import static android.opengl.GLES20.glBindTexture;
-import static android.opengl.GLES20.glGetUniformLocation;
 import static android.opengl.GLES20.glTexParameterf;
 import static android.opengl.GLES20.glTexParameteri;
-import static android.opengl.GLES20.glUniform1f;
-import static android.opengl.GLES20.glUniform1i;
 
 public final class GLUtil {
 
@@ -163,6 +155,28 @@ public final class GLUtil {
         return shader;
     }
 
+    public static GLTexture gen2DTexture() {
+        IntBuffer textureBuffer = IntBuffer.allocate(1);
+        GLES30.glGenTextures(1, textureBuffer);
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureBuffer.get(0));
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        return new GLTexture(textureBuffer.get(0), false);
+    }
+
+    public static GLTexture gen2DOesTexture() {
+        IntBuffer textureBuffer = IntBuffer.allocate(1);
+        GLES30.glGenTextures(1, textureBuffer);
+        GLES30.glBindTexture(GL_TEXTURE_EXTERNAL_OES, textureBuffer.get(0));
+        glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        return new GLTexture(textureBuffer.get(0), true);
+    }
+
     public static int loadTexture(final byte[] textureData) {
         ByteArrayInputStream textureIs = new ByteArrayInputStream(textureData);
         return loadTexture(textureIs);
@@ -196,6 +210,21 @@ public final class GLUtil {
         return textureHandle[0];
     }
 
+    public static void loadTexture(GLTexture glTexture, Bitmap bitmap) {
+        if (bitmap == null) return;
+        if (glTexture.data() == bitmap) return;
+        if (glTexture.id() == 0) {
+            glTexture.idAsBuf().put(loadTexture(bitmap));
+        } else {
+            GLUtil.checkGlError("test");
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, glTexture.id());
+            GLUtils.texSubImage2D(GLES30.GL_TEXTURE_2D, 0, 0, 0, bitmap);
+            GLUtil.checkGlError("test");
+        }
+        glTexture.setSize(bitmap.getWidth(), bitmap.getHeight());
+        glTexture.setData(bitmap);
+    }
+
     public static int loadTexture(int textureId, Bitmap bitmap) {
         if (bitmap == null) return -1;
         if (textureId == 0) {
@@ -208,19 +237,39 @@ public final class GLUtil {
     }
 
     public static Bitmap dumpTexture(GLTexture texture) {
+//        if (texture.isOes()) {
+//            return null;
+//        }
         IntBuffer lastBuf = IntBuffer.allocate(1);
         IntBuffer newFboBuf = IntBuffer.allocate(1);
         GLES30.glGetIntegerv(GL_FRAMEBUFFER_BINDING, lastBuf);
         GLES30.glGenFramebuffers(1, newFboBuf);
-        GLES30.glBindFramebuffer(1, newFboBuf.get());
+        GLES30.glBindFramebuffer(GL_FRAMEBUFFER, newFboBuf.get());
         Bitmap bitmap = Bitmap.createBitmap(texture.size().getWidth(), texture.size().getHeight(), Bitmap.Config.ARGB_8888);
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(texture.size().getWidth() * texture.size().getHeight() * 4);
         GLES30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture.isOes() ? GL_TEXTURE_EXTERNAL_OES : GL_TEXTURE_2D, texture.id(), 0);
         GLES30.glReadPixels(0, 0, texture.size().getWidth(), texture.size().getHeight(), GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
         bitmap.copyPixelsFromBuffer(byteBuffer);
-        GLES30.glBindFramebuffer(1, lastBuf.get());
+        GLES30.glBindFramebuffer(GL_FRAMEBUFFER, lastBuf.get());
         newFboBuf.position(0);
         GLES30.glDeleteFramebuffers(1, newFboBuf);
+
+        Matrix matrix = new Matrix();
+        matrix.postRotate(180);
+        matrix.postScale(-1, 1.f);
+        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
+        return bitmap;
+    }
+
+    public static Bitmap dumpScreenTexture(Size surfaceSize) {
+        Bitmap bitmap = Bitmap.createBitmap(surfaceSize.getWidth(), surfaceSize.getHeight(), Bitmap.Config.ARGB_8888);
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(surfaceSize.getWidth() * surfaceSize.getHeight() * 4);
+        GLES30.glReadPixels(0, 0, surfaceSize.getWidth(), surfaceSize.getHeight(), GLES30.GL_RGBA, GL_UNSIGNED_BYTE, byteBuffer);
+        bitmap.copyPixelsFromBuffer(byteBuffer);
+        Matrix matrix = new Matrix();
+        matrix.postRotate(180);
+        matrix.postScale(-1, 1.f);
+        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
         return bitmap;
     }
 
@@ -329,5 +378,26 @@ public final class GLUtil {
     public static int[] DRAW_ORDER = {
             0, 1, 2, 1, 2, 3
     };
+
+    public static final String COMMON_GAUSS = "" +
+            "uniform vec2 imageSize;\n" +
+            "uniform float blurStep;\n" +
+            "const float GAUSS_WEIGHT[9]=float[9](0.2, 0.19, 0.17, 0.15, 0.13, 0.11, 0.08, 0.05, 0.02);\n" +
+            "vec4 gaussianBlur(sampler2D inputTexture, vec2 textureCoordinate)\n" +
+            "{\n" +
+            "    vec2 unitUV         = vec2(blurStep)/imageSize;\n" +
+            "    float sumWeight     = GAUSS_WEIGHT[0];\n" +
+            "    vec4 sumColor       = texture(inputTexture,  textureCoordinate)*sumWeight;\n" +
+            "    for(int i=-4;i<=4;i++)\n" +
+            "    {\n" +
+            "       for(int j=-4;j<=4;j++){\n" +
+            "           vec2 coord = textureCoordinate+vec2(i,j)*unitUV;\n" +
+            "           float curWeight = GAUSS_WEIGHT[j+5]*GAUSS_WEIGHT[i+5];\n" +
+            "           sumColor+= texture(inputTexture,coord)*curWeight;\n" +
+            "           sumWeight+= curWeight;\n" +
+            "       }\n" +
+            "    }\n" +
+            "    return sumColor/sumWeight;\n" +
+            "}\n";
 
 }

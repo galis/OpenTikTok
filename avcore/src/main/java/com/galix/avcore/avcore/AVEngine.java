@@ -1,24 +1,18 @@
 package com.galix.avcore.avcore;
 
-import android.content.Context;
 import android.graphics.Rect;
-import android.opengl.EGL14;
-import android.opengl.EGLContext;
-import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewTreeObserver;
-import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 
 import com.galix.avcore.render.AudioRender;
 import com.galix.avcore.render.IVideoRender;
 import com.galix.avcore.render.OESRender;
-import com.galix.avcore.render.PagRender;
 import com.galix.avcore.render.ScreenRender;
 import com.galix.avcore.render.TransactionRender;
 import com.galix.avcore.render.filters.GLTexture;
@@ -28,13 +22,8 @@ import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.Mp4Composite;
 import com.galix.avcore.util.TimeUtils;
 
-import org.libpag.PAGComposition;
-import org.libpag.PAGLayer;
-import org.libpag.PAGPlayer;
-import org.libpag.PAGSurface;
 import org.opencv.core.Mat;
 
-import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,21 +32,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static android.opengl.GLES20.GL_BLEND;
-import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
-import static android.opengl.GLES20.GL_FUNC_ADD;
-import static android.opengl.GLES20.GL_LINEAR;
-import static android.opengl.GLES20.GL_ONE_MINUS_SRC_ALPHA;
 import static android.opengl.GLES20.GL_RGBA;
-import static android.opengl.GLES20.GL_SRC_ALPHA;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
-import static android.opengl.GLES20.GL_TEXTURE_MAG_FILTER;
-import static android.opengl.GLES20.GL_TEXTURE_MIN_FILTER;
-import static android.opengl.GLES20.GL_TEXTURE_WRAP_S;
-import static android.opengl.GLES20.GL_TEXTURE_WRAP_T;
 import static android.opengl.GLES20.GL_UNSIGNED_BYTE;
-import static android.opengl.GLES20.glTexParameterf;
-import static android.opengl.GLES20.glTexParameteri;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.INIT;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.PAUSE;
 import static com.galix.avcore.avcore.AVEngine.VideoState.VideoStatus.RELEASE;
@@ -90,13 +67,6 @@ public class AVEngine {
     private IVideoRender pagRender;
     private AVFrame screenFrame;
     private Size mSurfaceViewSize = new Size(1080, 350);
-
-    //Pag
-    private GLTexture mPagTexture = new GLTexture(0, false);
-    private final Object mPagDecodeSync = new Object();
-    private PAGPlayer mPagPlayer;
-    private PAGComposition mPagComposition;
-    private AVFrame mPagFrame;
 
     public interface EngineCallback {
         void onCallback(Object... args1);
@@ -547,16 +517,13 @@ public class AVEngine {
         }
 
         boolean needSeek = mVideoState.videoClock.seekReq != mVideoState.videoClock.lastSeekReq;
-        //Pag组件
-        synchronized (mPagDecodeSync) {
-            mVideoState.drawPagComponents.clear();
-            mVideoState.drawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
-            if (needSeek) {
-                for (AVComponent component : mVideoState.drawPagComponents) {
-                    component.lock();
-                    component.seekFrame(mainClk);
-                    component.unlock();
-                }
+        mVideoState.drawPagComponents.clear();
+        mVideoState.drawPagComponents.addAll(findComponents(AVComponent.AVComponentType.PAG, mainClk));
+        if (needSeek) {
+            for (AVComponent component : mVideoState.drawPagComponents) {
+                component.lock();
+                component.seekFrame(mainClk);
+                component.unlock();
             }
         }
 
@@ -600,28 +567,24 @@ public class AVEngine {
     }
 
     private void renderPag() {
-        if (mVideoState.drawPagComponents.isEmpty()) {
-            return;
+        long extClk = getMainClock();
+        List<AVComponent> allPagComponents = findComponents(AVComponent.AVComponentType.PAG, -1);
+        for (AVComponent avPag : allPagComponents) {
+            if (!avPag.isOpen()) {
+                avPag.open();
+            }
+            if (avPag.isValid(extClk)) {
+                if (avPag.getRender() != null) {
+                    avPag.readFrame();
+                    avPag.getRender().render(avPag.peekFrame());
+                }
+            } else {
+                if (avPag.getRender() != null) {
+                    avPag.peekFrame().setValid(false);
+                    avPag.getRender().render(avPag.peekFrame());
+                }
+            }
         }
-        //通知解码线程渲染
-        synchronized (mPagDecodeSync) {
-            mPagDecodeSync.notifyAll();
-        }
-
-        if (pagRender == null) {
-            pagRender = new PagRender();
-            pagRender.open();
-        }
-        if (mPagFrame == null) {
-            mPagFrame = new AVFrame();
-            mPagFrame.setTexture(mPagTexture);
-            mPagTexture.setMatrix(MathUtils.mIdentityMat);
-        }
-        GLES30.glEnable(GL_BLEND);
-        GLES30.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        GLES30.glBlendEquation(GL_FUNC_ADD);
-        pagRender.render(mPagFrame);
-        GLES30.glDisable(GL_BLEND);
     }
 
     private void renderScreen() {
@@ -693,9 +656,6 @@ public class AVEngine {
             GLES30.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, null);
             mVideoState.reset();
 
-            //pag
-            createPagDaemon();
-
             while (mVideoState.status != RELEASE) {
                 while (true) {
                     Command command = mCmdQueue.poll();
@@ -725,7 +685,7 @@ public class AVEngine {
                     } else if (command.cmd == Command.Cmd.COMPOSITE) {
                         pauseInternal();
                         handleDestroy();
-                        mCompositeCallback = (EngineCallback) command.args1;
+                        mCompositeCallback = (EngineCallback) command.args0;
                         compositeInternal();
                     } else {
                         LogUtil.log(LogUtil.ENGINE_TAG + "Seek cmd error!");
@@ -873,19 +833,12 @@ public class AVEngine {
         AVComponent component = (AVComponent) command.args0;
         component.lock();
         if (component.getEngineStartTime() == -1) {
-            if (component instanceof AVVideo) {
-                component.setEngineStartTime(mVideoState.videoDuration);
-            } else if (component instanceof AVAudio) {
-                component.setEngineStartTime(mVideoState.audioDuration);
-            } else {
-                LogUtil.logEngine("handleAddComm#component.getEngineStartTime() == -1#No Support");//TODO
-            }
+            component.setEngineStartTime(getMainClock());
         }
         component.open();
         component.unlock();
 
-        //简单处理下贴纸和文字组件，不能超过视频duration,后面可以扩展
-        if (component instanceof AVSticker || component instanceof AVWord) {
+        if (component instanceof AVSticker || component instanceof AVWord || component instanceof AVPag) {
             component.setEngineEndTime(Math.min(component.getEngineEndTime(), getVideoState().durationUS));
         }
 
@@ -978,85 +931,11 @@ public class AVEngine {
         });
     }
 
-    private void createPagDaemon() {
-        EGLContext mCurrentContext = EGL14.eglGetCurrentContext();
-        ThreadManager.getInstance().createThread("PagThread", new Runnable() {
-            @Override
-            public void run() {
-                EglHelper eglHelper = new EglHelper();
-                eglHelper.create(mCurrentContext, EglHelper.GL_VERSION_3);
-                eglHelper.makeCurrent();
-
-                int width = 1280;
-                int height = 720;
-
-                //生成共享Texture
-                //新建Texture，该Texture可以被解码线程通用.
-                GLES30.glGenTextures(1, mPagTexture.idAsBuf());
-                GLES30.glBindTexture(GL_TEXTURE_2D, mPagTexture.id());
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
-                GLES30.glBindTexture(GL_TEXTURE_2D, 0);
-
-                if (mPagPlayer == null) {
-                    mPagPlayer = new PAGPlayer();
-                }
-                if (mPagComposition == null) {
-                    mPagComposition = PAGComposition.Make(width, height);
-                }
-                mPagPlayer.setComposition(mPagComposition);
-                mPagPlayer.setSurface(PAGSurface.FromTexture(mPagTexture.id(), mPagComposition.width(), mPagComposition.height()));
-                while (mVideoState.status != RELEASE) {
-                    //渲染pag组件
-                    synchronized (mPagDecodeSync) {
-                        for (int i = 0; i < mPagComposition.numChildren(); i++) {
-                            mPagComposition.getLayerAt(i).setVisible(false);
-                        }
-                        LogUtil.logEngine("decode_pag#size" + mVideoState.drawPagComponents.size());
-                        for (AVComponent avPag : mVideoState.drawPagComponents) {
-                            if (!avPag.peekFrame().isValid()) {
-                                avPag.lock();
-                                TimeUtils.RecordStart("decode_pag#avPag.readFrame");
-                                avPag.readFrame();
-                                TimeUtils.RecordEnd("decode_pag#avPag.readFrame");
-                                avPag.unlock();
-                            }
-                            avPag.peekFrame().markRead();
-                            PAGLayer layer = (PAGLayer) avPag.peekFrame().getExt();
-                            if (layer != null) {
-                                if (!mPagComposition.contains(layer)) {
-                                    mPagComposition.addLayer(layer);
-                                }
-                                layer.setVisible(true);
-                            }
-                        }
-                    }
-                    TimeUtils.RecordStart("decode_pag#mPagPlayer.flush");
-                    mPagPlayer.flush();
-                    TimeUtils.RecordEnd("decode_pag#mPagPlayer.flush");
-                    synchronized (mPagDecodeSync) {
-                        try {
-                            mPagDecodeSync.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                eglHelper.release();
-                LogUtil.log(LogUtil.ENGINE_TAG + "AVPag#DecodeThread exit");
-            }
-        });
-    }
-
     //先暂停，然后合成MP4
-    public void compositeMp4(String mp4Path, EngineCallback callback) {
+    public void compositeMp4(EngineCallback callback) {
         Command command = new Command();
         command.cmd = Command.Cmd.COMPOSITE;
-        command.args0 = mp4Path;
-        command.args1 = callback;
+        command.args0 = callback;
         mCmdQueue.add(command);
     }
 
@@ -1110,25 +989,6 @@ public class AVEngine {
             mVideoState.unlock();
         }
         return mTargetComponents;
-    }
-
-    public AVPag playPag(Context context, String path) {
-        AVPag pag = new AVPag(context.getAssets(), path, getMainClock(), new PagRender());
-        addComponent(pag, null);
-        return pag;
-    }
-
-    public AVPag playPag(AVPag avPag) {
-        if (!avPag.isOpen()) {
-            addComponent(avPag, null);
-        } else {
-            avPag.lock();
-            avPag.setEngineStartTime(getMainClock() + 60000);
-            avPag.setEngineEndTime(avPag.getEngineStartTime() + avPag.getClipDuration());
-            avPag.seekFrame(avPag.getEngineStartTime());
-            avPag.unlock();
-        }
-        return avPag;
     }
 
     /**
@@ -1333,17 +1193,6 @@ public class AVEngine {
         LogUtil.log(LogUtil.MAIN_TAG + "release()");
         releaseInternal();
         ThreadManager.getInstance().destroyThread("AudioThread");
-        ThreadManager.getInstance().destroyThread("PagThread", () -> {
-            synchronized (mPagDecodeSync) {
-                mPagDecodeSync.notify();
-            }
-        }, () -> {
-            mPagComposition.removeAllLayers();
-            mPagTexture.release();
-            mPagPlayer.release();
-            mPagPlayer = null;
-            mPagComposition = null;
-        });
         ThreadManager.getInstance().destroyThread("EngineThread");
         LogUtil.log(LogUtil.MAIN_TAG + "release END");
 //        AVEngine.gAVEngine = null;//...貌似不是很合适。。TODO

@@ -7,6 +7,7 @@ uniform vec4 bgColor;
 uniform mat3 textureMat;
 uniform bool isOes;
 uniform bool isFlipVertical;
+uniform bool isHalfAlpha;
 uniform sampler2D inputImageTexture;
 uniform samplerExternalOES oesImageTexture;
 
@@ -18,11 +19,20 @@ void main(){
     }
     if (isOes){
         vFragColor = texture(oesImageTexture, vec2(coord.x, 1.0-coord.y));
+        if (isHalfAlpha){
+            vFragColor.rgb = vFragColor.rgb/vFragColor.a;
+        }
         return;
     }
     if (isFlipVertical){
         vFragColor = texture(inputImageTexture, vec2(coord.x, 1.0-coord.y));
+        if (isHalfAlpha){
+            vFragColor.rgb = vFragColor.rgb/vFragColor.a;
+        }
         return;
     }
     vFragColor = texture(inputImageTexture, coord.xy);
+    if (isHalfAlpha){
+        vFragColor.rgb = vFragColor.rgb/vFragColor.a;
+    }
 }

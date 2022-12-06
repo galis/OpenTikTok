@@ -2,10 +2,8 @@ package com.galix.avcore.render.filters;
 
 import com.galix.avcore.util.LogUtil;
 
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,17 +12,14 @@ import java.util.Map;
  * @Author: Galis
  * @Date:2022.03.31
  */
-public abstract class BaseFilterGroup implements IFilter {
+public abstract class BaseFilterGroup extends BaseFilter {
 
-    private LinkedHashMap<String, IFilter> mFilters = new LinkedHashMap<>();
-    private boolean mIsOpen = false;
-    private Map<String, Object> mConfig = new HashMap<>();
-    private Map<String, Object> mTempConfig = new HashMap<>();
-    private IFilter mLastFilter;
+    private Map<String, IFilter> mFilters = new HashMap<>();
+    private IFilter mLastRenderFilter;
+    private GLTexture mLastOutputTexture;
 
-    @Override
-    public boolean isOpen() {
-        return false;
+    public BaseFilterGroup() {
+        super(null, null);
     }
 
     @Override
@@ -42,36 +37,26 @@ public abstract class BaseFilterGroup implements IFilter {
     }
 
     @Override
-    public void write(Map<String, Object> config) {
-        onWrite(config);
-        mConfig.putAll(config);
-    }
-
-    @Override
-    public void write(Object... config) {
-        if (config == null) return;
-        mTempConfig.clear();
-        for (int i = 0; i < config.length / 2; i++) {
-            mTempConfig.put((String) config[2 * i], config[2 * i + 1]);
-        }
-        onWrite(mTempConfig);
-        mConfig.putAll(mTempConfig);
-    }
-
-    @Override
     public void render() {
         onRender();
+        if (getParent() != null) {
+            getParent().setLastFilter(this);
+        }
     }
 
-    public void onWrite(Map<String, Object> config) {
+    @Override
+    public GLTexture getOutputTexture() {
+        return mLastOutputTexture;
     }
 
-    public abstract void onRender();
+    public abstract void onRender();//定义child filter渲染顺序以及相关参数，必须重写
 
-    //以下是滤镜方法
+    /**
+     * ++++++++++Filter相关方法++++++++++
+     */
     public void addFilter(String tag, IFilter filter) {
         mFilters.put(tag, filter);
-        mLastFilter = filter;
+        getFilter(tag).setParent(this);
     }
 
     public void addFilter(Class filter) {
@@ -99,6 +84,15 @@ public abstract class BaseFilterGroup implements IFilter {
         }
     }
 
+    public void addFilters(Object... tagAndFilter) {
+        if (tagAndFilter == null || tagAndFilter.length % 2 != 0) {
+            return;
+        }
+        for (int i = 0; i < tagAndFilter.length / 2; i++) {
+            addFilter((String) tagAndFilter[2 * i], (Class) tagAndFilter[2 * i + 1]);
+        }
+    }
+
     public void removeFilter(BaseFilter filter) {
         mFilters.remove(filter);
     }
@@ -118,28 +112,58 @@ public abstract class BaseFilterGroup implements IFilter {
         mFilters.clear();
     }
 
-    public void markOpen(boolean open) {
-        mIsOpen = open;
+    public IFilter defineFilter(String tag, Class classFilter) {
+        if (!mFilters.containsKey(tag)) {
+            addFilter(tag, classFilter);
+        }
+        IFilter filter = mFilters.get(tag);
+        if (!filter.isOpen()) {
+            filter.open();
+        }
+        return filter;
     }
 
-    //返回最后一个Filter的OutputTexture
-    @Override
-    public GLTexture getOutputTexture() {
-        if (mFilters.isEmpty()) {
+    public IFilter defineFilter(String tag, String vs, String fs) {
+        try {
+            if (!mFilters.containsKey(tag)) {
+                Class<SimpleFilter> classFilter = SimpleFilter.class;
+                Constructor<SimpleFilter> constructor = classFilter.getConstructor(String.class, String.class);
+                addFilter(tag, constructor.newInstance(vs, fs));
+            }
+            IFilter filter = mFilters.get(tag);
+            if (!filter.isOpen()) {
+                filter.open();
+            }
+            return filter;
+        } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
-        return mLastFilter.getOutputTexture();
     }
 
-    @Override
-    public Map<String, Object> getConfig() {
-        return mConfig;
-    }
-
-    public Object getConfig(String key) {
-        if (mConfig.containsKey(key)) {
-            return mConfig.get(key);
+    public IFilter defineFilter(String tag, int vs, int fs) {
+        try {
+            if (!mFilters.containsKey(tag)) {
+                Class<SimpleFilter> classFilter = SimpleFilter.class;
+                Constructor<SimpleFilter> constructor = classFilter.getConstructor(int.class, int.class);
+                addFilter(tag, constructor.newInstance(vs, fs));
+            }
+            IFilter filter = mFilters.get(tag);
+            if (!filter.isOpen()) {
+                filter.open();
+            }
+            return filter;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        return null;
     }
+
+    public void setLastFilter(IFilter lastFilter) {
+        this.mLastRenderFilter = lastFilter;
+        if (lastFilter.getOutputTexture() != null) {
+            mLastOutputTexture = lastFilter.getOutputTexture();
+        }
+    }
+
 }

@@ -1,60 +1,78 @@
 package com.galix.avcore.render;
 
+import android.text.TextUtils;
 import android.util.Size;
+import android.view.View;
+import android.widget.TextView;
 
 import com.galix.avcore.avcore.AVFrame;
+import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.render.filters.GLTexture;
 import com.galix.avcore.render.filters.PagFilter;
+
+import org.libpag.PAGFile;
+import org.libpag.PAGView;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class PagRender implements IVideoRender {
 
-    private PagFilter mPagFilter;
     private GLTexture mLastTexture;
     private Map<String, Object> mConfig = new HashMap<>();
     private Size mSurfaceSize = new Size(1920, 1080);
+    private PAGView mPagView;
+
+    public PagRender(PAGView pagView) {
+        mPagView = pagView;
+    }
 
     @Override
     public GLTexture getOutTexture() {
-        return mPagFilter.getOutputTexture();
+        return null;
     }
 
     @Override
     public boolean isOpen() {
-        return mPagFilter != null;
+        return mPagView != null && mPagView.getPath() != null;
     }
 
     @Override
     public void open() {
-        if (mPagFilter != null) return;
-        mPagFilter = new PagFilter();
-        mPagFilter.open();
     }
 
     @Override
     public void close() {
-        if (mPagFilter != null) {
-            mPagFilter.close();
-        }
     }
 
     @Override
     public void write(Map<String, Object> config) {
-//        mConfig.clear();
-//        mConfig.putAll(config);
     }
 
     @Override
     public void render(AVFrame avFrame) {
-        mConfig.clear();
-        mConfig.put("use_fbo", false);
-//        mConfig.put("fbo_size", lastTexture.size());
-//        mConfig.put("inputImageTexture", lastTexture);
-        mConfig.put("pagTexture", avFrame.getTexture());
-        mConfig.put("pagMat", avFrame.getTexture().getMatrix());
-        mPagFilter.write(mConfig);
-        mPagFilter.render();
+        if (mPagView != null) {
+            if (!avFrame.isValid()) {
+                mPagView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        mPagView.setVisibility(View.GONE);
+                    }
+                });
+                return;
+            }
+            mPagView.post(new Runnable() {
+                @Override
+                public void run() {
+                    mPagView.setVisibility(View.VISIBLE);
+                }
+            });
+            AVPag avPag = (AVPag) avFrame.getExt();
+            if (TextUtils.isEmpty(mPagView.getPath())) {
+                mPagView.setPath(avPag.getPath());
+            }
+            mPagView.setProgress((avFrame.getPts() - avPag.getEngineStartTime()) * 1.0f / avPag.getDuration());//不优雅。
+            mPagView.flush();
+        }
     }
 }

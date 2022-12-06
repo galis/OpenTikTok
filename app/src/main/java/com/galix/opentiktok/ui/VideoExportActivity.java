@@ -64,7 +64,7 @@ public class VideoExportActivity extends BaseActivity {
         mAVEngine.getVideoState().compositeGop = 10;
         mAVEngine.getVideoState().compositeFrameRate = 30;
         mAVEngine.getVideoState().compositeAb = 44100;
-        mAVEngine.getVideoState().compositeVb = (int) (2.5 * 1024 * 1024);
+        mAVEngine.getVideoState().compositeVb = (int) (5 * 1024 * 1024);
         mAVEngine.getVideoState().compositePath = FileUtils.getCompositeDir(this) + File.separator + "composite" + System.currentTimeMillis() + ".mp4";
         mAVEngine.getVideoState().hasAudio = true;
         mAVEngine.getVideoState().hasVideo = true;
@@ -74,7 +74,7 @@ public class VideoExportActivity extends BaseActivity {
                 video.getVideoSize(), mAVEngine.getVideoState().compositeHeight);
         mAVEngine.getVideoState().compositeMat = calMat(video.getVideoSize(), mAVEngine.getVideoState().compositeSize);
         mAVEngine.getVideoState().unlock();
-        mAVEngine.compositeMp4(null, new AVEngine.EngineCallback() {
+        mAVEngine.compositeMp4(new AVEngine.EngineCallback() {
             @Override
             public void onCallback(Object... args1) {
                 if (mProgress != (int) args1[0]) {

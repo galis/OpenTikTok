@@ -1,6 +1,8 @@
 package com.galix.avcore.util;
 
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.PointF;
 import android.util.Size;
 
 import org.opencv.android.OpenCVLoader;
@@ -57,7 +59,7 @@ public class MathUtils {
     static Mat mMatA = new Mat();
     static Mat mMatB = new Mat();
 
-    public static Mat getTransform(Point[] srcPoints, Size srcSize, Point[] dstPoints, Size dstSize) {
+    public static Mat calTransform(Point[] srcPoints, Size srcSize, Point[] dstPoints, Size dstSize) {
 
         /**
          * 转换为目标图。
@@ -106,12 +108,12 @@ public class MathUtils {
 
         calSize = new Size(src.width(), src.height());
 
-        calMatrixSrc[0].x = 0;
-        calMatrixSrc[0].y = 0;
-        calMatrixSrc[1].x = src.width();
-        calMatrixSrc[1].y = 0;
-        calMatrixSrc[2].x = 0;
-        calMatrixSrc[2].y = src.height();
+        calMatrixSrc[0].x = src.left;
+        calMatrixSrc[0].y = src.top;
+        calMatrixSrc[1].x = src.right;
+        calMatrixSrc[1].y = src.top;
+        calMatrixSrc[2].x = src.left;
+        calMatrixSrc[2].y = src.bottom;
 
         calMatrixDst[0].x = dst.left;
         calMatrixDst[0].y = dst.top;
@@ -119,15 +121,67 @@ public class MathUtils {
         calMatrixDst[1].y = dst.top;
         calMatrixDst[2].x = dst.left;
         calMatrixDst[2].y = dst.bottom;
-        return getTransform(calMatrixSrc, calSize, calMatrixDst, calSize);
+        return calTransform(calMatrixSrc, calSize, calMatrixDst, calSize);
     }
 
     private static FloatBuffer cacheMatBuffer = FloatBuffer.allocate(9);
 
-    public static FloatBuffer mat2FloatBuffer(Mat mat) {
+    public static FloatBuffer mat2FloatBuffer9(Mat mat) {
         cacheMatBuffer.position(0);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
+                cacheMatBuffer.put((float) (mat.get(i, j)[0] * 1.0f));
+            }
+        }
+        cacheMatBuffer.position(0);
+        return cacheMatBuffer;
+    }
+
+    public static void mat2FloatBuffer9(Mat mat, FloatBuffer result) {
+        result.position(0);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                result.put((float) (mat.get(i, j)[0] * 1.0f));
+            }
+        }
+        result.position(0);
+    }
+
+    private static float[] src = new float[2];
+    private static float[] dst = new float[2];
+
+    public static PointF pointApplyMatrix(PointF point, Matrix matrix) {
+        src[0] = point.x;
+        src[1] = point.y;
+        matrix.mapPoints(dst, src);
+        return new PointF(dst[0], dst[1]);
+    }
+
+    public static void pointApplyMatrix(PointF srcPoint, PointF resultPoint, Matrix matrix) {
+        src[0] = srcPoint.x;
+        src[1] = srcPoint.y;
+        matrix.mapPoints(dst, src);
+        resultPoint.set(dst[0], dst[1]);
+    }
+
+    private static Matrix gMatrix = new Matrix();
+
+    public static PointF pointApplyMatrix(PointF point, FloatBuffer matrixBuffer) {
+        gMatrix.setValues(matrixBuffer.array());
+        return pointApplyMatrix(point, gMatrix);
+    }
+
+    public static FloatBuffer matrixFloatBuffer9(Matrix matrix) {
+        cacheMatBuffer.position(0);
+        matrix.getValues(cacheMatBuffer.array());
+        cacheMatBuffer.position(0);
+        return cacheMatBuffer;
+    }
+
+    public static FloatBuffer mat2FloatBuffer16(Mat mat) {
+        cacheMatBuffer.position(0);
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
                 cacheMatBuffer.put((float) (mat.get(i, j)[0] * 1.0f));
             }
         }
@@ -142,8 +196,35 @@ public class MathUtils {
         return floatBuffer;
     }
 
+    public static FloatBuffer Int2Vec4(int bgColor) {
+        FloatBuffer floatBuffer = FloatBuffer.allocate(4);
+        floatBuffer.put(Color.red(bgColor) / 255.f)
+                .put(Color.green(bgColor) / 255.f)
+                .put(Color.blue(bgColor) / 255.f)
+                .put(Color.alpha(bgColor) / 255.f);
+        floatBuffer.position(0);
+        return floatBuffer;
+    }
+
+    public static void Int2Vec4(int bgColor, FloatBuffer floatBuffer) {
+        if (floatBuffer.capacity() < 4) {
+            floatBuffer = FloatBuffer.allocate(4);
+        }
+        floatBuffer.position(0);
+        floatBuffer.put(Color.red(bgColor) / 255.f)
+                .put(Color.green(bgColor) / 255.f)
+                .put(Color.blue(bgColor) / 255.f)
+                .put(Color.alpha(bgColor) / 255.f);
+        floatBuffer.position(0);
+    }
+
+
     public static int clamp(int min, int max, int value) {
         return Math.min(max, Math.max(value, min));
+    }
+
+    public static boolean IsClamp(int minV, int maxV, int value) {
+        return value >= minV && value <= maxV;
     }
 
     public static Size calCompositeSize(String type, Size videoSize, int targetHeight) {

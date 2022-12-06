@@ -1,10 +1,12 @@
 package com.galix.avcore.render.filters;
 
 import android.graphics.Bitmap;
+import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.util.Size;
 
-import com.galix.avcore.avcore.AVComponent;
+import com.galix.avcore.gl.ResourceManager;
+import com.galix.avcore.util.FileUtils;
 import com.galix.avcore.util.GLUtil;
 
 import org.opencv.core.Mat;
@@ -14,14 +16,18 @@ import java.nio.IntBuffer;
 import static org.opencv.core.CvType.CV_32F;
 
 public class GLTexture {
+
+    static {
+        System.loadLibrary("opencv_java3");
+    }
+
+    public static final GLTexture GL_EMPTY_TEXTURE = new GLTexture();
     private static final Mat mIdentityMat = Mat.eye(3, 3, CV_32F);
     private IntBuffer textureIdBuf = IntBuffer.allocate(1);
     private boolean oes = false;
     private boolean mute;//mute 无论如何都是0
     private Size mSize = new Size(0, 0);
-    private String path;
-    private Bitmap bitmap;
-    private Object dirty;
+    private Object mData;
     private Mat matrix = mIdentityMat;
 
     public GLTexture() {
@@ -29,6 +35,7 @@ public class GLTexture {
         textureIdBuf.put(0);
         textureIdBuf.position(0);
         oes = false;
+        mData = null;
     }
 
     public GLTexture(int textureId, boolean oes) {
@@ -36,6 +43,21 @@ public class GLTexture {
         textureIdBuf.put(textureId);
         textureIdBuf.position(0);
         this.oes = oes;
+        mData = null;
+    }
+
+    public GLTexture generateMipmap() {
+        GLUtil.checkGlError("glGenerateMipmap pre");
+//        GLES30.glActiveTexture(GLES30.GL_TEXTURE0);
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, id());
+        GLES30.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES30.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES30.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR);
+        GLES30.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR);
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAX_LEVEL, 4);
+        GLES30.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+        GLUtil.checkGlError("glGenerateMipmap");
+        return this;
     }
 
     public int id() {
@@ -93,6 +115,22 @@ public class GLTexture {
 
     public Bitmap asBitmap() {
         return GLUtil.dumpTexture(this);
+    }
+
+    public void save() {
+        FileUtils.Save(ResourceManager.getManager().getCacheDir() + "/" + "dump.png", asBitmap());
+    }
+
+    public void save(String path) {
+        FileUtils.Save(path, asBitmap());
+    }
+
+    public Object data() {
+        return mData;
+    }
+
+    public void setData(Object obj) {
+        mData = obj;
     }
 
 }

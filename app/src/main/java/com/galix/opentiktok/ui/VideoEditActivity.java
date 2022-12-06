@@ -4,8 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.util.Size;
@@ -17,7 +15,6 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,17 +28,22 @@ import com.bumptech.glide.Glide;
 import com.galix.avcore.avcore.AVAudio;
 import com.galix.avcore.avcore.AVComponent;
 import com.galix.avcore.avcore.AVEngine;
+import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.avcore.AVSticker;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.avcore.AVWord;
-import com.galix.avcore.gl.GLManager;
+import com.galix.avcore.gl.ResourceManager;
+import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.ImageViewRender;
+import com.galix.avcore.render.PagRender;
 import com.galix.avcore.render.TextRender;
 import com.galix.avcore.util.GestureUtils;
 import com.galix.avcore.util.LogUtil;
 import com.galix.avcore.util.MathUtils;
 import com.galix.avcore.util.VideoUtil;
 import com.galix.opentiktok.R;
+
+import org.libpag.PAGView;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -150,7 +152,7 @@ public class VideoEditActivity extends BaseActivity {
                 imageViewHolder.itemView.setOnClickListener(v -> {
                     int index = TAB_INFO_LIST[2 * position + 1];
                     if (index == R.string.tab_sticker) {
-                        mStickerRecyclerView.setVisibility(View.VISIBLE);
+                        mStickerRecyclerView.setVisibility((mStickerRecyclerView.getVisibility() == View.VISIBLE) ? View.GONE : View.VISIBLE);
                     } else if (index == R.string.tab_text) {
                         EditText child = ViewUtils.createEditText(VideoEditActivity.this);
                         AVWord word = new AVWord(mAVEngine.getMainClock(), child, new TextRender(child));
@@ -159,22 +161,6 @@ public class VideoEditActivity extends BaseActivity {
                             public void run() {
                                 mVideoPreViewPanel.updateEffect();
                                 bindView(child, word);
-//                                child.addTextChangedListener(new TextWatcher() {
-//                                    @Override
-//                                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-//
-//                                    }
-//
-//                                    @Override
-//                                    public void onTextChanged(CharSequence s, int start, int before, int count) {
-//
-//                                    }
-//
-//                                    @Override
-//                                    public void afterTextChanged(Editable s) {
-//                                        updateMatrix(child);
-//                                    }
-//                                });
                             }
                         }));
                     } else if (index == R.string.tab_ratio) {
@@ -213,6 +199,24 @@ public class VideoEditActivity extends BaseActivity {
                             }
                         });
                         view.setVisibility(View.VISIBLE);
+                    } else if (index == R.string.tab_effect) {
+                        PAGView pagView = ViewUtils.createPagView(VideoEditActivity.this);
+//                        pagView.setPath("assets://pag/screen_effect.pag");
+                        AVPag avPag = new AVPag("pag/screen_effect.pag", new PagRender(pagView));
+                        mAVEngine.addComponent(avPag, new AVEngine.EngineCallback() {
+                            @Override
+                            public void onCallback(Object... args1) {
+                                mVideoPreViewPanel.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        mVideoPreViewPanel.updateEffect();
+                                        pagView.getLayoutParams().width = avPag.getSize().getWidth();
+                                        pagView.getLayoutParams().height = avPag.getSize().getHeight();
+                                        bindView(pagView, avPag);
+                                    }
+                                });
+                            }
+                        });
                     } else {
                         mStickerRecyclerView.setVisibility(View.GONE);
                         Toast.makeText(VideoEditActivity.this, "待实现", Toast.LENGTH_SHORT).show();
@@ -283,7 +287,6 @@ public class VideoEditActivity extends BaseActivity {
         mAVEngine = AVEngine.getVideoEngine();
         mAVEngine.configure(mSurfaceView);
         mAVEngine.create();
-        GLManager.getManager().installContext(this);
         LogUtil.setLogLevel(LogUtil.LogLevel.FULL);
 
         mVideoPreViewPanel = findViewById(R.id.rl_video_preview_panel);
@@ -386,7 +389,6 @@ public class VideoEditActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        GLManager.getManager().unInstallContext();
         mAVEngine.release();
         Log.d(TAG, "onDestroy");
     }

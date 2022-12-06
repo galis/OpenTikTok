@@ -190,6 +190,7 @@ public class Mp4Composite {
                 "textureMat", mVideoState.compositeMat,
                 "inputImageTexture", lastTexture,
                 "isOes", lastTexture.isOes(),
+                "isHalfAlpha", false,
                 "bgColor", MathUtils.Int2Vec3(mVideoState.bgColor),
                 "isFlipVertical", isFlipVertical
         );
@@ -216,6 +217,7 @@ public class Mp4Composite {
                     "textureMat", component.getMatrix(),
                     "inputImageTexture", component.peekFrame().getTexture(),
                     "isOes", component.peekFrame().getTexture().isOes(),
+                    "isHalfAlpha", false,
                     "bgColor", 0,
                     "isFlipVertical", true
             );
@@ -250,6 +252,40 @@ public class Mp4Composite {
                     "textureMat", component.getMatrix(),
                     "inputImageTexture", component.peekFrame().getTexture(),
                     "isOes", component.peekFrame().getTexture().isOes(),
+                    "isHalfAlpha", false,
+                    "bgColor", 0,
+                    "isFlipVertical", true
+            );
+            textureFilter.setPreTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glEnable(GLES30.GL_BLEND);
+                    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA);
+                }
+            });
+            textureFilter.setPostTask(new Runnable() {
+                @Override
+                public void run() {
+                    GLES30.glDisable(GLES30.GL_BLEND);
+                }
+            });
+            textureFilter.render();
+        }
+    }
+
+    private void renderPag(TextureFilter textureFilter) {
+        List<AVComponent> components = mEngine.findComponents(AVComponent.AVComponentType.PAG, mVideoEncodeStream.currentPts);
+        if (components.isEmpty()) {
+            return;
+        }
+        for (AVComponent component : components) {
+            component.seekFrame(mVideoEncodeStream.currentPts);
+            textureFilter.write(
+                    "use_fbo", false,
+                    "textureMat", component.getMatrix(),
+                    "inputImageTexture", component.peekFrame().getTexture(),
+                    "isOes", component.peekFrame().getTexture().isOes(),
+                    "isHalfAlpha", true,
                     "bgColor", 0,
                     "isFlipVertical", true
             );
@@ -442,6 +478,8 @@ public class Mp4Composite {
             renderSticker(textureFilter);
             //渲染文字
             renderWord(textureFilter);
+            //渲染pag
+            renderPag(textureFilter);
             mEngine.getEglHelper().setPresentationTime(mVideoEncodeStream.currentPts * 1000);
             mEngine.getEglHelper().swap();
             int progress = (int) (mVideoEncodeStream.currentPts * 1.0f / mVideoState.durationUS * 100);

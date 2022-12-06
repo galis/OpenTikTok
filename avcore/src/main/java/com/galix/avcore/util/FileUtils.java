@@ -3,11 +3,15 @@ package com.galix.avcore.util;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -141,5 +145,19 @@ public class FileUtils {
             }
         }
         return filenames;
+    }
+
+    public static void Save(String path, Bitmap bitmap) {
+        if (bitmap == null) return;
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(path);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
+            fileOutputStream.flush();
+            fileOutputStream.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

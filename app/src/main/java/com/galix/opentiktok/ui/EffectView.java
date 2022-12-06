@@ -20,6 +20,7 @@ public class EffectView extends LinearLayout {
     public void update(int initX, int scrollX, int thumbSize) {
         List<AVComponent> components = AVEngine.getVideoEngine().getVideoState().findComponents(AVComponent.AVComponentType.STICKER, -1);
         components.addAll(AVEngine.getVideoEngine().getVideoState().findComponents(AVComponent.AVComponentType.WORD, -1));
+        components.addAll(AVEngine.getVideoEngine().getVideoState().findComponents(AVComponent.AVComponentType.PAG, -1));
         if (components.size() != getChildCount()) {
             removeAllViews();
             for (AVComponent avComponent : components) {
@@ -42,6 +43,8 @@ public class EffectView extends LinearLayout {
             child.setBackgroundColor(Color.YELLOW);
         } else if (comm.getType() == AVComponent.AVComponentType.WORD) {
             child.setBackgroundColor(Color.WHITE);
+        } else if (comm.getType() == AVComponent.AVComponentType.PAG) {
+            child.setBackgroundColor(Color.BLUE);
         } else {
             child.setBackgroundColor(Color.RED);
         }

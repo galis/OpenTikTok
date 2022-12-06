@@ -19,6 +19,7 @@ public class TextureFilter extends BaseFilter {
         bindMat3("textureMat");
         bindVec4("bgColor");
         bindBool("isFlipVertical");
+        bindBool("isHalfAlpha");
     }
 
 }

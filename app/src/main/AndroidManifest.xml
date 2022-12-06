@@ -26,12 +26,6 @@
         android:theme="@style/Theme.OpenTikTok">
 
         <activity
-            android:name=".dp.GameActivity"
-            android:label="@string/title_activity_game"
-            android:launchMode="singleTop">
-
-        </activity>
-        <activity
             android:name=".ui.VideoPickActivity"
             android:theme="@style/Theme.OpenTikTok" />
 
@@ -46,8 +40,7 @@
             android:name=".ui.VideoEditActivity"
             android:launchMode="singleTop" />
 
-        <activity
-            android:name=".ui.VideoExportActivity" />
+        <activity android:name=".ui.VideoExportActivity" />
     </application>
 
 </manifest>
