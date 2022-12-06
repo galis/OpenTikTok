@@ -7,6 +7,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
+import org.libpag.PAGScaleMode;
 import org.libpag.PAGView;
 
 import static android.widget.RelativeLayout.CENTER_IN_PARENT;
@@ -24,9 +25,11 @@ public class ViewUtils {
 
     public static PAGView createPagView(Context context) {
         PAGView pagView = new PAGView(context);
+        pagView.setScaleMode(PAGScaleMode.Stretch);
         pagView.setBackgroundColor(Color.RED);
         RelativeLayout.LayoutParams layoutParams =
-                new RelativeLayout.LayoutParams(1280, 720);
+                new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
         layoutParams.addRule(CENTER_IN_PARENT);
         pagView.setLayoutParams(layoutParams);
         return pagView;

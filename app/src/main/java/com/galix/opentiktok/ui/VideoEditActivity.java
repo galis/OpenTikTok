@@ -32,8 +32,6 @@ import com.galix.avcore.avcore.AVPag;
 import com.galix.avcore.avcore.AVSticker;
 import com.galix.avcore.avcore.AVVideo;
 import com.galix.avcore.avcore.AVWord;
-import com.galix.avcore.gl.ResourceManager;
-import com.galix.avcore.render.IRender;
 import com.galix.avcore.render.ImageViewRender;
 import com.galix.avcore.render.PagRender;
 import com.galix.avcore.render.TextRender;
@@ -202,7 +200,7 @@ public class VideoEditActivity extends BaseActivity {
                     } else if (index == R.string.tab_effect) {
                         PAGView pagView = ViewUtils.createPagView(VideoEditActivity.this);
 //                        pagView.setPath("assets://pag/screen_effect.pag");
-                        AVPag avPag = new AVPag("pag/screen_effect.pag", new PagRender(pagView));
+                        AVPag avPag = new AVPag("pag/time_test.pag", new PagRender(pagView));
                         mAVEngine.addComponent(avPag, new AVEngine.EngineCallback() {
                             @Override
                             public void onCallback(Object... args1) {
@@ -210,8 +208,9 @@ public class VideoEditActivity extends BaseActivity {
                                     @Override
                                     public void run() {
                                         mVideoPreViewPanel.updateEffect();
-                                        pagView.getLayoutParams().width = avPag.getSize().getWidth();
-                                        pagView.getLayoutParams().height = avPag.getSize().getHeight();
+                                        pagView.getLayoutParams().height = Math.min(mSurfaceView.getMeasuredHeight(), avPag.getSize().getHeight());
+                                        pagView.getLayoutParams().width = (int) (pagView.getLayoutParams().height * avPag.getSize().getWidth() / avPag.getSize().getHeight() * 1.0f);
+                                        pagView.requestLayout();
                                         bindView(pagView, avPag);
                                     }
                                 });
@@ -354,10 +353,8 @@ public class VideoEditActivity extends BaseActivity {
         });
     }
 
-    private static final int[] locations = new int[2];
 
     private void updateMatrix(View view) {
-        view.getLocationInWindow(locations);
         AVComponent avComponent = (AVComponent) view.getTag();
         avComponent.lock();
         avComponent.setMatrix(
