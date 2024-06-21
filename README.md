@@ -46,5 +46,5 @@ raw目录下有testfile.mp4测试文件，可以push到/data/data/com.galix.open
 
 ## 对你们有用的朋友可以打赏一下，你懂得。
 
-![image](https://github.com/galis/OpenTikTok/blob/master/shoukuan.jpg)
+![image](https://github.com/galis/OpenTikTok/blob/master/shoukuan.png)
 
