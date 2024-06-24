@@ -355,7 +355,14 @@ public class VideoEditActivity extends BaseActivity {
 
                 @Override
                 public void afterTextChanged(Editable s) {
-                    updateMatrix(view);
+                    view.requestLayout();
+                    view.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            updateMatrix(view);
+                            view.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        }
+                    });
                 }
             });
         }
