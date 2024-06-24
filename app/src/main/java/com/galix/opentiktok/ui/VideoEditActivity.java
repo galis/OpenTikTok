@@ -1,9 +1,12 @@
 package com.galix.opentiktok.ui;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.util.Size;
@@ -251,7 +254,7 @@ public class VideoEditActivity extends BaseActivity {
             }
 
             @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, @SuppressLint("RecyclerView") int position) {
                 Glide.with(VideoEditActivity.this)
                         .load(mStickerList.get(position))
                         .asGif()
@@ -338,6 +341,24 @@ public class VideoEditActivity extends BaseActivity {
                 view.getViewTreeObserver().removeOnGlobalLayoutListener(this);
             }
         });
+        if(view instanceof EditText){
+            ((EditText)view).addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+                }
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    updateMatrix(view);
+                }
+            });
+        }
         //抬起手时候就设置matrix
         GestureUtils.setupView(view, new View.OnClickListener() {
             @Override

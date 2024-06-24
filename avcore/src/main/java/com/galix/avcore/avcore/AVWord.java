@@ -48,18 +48,21 @@ public class AVWord extends AVComponent {
         return RESULT_OK;
     }
 
+    private Bitmap getBitmapFromView(EditText editText) {
+        editText.setDrawingCacheEnabled(true);
+        editText.buildDrawingCache();
+        Bitmap bitmap = Bitmap.createBitmap(editText.getDrawingCache());
+        editText.setDrawingCacheEnabled(false);
+        return bitmap;
+    }
+
     @Override
     public int readFrame() {
         if (needFreshBitmap()) {
             if (bitmap != null) {
                 bitmap.recycle();
             }
-            bitmap = Bitmap.createBitmap(editText.getWidth(), editText.getHeight(), Bitmap.Config.ARGB_8888);
-            canvas.setBitmap(bitmap);
-            paint.setTypeface(editText.getTypeface());
-            paint.setTextSize(editText.getTextSize());
-            paint.setColor(editText.getCurrentTextColor());
-            canvas.drawText(editText.getText().toString(), 0, bitmap.getHeight() - editText.getTextSize(), paint);
+            bitmap = getBitmapFromView(editText);
             if (peekFrame().getTexture().id() != 0) {
                 peekFrame().getTexture().release();
             }
